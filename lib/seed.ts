@@ -30,7 +30,7 @@ import type {
 const BASE_DATE = new Date("2026-09-17T09:00:00+07:00");
 
 // 스키마가 바뀌면 올린다. 저장된 데모 데이터가 이 값과 다르면 새 시드로 갈아끼운다.
-export const SEED_VERSION = 2;
+export const SEED_VERSION = 4;
 
 function rng(seed: number) {
   let a = seed >>> 0;
@@ -460,7 +460,7 @@ export function buildSeed(): DemoDb {
       code: "HB-7K2M",
       rating: 5,
       text: "레이저 토닝 3회 받았는데 톤이 확실히 밝아졌어요. 상담도 친절했습니다.",
-      images: [],
+      images: ["/reviews/RV1-1.jpg", "/reviews/RV1-2.jpg"],
       approved: true,
       blocked: false,
       createdAt: shiftDays(-12),
@@ -472,7 +472,7 @@ export function buildSeed(): DemoDb {
       code: "",
       rating: 4,
       text: "보톡스 맞고 라인이 정리된 느낌이에요. 대기 시간이 조금 길었어요.",
-      images: [],
+      images: ["/reviews/RV2-1.jpg", "/reviews/RV2-2.jpg"],
       approved: false,
       blocked: false,
       createdAt: shiftDays(-4),
@@ -550,7 +550,7 @@ export function buildSeed(): DemoDb {
   ];
 
   const popups: Popup[] = [
-    { id: "PP1", title: "9월 화이트닝 페스티벌", body: "전국 제휴 클리닉 화이트닝 시술 최대 20% 할인", image: null, active: true },
+    { id: "PP1", title: "9월 화이트닝 페스티벌", body: "전국 제휴 클리닉 화이트닝 시술 최대 20% 할인", image: "/popups/PP2.jpg", active: true },
   ];
 
   return {

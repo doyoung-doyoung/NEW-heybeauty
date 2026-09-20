@@ -844,6 +844,11 @@ function ClinicRegister({
 
 const NOTICE_TARGETS: NoticeTarget[] = ["전체", "유저", "클리닉"];
 
+const POPUP_PRESETS = [
+  { src: "/popups/PP2.jpg", label: "시술" },
+  { src: "/popups/PP1.jpg", label: "화장품" },
+];
+
 function NoticeSection() {
   const { db, update } = useDb();
   const toast = useToast();
@@ -930,12 +935,43 @@ function NoticeSection() {
           </div>
 
           {asPopup ? (
-            <div className="rounded-cell bg-white/70 p-3 hairline">
+            <div className="space-y-3 rounded-cell bg-white/70 p-3 hairline">
+              <div>
+                <div className="mb-2 text-xs font-semibold text-ink-sub">
+                  기본 이미지에서 고르기
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {POPUP_PRESETS.map((preset) => (
+                    <button
+                      key={preset.src}
+                      type="button"
+                      onClick={() =>
+                        setImages(images[0] === preset.src ? [] : [preset.src])
+                      }
+                      className={`overflow-hidden rounded-cell text-left transition hairline ${
+                        images[0] === preset.src
+                          ? "ring-2 ring-ink"
+                          : "bg-white/60 hover:bg-white"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={preset.src}
+                        alt={preset.label}
+                        className="h-16 w-full object-cover"
+                      />
+                      <span className="block px-2 py-1 text-[11px] font-semibold">
+                        {preset.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
               <PhotoPicker
                 images={images}
                 onChange={setImages}
                 max={1}
-                label="팝업 이미지 (1장)"
+                label="직접 올리기 (1장)"
                 hint="넣지 않으면 텍스트만 있는 팝업이 됩니다"
               />
             </div>
