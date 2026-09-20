@@ -185,40 +185,9 @@ export function SlipImage({
   compact?: boolean;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-cell bg-white hairline">
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="rotate-[-22deg] text-4xl font-black tracking-widest text-ink/8">
-          DEMO
-        </span>
-      </div>
-      <div className="relative p-3">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-bold text-hb-600">{slip.bank}</span>
-          <span className="text-[10px] text-ink-sub">Transfer Success</span>
-        </div>
-        <div className="mt-2 text-lg font-bold">฿ {slip.amount}</div>
-        {!compact && (
-          <dl className="mt-2 space-y-1 text-[11px] text-ink-sub">
-            <div className="flex justify-between gap-2">
-              <dt>From</dt>
-              <dd className="text-ink">{slip.from}</dd>
-            </div>
-            <div className="flex justify-between gap-2">
-              <dt>To</dt>
-              <dd className="truncate text-ink">{slip.to}</dd>
-            </div>
-            <div className="flex justify-between gap-2">
-              <dt>Ref</dt>
-              <dd className="text-ink">{slip.ref}</dd>
-            </div>
-            <div className="flex justify-between gap-2">
-              <dt>Date</dt>
-              <dd className="text-ink">{slip.at}</dd>
-            </div>
-          </dl>
-        )}
-      </div>
-    </div>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={`/slips/${slip.id}.jpg`} alt={`${slip.bank} → ${slip.to}, ฿${slip.amount} 송금 견본`}
+      className={`w-full rounded-cell bg-white object-contain hairline ${compact ? "max-h-40" : "max-h-96"}`} />
   );
 }
 
@@ -230,50 +199,37 @@ export interface IdCardData {
   birth: string;
   address: string;
   issued: string;
+  expiry: string;
 }
 
 export const DEMO_ID_CARDS: IdCardData[] = [
   {
-    id: "IDC1",
-    name: "NARISA PRASIT",
-    nameTh: "นาริสา ประสิทธิ์",
-    idNo: "0-0000-00000-00-0",
-    birth: "1994-03-12",
-    address: "Sukhumvit Demo Rd. 00, Bangkok",
-    issued: "2022-01-05",
+    "id": "IDC1",
+    "name": "Miss Narisa Prasit",
+    "nameTh": "นางสาว นาริสา ประสิทธิ์",
+    "idNo": "0-1234-56789-01-7",
+    "birth": "1994-03-12",
+    "address": "128/45 ถนนสาธิต แขวงตัวอย่าง เขตทดสอบ กรุงเทพมหานคร 10240",
+    "issued": "2024-02-15",
+    "expiry": "2032-03-11"
   },
   {
-    id: "IDC2",
-    name: "SOMCHAI BOONMA",
-    nameTh: "สมชาย บุญมา",
-    idNo: "0-0000-00000-11-0",
-    birth: "1988-11-02",
-    address: "Silom Demo Soi 00, Bangkok",
-    issued: "2021-07-19",
-  },
+    "id": "IDC2",
+    "name": "Mr. Somchai Boonma",
+    "nameTh": "นาย สมชาย บุญมา",
+    "idNo": "0-9876-54321-09-3",
+    "birth": "1988-11-02",
+    "address": "76/9 ถนนจำลอง ตำบลตัวอย่าง อำเภอทดสอบ เชียงใหม่ 50200",
+    "issued": "2025-08-08",
+    "expiry": "2033-11-01"
+  }
 ];
 
 export function IdCardImage({ card }: { card: IdCardData }) {
   return (
-    <div className="relative overflow-hidden rounded-cell bg-gradient-to-br from-hb-50 to-white p-3 hairline">
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="rotate-[-18deg] text-3xl font-black tracking-widest text-ink/8">
-          DEMO
-        </span>
-      </div>
-      <div className="relative flex gap-3">
-        <div className="flex size-14 shrink-0 items-center justify-center rounded-cell bg-hb-200/60 text-[10px] text-ink-sub">
-          PHOTO
-        </div>
-        <div className="min-w-0 text-[11px]">
-          <div className="text-[9px] font-semibold text-ink-sub">DEMO ID CARD</div>
-          <div className="truncate font-bold">{card.name}</div>
-          <div className="truncate text-ink-sub">{card.nameTh}</div>
-          <div className="mt-1 text-ink-sub">ID {card.idNo}</div>
-          <div className="text-ink-sub">DOB {card.birth}</div>
-        </div>
-      </div>
-    </div>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={`/idcards/${card.id}.jpg`} alt={`${card.name} 가상 ID 카드 견본`}
+      className="w-full rounded-cell bg-white object-contain hairline" />
   );
 }
 
@@ -293,18 +249,8 @@ export const DEMO_BOX_LABELS: BoxLabelData[] = [
 
 export function BoxLabelImage({ label }: { label: BoxLabelData }) {
   return (
-    <div className="relative overflow-hidden rounded-cell bg-white p-3 hairline">
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="rotate-[-16deg] text-3xl font-black tracking-widest text-ink/8">
-          DEMO
-        </span>
-      </div>
-      <div className="relative font-mono text-[11px] leading-relaxed">
-        <div className="text-sm font-bold">{label.productName}</div>
-        <div className="text-ink-sub">VOL {label.volume}</div>
-        <div className="text-ink-sub">{label.lot}</div>
-        <div className="text-ink-sub">EXP {label.expiry}</div>
-      </div>
-    </div>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={`/boxlabels/${label.id}.jpg`} alt={`${label.productName} ${label.volume} 제품 박스 견본`}
+      className="max-h-64 w-full rounded-cell bg-white object-contain hairline" />
   );
 }

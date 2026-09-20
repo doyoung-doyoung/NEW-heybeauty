@@ -431,8 +431,8 @@ Lot번호: ${fields?.Lot번호 ?? ""}
     setStep("review");
   }
 
-  function pickPhoto(source: string, text: string) {
-    setDraft({ kind: "사진", source, text });
+  function pickPhoto(source: string, text: string, image: string) {
+    setDraft({ kind: "사진", source, text, shot: image });
     setShot(null);
     setStep("review");
   }
@@ -528,7 +528,7 @@ Lot번호: ${fields?.Lot번호 ?? ""}
 
         <div className="mt-6 space-y-5 border-t border-ink/10 pt-5">
           <p className="text-xs text-ink-sub">
-            데모 샘플 — 실제 사진은 나중에 교체할 수 있습니다
+            데모 이미지와 미리 준비된 인식 결과입니다
           </p>
 
           <div>
@@ -551,6 +551,7 @@ Lot번호: ${fields?.Lot번호 ?? ""}
 Lot번호: ${label.lot}
 유통기한: ${label.expiry}
 유통 형태: 정식`,
+                        `/boxlabels/${label.id}.jpg`,
                       )
                     }
                     className="lift text-left"
@@ -579,7 +580,10 @@ Lot번호: ${label.lot}
 태국어 이름: ${card.nameTh}
 신분증 번호: ${card.idNo}
 생년월일: ${card.birth}
-주소: ${card.address}`,
+주소: ${card.address}
+발행일: ${card.issued}
+만료일: ${card.expiry}`,
+                      `/idcards/${card.id}.jpg`,
                     )
                   }
                   className="lift text-left"
@@ -597,9 +601,11 @@ Lot번호: ${label.lot}
                 <button
                   key={cap.id}
                   type="button"
-                  onClick={() => pickPhoto(cap.label, cap.text)}
+                  onClick={() => pickPhoto(cap.label, cap.text, `/captures/${cap.id}.jpg`)}
                   className="lift rounded-cell bg-white/75 p-4 text-left text-sm font-medium hairline"
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`/captures/${cap.id}.jpg`} alt={cap.label} className="mb-3 max-h-64 w-full rounded-cell object-contain" />
                   {cap.label}
                 </button>
               ))}
