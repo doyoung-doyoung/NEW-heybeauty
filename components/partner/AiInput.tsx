@@ -48,14 +48,18 @@ interface SpeechEventLike {
   resultIndex: number;
   results: { length: number; [index: number]: SpeechResultLike };
 }
+interface SpeechErrorLike {
+  error?: string;
+}
 interface RecognitionLike {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
   start: () => void;
   stop: () => void;
+  abort?: () => void;
   onresult: ((e: SpeechEventLike) => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((e: SpeechErrorLike) => void) | null;
   onend: (() => void) | null;
 }
 type RecognitionCtor = new () => RecognitionLike;
@@ -67,6 +71,41 @@ function getRecognitionCtor(): RecognitionCtor | null {
     webkitSpeechRecognition?: RecognitionCtor;
   };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
+// 음성 인식이 실패하는 이유는 여러 가지인데, 예전에는 전부 "마이크 권한이 없어"로만
+// 보여줘서 무엇이 문제인지 알 수가 없었다. 원인별로 다른 안내를 준다.
+function speechErrorMessage(code: string | undefined): {
+  text: string;
+  needsPermission: boolean;
+} {
+  switch (code) {
+    case "not-allowed":
+    case "service-not-allowed":
+      return {
+        text: "마이크 사용이 차단돼 있습니다. 아래 버튼을 눌러 권한을 허용해주세요.",
+        needsPermission: true,
+      };
+    case "audio-capture":
+      return {
+        text: "마이크를 찾지 못했습니다. 기기에 마이크가 연결돼 있는지 확인해주세요.",
+        needsPermission: false,
+      };
+    case "network":
+      return {
+        text: "음성 인식 서버에 연결하지 못했습니다. 네트워크를 확인하고 다시 시도해주세요.",
+        needsPermission: false,
+      };
+    case "no-speech":
+      return { text: "소리가 들리지 않았습니다. 다시 말씀해주세요.", needsPermission: false };
+    case "aborted":
+      return { text: "인식을 멈췄습니다.", needsPermission: false };
+    default:
+      return {
+        text: `음성 인식에 실패했습니다${code ? ` (${code})` : ""}. 다시 시도하거나 아래에 직접 입력해주세요.`,
+        needsPermission: false,
+      };
+  }
 }
 
 const SCREEN_CAPTURES = [
@@ -119,10 +158,15 @@ export default function AiInput({
   const streamRef = useRef<MediaStream | null>(null);
 
   const [transcript, setTranscript] = useState("");
+  const [interim, setInterim] = useState("");
   const [listening, setListening] = useState(false);
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
+  const [needsMicPermission, setNeedsMicPermission] = useState(false);
   const recogRef = useRef<RecognitionLike | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 사용자가 "멈추기"를 누른 건지, 브라우저가 침묵 때문에 혼자 끊은 건지 구분한다.
+  // 후자면 자동으로 다시 켜야 말이 끊기지 않는다.
+  const wantListeningRef = useRef(false);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -130,11 +174,13 @@ export default function AiInput({
   }, []);
 
   const stopVoice = useCallback(() => {
+    wantListeningRef.current = false;
     recogRef.current?.stop();
     recogRef.current = null;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
     setListening(false);
+    setInterim("");
   }, []);
 
   useEffect(() => {
@@ -197,54 +243,125 @@ export default function AiInput({
     };
   }
 
-  function openVoice() {
-    setStep("voice");
-    setTranscript("");
-    setVoiceNote(null);
+  function runDemoVoice(reason: string) {
+    setVoiceNote(reason);
+    setListening(true);
+    timerRef.current = setTimeout(() => {
+      setListening(false);
+      setTranscript(demoVoiceText().text);
+    }, 2000);
+  }
 
+  // 실제 인식기를 띄운다. 이 함수 자체는 동기라서 버튼 클릭(사용자 제스처) 안에서
+  // 바로 start()가 불린다. Safari는 제스처가 끊기면 start()를 거부하기 때문에
+  // await를 앞에 두면 안 된다.
+  function startRecognition() {
     const Ctor = getRecognitionCtor();
     if (!Ctor) {
+      runDemoVoice("이 브라우저는 음성 인식을 지원하지 않습니다. 데모 문장으로 진행합니다.");
+      return;
+    }
+    // https(또는 localhost)가 아니면 브라우저가 마이크 자체를 막아서 권한창도 안 뜬다.
+    if (typeof window !== "undefined" && !window.isSecureContext) {
       setVoiceNote(
-        "이 브라우저는 음성 인식을 지원하지 않습니다. 데모 문장으로 진행합니다.",
+        "보안 연결(https)이 아니라 마이크를 쓸 수 없습니다. 배포 주소로 접속해주세요.",
       );
-      setListening(true);
-      timerRef.current = setTimeout(() => {
-        setListening(false);
-        const demo = demoVoiceText();
-        setTranscript(demo.text);
-      }, 3000);
+      setListening(false);
       return;
     }
 
+    recogRef.current?.stop();
     const recog = new Ctor();
     recog.lang = "ko-KR";
     recog.continuous = true;
     recog.interimResults = true;
     recog.onresult = (e) => {
-      let chunk = "";
+      let finalChunk = "";
+      let interimChunk = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
-        chunk += e.results[i][0].transcript;
+        const r = e.results[i];
+        if (r.isFinal) finalChunk += r[0].transcript;
+        else interimChunk += r[0].transcript;
       }
-      setTranscript((prev) => (e.results[e.resultIndex].isFinal ? prev + chunk + "\n" : prev));
-      if (!e.results[e.resultIndex].isFinal) setVoiceNote(chunk);
+      if (finalChunk) {
+        setTranscript((prev) => prev + finalChunk.trim() + "\n");
+        setVoiceNote(null);
+      }
+      setInterim(interimChunk);
     };
-    recog.onerror = () => {
-      setVoiceNote("마이크 권한이 없어 데모 문장으로 진행합니다.");
+    recog.onerror = (e) => {
+      const { text, needsPermission } = speechErrorMessage(e?.error);
+      // 침묵은 오류가 아니다. 안내만 띄우고 계속 듣는다.
+      if (e?.error === "no-speech") {
+        setVoiceNote(text);
+        return;
+      }
+      wantListeningRef.current = false;
+      setNeedsMicPermission(needsPermission);
+      setVoiceNote(text);
       setListening(false);
     };
-    recog.onend = () => setListening(false);
+    recog.onend = () => {
+      setInterim("");
+      // 크롬은 몇 초만 조용해도 혼자 끊는다. 사용자가 멈춘 게 아니면 다시 켠다.
+      if (wantListeningRef.current) {
+        try {
+          recog.start();
+          return;
+        } catch {
+          /* 이미 시작된 상태면 무시 */
+        }
+      }
+      setListening(false);
+    };
     recogRef.current = recog;
     try {
       recog.start();
+      wantListeningRef.current = true;
+      setNeedsMicPermission(false);
       setListening(true);
+      setVoiceNote(null);
     } catch {
-      setVoiceNote("음성 인식을 시작할 수 없습니다. 데모 문장으로 진행합니다.");
+      wantListeningRef.current = false;
+      setListening(false);
+      setVoiceNote("음성 인식을 시작할 수 없습니다. 다시 시도해주세요.");
     }
+  }
+
+  // "마이크 권한 허용하기" 버튼용. getUserMedia는 브라우저 권한창을 확실히 띄운다.
+  // SpeechRecognition.start()만으로는 권한창이 안 뜨는 기기가 있어서 이 길을 따로 뒀다.
+  async function requestMicPermission() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setVoiceNote("이 브라우저에서는 마이크를 쓸 수 없습니다.");
+      return;
+    }
+    setVoiceNote("마이크 권한을 요청하는 중입니다...");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // 권한만 받는 게 목적이라 마이크는 바로 놓아준다. 안 그러면 인식기가 못 잡는다.
+      stream.getTracks().forEach((t) => t.stop());
+      setNeedsMicPermission(false);
+      startRecognition();
+    } catch {
+      setNeedsMicPermission(true);
+      setVoiceNote(
+        "마이크 권한이 거부됐습니다. 주소창 왼쪽 자물쇠(또는 설정 → 사이트 권한)에서 마이크를 허용으로 바꾼 뒤 다시 눌러주세요.",
+      );
+    }
+  }
+
+  function openVoice() {
+    setStep("voice");
+    setTranscript("");
+    setInterim("");
+    setVoiceNote(null);
+    setNeedsMicPermission(false);
+    startRecognition();
   }
 
   function finishVoice() {
     stopVoice();
-    const spoken = transcript.trim();
+    const spoken = (transcript + interim).trim();
     if (spoken) {
       setDraft({ kind: "음성", source: "실시간 음성 인식", text: spoken });
     } else {
@@ -522,17 +639,31 @@ Lot번호: ${label.lot}
             {listening ? "듣고 있어요..." : "인식을 멈췄습니다"}
           </p>
           {voiceNote && (
-            <p className="mt-2 max-w-md text-center text-xs text-ink-sub">
+            <p
+              className={`mt-2 max-w-md text-center text-xs ${
+                needsMicPermission ? "text-danger" : "text-ink-sub"
+              }`}
+            >
               {voiceNote}
             </p>
+          )}
+          {needsMicPermission && (
+            <div className="mt-3">
+              <InkButton arrow={false} onClick={requestMicPermission}>
+                마이크 권한 허용하기
+              </InkButton>
+            </div>
           )}
         </div>
 
         <textarea
-          value={transcript}
-          onChange={(e) => setTranscript(e.target.value)}
+          value={transcript + interim}
+          onChange={(e) => {
+            setInterim("");
+            setTranscript(e.target.value);
+          }}
           rows={6}
-          placeholder="인식된 내용이 여기에 쌓입니다"
+          placeholder="인식된 내용이 여기에 쌓입니다. 직접 입력해도 됩니다."
           className="w-full resize-none rounded-cell bg-white px-4 py-3 text-sm leading-relaxed outline-none hairline placeholder:text-ink-sub"
         />
 
@@ -541,8 +672,11 @@ Lot번호: ${label.lot}
           {listening ? (
             <GhostButton onClick={stopVoice}>인식 멈추기</GhostButton>
           ) : (
-            <GhostButton onClick={openVoice}>다시 듣기</GhostButton>
+            <GhostButton onClick={startRecognition}>다시 듣기</GhostButton>
           )}
+          <GhostButton onClick={() => runDemoVoice("데모 문장을 불러옵니다.")}>
+            데모 문장 넣기
+          </GhostButton>
         </div>
       </GlassCard>
     );

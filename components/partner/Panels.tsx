@@ -1323,19 +1323,22 @@ export function PromoPanel({ clinicId }: { clinicId: string }) {
   const { db, update } = useDb();
   const toast = useToast();
   const [index, setIndex] = useState(0);
+  // 한 장씩 넘겨 보는 카드형과, 세 개를 한눈에 비교하는 목록형을 오갈 수 있게 한다.
+  const [mode, setMode] = useState<"card" | "list">("card");
   if (!db) return null;
 
   const idea = PROMO_IDEAS[index];
   const promotions = db.promotions.filter((p) => p.clinicId === clinicId);
+  const adoptedTitles = new Set(promotions.map((p) => p.title));
 
-  function adopt() {
+  function adopt(target: (typeof PROMO_IDEAS)[number]) {
     update((draft) => {
       draft.promotions.unshift({
         id: `PR-${Date.now()}`,
         clinicId,
-        title: idea.title,
-        description: idea.reason,
-        discountPct: idea.discount,
+        title: target.title,
+        description: target.reason,
+        discountPct: target.discount,
         period: "2026-09-17 ~ 2026-12-31",
       });
     });
@@ -1349,33 +1352,78 @@ export function PromoPanel({ clinicId }: { clinicId: string }) {
           title="AI 프로모션 제안"
           sub="구매 패턴과 시즌 데이터를 바탕으로 제안합니다"
         />
-        <div className="animate-pop rounded-card bg-white/75 p-5 hairline">
-          <Badge tone="pink">{idea.discount}% 할인 제안</Badge>
-          <div className="mt-2 text-lg font-bold">{idea.title}</div>
-          <p className="mt-2 text-sm text-ink-sub">{idea.reason}</p>
 
-          <div className="mt-4 flex h-32 items-center justify-center overflow-hidden rounded-cell bg-gradient-to-br from-hb-200 to-hb-600">
-            <div className="relative text-center text-white">
-              <div className="absolute inset-0 animate-shimmer bg-white/20" />
-              <div className="relative text-sm font-semibold">{idea.title}</div>
-              <div className="relative text-3xl font-black">
-                {idea.discount}% OFF
-              </div>
-              <div className="relative text-[10px] tracking-widest">
-                DEMO IMAGE
+        <div className="mb-4 flex flex-wrap gap-2">
+          <GhostButton active={mode === "card"} onClick={() => setMode("card")}>
+            카드로 보기
+          </GhostButton>
+          <GhostButton active={mode === "list"} onClick={() => setMode("list")}>
+            목록으로 보기 ({PROMO_IDEAS.length})
+          </GhostButton>
+        </div>
+
+        {mode === "card" ? (
+          <div className="animate-pop rounded-card bg-white/75 p-5 hairline">
+            <Badge tone="pink">{idea.discount}% 할인 제안</Badge>
+            <div className="mt-2 text-lg font-bold">{idea.title}</div>
+            <p className="mt-2 text-sm text-ink-sub">{idea.reason}</p>
+
+            <div className="mt-4 flex h-32 items-center justify-center overflow-hidden rounded-cell bg-gradient-to-br from-hb-200 to-hb-600">
+              <div className="relative text-center text-white">
+                <div className="absolute inset-0 animate-shimmer bg-white/20" />
+                <div className="relative text-sm font-semibold">{idea.title}</div>
+                <div className="relative text-3xl font-black">
+                  {idea.discount}% OFF
+                </div>
+                <div className="relative text-[10px] tracking-widest">
+                  DEMO IMAGE
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="mt-4 flex gap-2">
-            <InkButton onClick={adopt}>이 제안 등록</InkButton>
-            <GhostButton
-              onClick={() => setIndex((index + 1) % PROMO_IDEAS.length)}
-            >
-              다른 제안 보기
-            </GhostButton>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <InkButton onClick={() => adopt(idea)}>이 제안 등록</InkButton>
+              <GhostButton
+                onClick={() => setIndex((index + 1) % PROMO_IDEAS.length)}
+              >
+                다른 제안 보기 ({index + 1}/{PROMO_IDEAS.length})
+              </GhostButton>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="animate-pop space-y-2">
+            {PROMO_IDEAS.map((it, i) => {
+              const already = adoptedTitles.has(it.title);
+              return (
+                <div
+                  key={it.title}
+                  className="rounded-cell bg-white/75 p-4 hairline"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <span className="min-w-0 font-semibold">{it.title}</span>
+                    <Badge tone={already ? "neutral" : "pink"}>
+                      {already ? "등록됨" : `${it.discount}% 할인`}
+                    </Badge>
+                  </div>
+                  <p className="mt-1.5 text-sm text-ink-sub">{it.reason}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <GhostButton
+                      onClick={() => {
+                        setIndex(i);
+                        setMode("card");
+                      }}
+                    >
+                      자세히 보기
+                    </GhostButton>
+                    {!already && (
+                      <GhostButton onClick={() => adopt(it)}>등록</GhostButton>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </GlassCard>
 
       <GlassCard soft className="p-6">

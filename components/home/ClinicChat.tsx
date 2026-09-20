@@ -15,9 +15,11 @@ const AUTO_REPLIES = [
 export default function ClinicChat({
   threadId,
   onBack,
+  onEnd,
 }: {
   threadId: string;
   onBack: () => void;
+  onEnd: () => void;
 }) {
   const { db, update } = useDb();
   const [input, setInput] = useState("");
@@ -84,9 +86,19 @@ export default function ClinicChat({
       <GhostButton onClick={onBack}>← 뒤로</GhostButton>
 
       <GlassCard className="flex h-[calc(100dvh-18rem)] min-h-[26rem] flex-col p-5">
-        <div className="border-b border-ink/10 pb-3">
-          <div className="font-bold">{clinic?.name ?? "클리닉"}</div>
-          <div className="text-xs text-ink-sub">보통 5분 내 답변</div>
+        <div className="flex items-start justify-between gap-3 border-b border-ink/10 pb-3">
+          <div className="min-w-0">
+            <div className="truncate font-bold">{clinic?.name ?? "클리닉"}</div>
+            <div className="text-xs text-ink-sub">보통 5분 내 답변</div>
+          </div>
+          {/* 클리닉 상담이 끝나면 원래 보던 AI 대화로 돌아간다. */}
+          <button
+            type="button"
+            onClick={onEnd}
+            className="shrink-0 rounded-pill px-3 py-1.5 text-xs text-ink-sub transition hairline hover:bg-white/70"
+          >
+            종료하기
+          </button>
         </div>
 
         <div className="flex-1 space-y-3 overflow-y-auto py-4 pr-1">
