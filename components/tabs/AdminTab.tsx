@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useDb } from "@/lib/db";
 import { useToast } from "@/components/ui/Toast";
 import { isLowStock, LOW_STOCK_QTY } from "@/lib/stock";
+import { TREATMENT_POOL } from "@/lib/seed";
 import { PhotoPicker } from "@/components/ui/PhotoPicker";
 import type { AccountStatus, Hours, NoticeTarget } from "@/lib/types";
 import {
@@ -748,6 +749,19 @@ function ClinicRegister({
           hours: DEFAULT_HOURS,
         });
       }
+
+      // 시술을 같이 깔아주지 않으면 홈 탭 클리닉 카드에 보여줄 최저가가 없다.
+      TREATMENT_POOL.forEach((tp, ti) => {
+        draft.treatments.push({
+          id: `${clinicId}-T${ti + 1}`,
+          clinicId,
+          name: tp.name,
+          category: tp.category,
+          price: tp.base,
+          durationMin: tp.min,
+          description: `${tp.name} — ${tp.category} 시술. 상담 후 개인별 프로토콜로 진행합니다.`,
+        });
+      });
 
       draft.accounts.push({
         id: `AC-${clinicId}`,

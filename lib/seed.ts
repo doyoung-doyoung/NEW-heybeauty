@@ -83,7 +83,9 @@ const PRODUCTS: Product[] = [
   { id: "P22", name: "Oligio RF Device", category: "장비", image: "/products/P22_oligio-rf-device.png", unitPriceTHB: 480000, unit: "본체 1대" },
 ];
 
-const TREATMENT_POOL = [
+// 어드민에서 새 클리닉을 등록할 때도 같은 목록으로 기본 시술을 깔아준다.
+// 시술이 하나도 없는 클리닉은 홈 탭에서 보여줄 게 없다.
+export const TREATMENT_POOL = [
   { name: "레이저 토닝", category: "화이트닝", base: 2500, min: 30 },
   { name: "리쥬란 스킨부스터", category: "스킨부스터", base: 8500, min: 45 },
   { name: "엑소좀 스킨부스터", category: "스킨부스터", base: 12000, min: 45 },

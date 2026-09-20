@@ -53,6 +53,7 @@ const DICT: Record<string, Entry> = {
   clinicCount: { ko: "클리닉", en: "clinics", th: "คลินิก", zh: "家诊所", ru: "клиник" },
   fromPrice: { ko: "최저가", en: "From", th: "เริ่มต้น", zh: "起价", ru: "от" },
   noClinicInCategory: { ko: "이 카테고리의 클리닉이 없습니다.", en: "No clinics in this category.", th: "ไม่มีคลินิกในหมวดนี้", zh: "该分类下没有诊所。", ru: "Нет клиник в этой категории." },
+  preparingTreatments: { ko: "시술 준비 중", en: "Treatments coming soon", th: "กำลังเตรียมหัตถการ", zh: "项目准备中", ru: "Процедуры готовятся" },
 
   catAll: { ko: "전체", en: "All", th: "ทั้งหมด", zh: "全部", ru: "Все" },
   "cat화이트닝": { ko: "화이트닝", en: "Whitening", th: "ไวท์เทนนิ่ง", zh: "美白", ru: "Отбеливание" },

@@ -290,7 +290,11 @@ export default function ClinicsView({
           const scoped = isAll
             ? pool
             : pool.filter((x) => x.category === category);
-          const best = scoped.reduce((a, b) => (a.price <= b.price ? a : b));
+          // 시술이 아직 하나도 없는 클리닉(어드민에서 갓 등록한 경우)이면 scoped가 빈 배열이다.
+          // reduce에 초기값 없이 빈 배열을 넣으면 예외가 터져서 홈 탭 전체가 하얗게 된다.
+          const best = scoped.length
+            ? scoped.reduce((a, b) => (a.price <= b.price ? a : b))
+            : null;
           const promo = db.promotions.find((p) => p.clinicId === c.id);
           return (
             <button
@@ -313,7 +317,9 @@ export default function ClinicsView({
                     <div className="truncate font-bold">{c.name}</div>
                     <div className="mt-1 text-xs text-ink-sub">
                       {c.district}
-                      {c.hasBranches ? ` · ${t("branches", lang)} 3` : ""}
+                      {c.hasBranches
+                        ? ` · ${t("branches", lang)} ${db.branches.filter((b) => b.clinicId === c.id).length}`
+                        : ""}
                     </div>
                   </div>
                   <div className="whitespace-nowrap text-sm font-semibold">
@@ -336,11 +342,15 @@ export default function ClinicsView({
                         ? `${t("treatments", lang)} ${scoped.length}`
                         : `${categoryLabel} ${t("fromPrice", lang)}`}
                     </div>
-                    <div className="truncate text-sm font-medium">{best.name}</div>
+                    <div className="truncate text-sm font-medium">
+                      {best ? best.name : t("preparingTreatments", lang)}
+                    </div>
                   </div>
-                  <span className="whitespace-nowrap font-bold">
-                    ฿{best.price.toLocaleString()}~
-                  </span>
+                  {best && (
+                    <span className="whitespace-nowrap font-bold">
+                      ฿{best.price.toLocaleString()}~
+                    </span>
+                  )}
                 </div>
               </div>
             </button>
