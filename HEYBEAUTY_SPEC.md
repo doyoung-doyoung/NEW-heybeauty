@@ -338,6 +338,35 @@
 방콕 기준 7시간, 서울 기준 9시간 어긋난다. API는 ISO 문자열만 주고 **브라우저에서 포맷**한다
 (`NotePad.tsx`의 `formatAt`). 앞으로 다른 시각 표시를 추가할 때도 같은 규칙을 지킬 것.
 
+### 2026-09-20 — 폰 화면(375px) 가로 넘침 2건 수정
+
+검증: 4개 탭 + 모든 하위 탭 + 예약 플로우를 375×812에서 훑어 `document.scrollWidth === 375` 확인 / `npm run build` 통과
+
+| 어디 | 증상 | 원인 | 고침 |
+|---|---|---|---|
+| `HomeTab.tsx` `sideItem` | 홈 사이드 칩 4개 중 "클리닉 둘러보기" 하나만 보이고 나머지는 화면 밖 | 버튼이 `w-full ... lg:w-auto`로 **큰 화면용과 작은 화면용이 뒤바뀜**. 가로 줄(`flex`)에서 칩 하나가 컨테이너 전체(약 418px)를 먹음 | `w-auto shrink-0 ... lg:w-full` |
+| `UserPanels.tsx` `WriteReview` 평점 | 후기 쓰기 화면에서 페이지 전체가 469px로 늘어나 우측이 잘림 | 별 1~5개 버튼 5개가 한 줄에 402px 필요. 폰 화면 안쪽은 295px뿐인데 `flex`에 줄바꿈이 없어 **이 줄 하나가 페이지를 옆으로 밀어냄** | `flex flex-wrap gap-2` |
+
+**찾는 법.** 브라우저에서 이걸 돌리면 화면 밖으로 삐져나간 요소가 나온다.
+가로 스크롤을 일부러 준 칩 줄(`overflow-x-auto`)은 정상이니 제외하고 봐야 한다.
+
+```js
+const vw = document.documentElement.clientWidth;
+[...document.querySelectorAll('body *')]
+  .map(e => ({ e, r: e.getBoundingClientRect() }))
+  .filter(o => o.r.width > 0 && (o.r.right > vw + 1 || o.r.left < -1))
+  .map(o => ({ cls: o.e.className, txt: o.e.textContent.slice(0, 30) }));
+```
+
+**판정 기준은 `document.documentElement.scrollWidth`.** 이 값이 뷰포트 너비(375)보다 크면 가로로 새는 것이다.
+주의: 페이지가 터지면 `window.innerWidth`까지 같이 늘어나서(375 → 469) 개별 요소를 재보면
+"아무것도 안 삐져나왔다"고 나온다. 고치기 전 측정값은 **새로고침 후**에 다시 읽을 것.
+
+**`flex` 한 줄에 버튼을 나열할 때는 `flex-wrap`이나 `overflow-x-auto` 중 하나를 꼭 붙인다.**
+둘 다 없으면 폰에서 그 줄이 페이지 전체를 늘려버린다.
+
+**AR 버튼이 안 눌리는 건 버그가 아니다.** `lib/i18n.ts`에서 `comingSoon: true`라 일부러 KO로 떨어진다.
+
 ### 2026-09-18 — Claude OCR 연동 + 노트장 + 첫 커밋
 
 검증: `npx tsc --noEmit` 에러 0 / 브라우저 콘솔 에러 0 / 모바일 375px 가로 넘침 0

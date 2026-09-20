@@ -123,7 +123,9 @@ export function WriteReview() {
 
           <div>
             <div className="mb-2 text-sm font-semibold">평점</div>
-            <div className="flex gap-2">
+            {/* 별 1~5개짜리 버튼이라 한 줄에 402px가 필요하다. 폰 화면 안쪽은 295px뿐이라
+                flex-wrap이 없으면 이 줄 하나가 페이지 전체를 옆으로 늘려버린다. */}
+            <div className="flex flex-wrap gap-2">
               {[1, 2, 3, 4, 5].map((n) => (
                 <GhostButton key={n} active={n === rating} onClick={() => setRating(n)}>
                   {"★".repeat(n)}

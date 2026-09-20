@@ -31,12 +31,14 @@ export default function HomeTab({ lang }: { lang: LangCode }) {
 
   const popup = db.popups.find((p) => p.active);
 
+  // 작은 화면에서는 가로로 늘어선 칩이라 글자 너비만 차지해야 한다. w-full을 주면
+  // 칩 하나가 화면을 다 먹어 나머지가 밖으로 밀려난다. lg부터는 세로 사이드바라 그때만 꽉 채운다.
   const sideItem = (key: string, label: string, active: boolean, onClick: () => void) => (
     <button
       key={key}
       type="button"
       onClick={onClick}
-      className={`w-full shrink-0 rounded-cell px-3 py-2.5 text-left text-sm transition lg:w-auto ${
+      className={`w-auto shrink-0 rounded-cell px-3 py-2.5 text-left text-sm transition lg:w-full ${
         active ? "bg-ink text-white" : "hover:bg-white/70"
       }`}
     >
