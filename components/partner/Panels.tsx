@@ -11,7 +11,8 @@ import {
   InkButton,
   SectionTitle,
 } from "@/components/ui/primitives";
-import type { Channel } from "@/lib/types";
+import { linkBookingToCustomer } from "@/lib/crm";
+import type { Channel, Gender } from "@/lib/types";
 
 const inputClass =
   "w-full rounded-cell bg-white/75 px-3 py-2 text-sm outline-none hairline placeholder:text-ink-sub focus:bg-white";
@@ -205,14 +206,26 @@ export function InboxPanel({ branchId }: { branchId: string }) {
   );
 }
 
-export function CustomerPanel({ branchId }: { branchId: string }) {
+// 앱 예약으로 막 만들어진 카드는 생년월일·성별·국적을 아직 모른다.
+function orUnknown(value: string) {
+  return value.trim() ? value : "미확인";
+}
+
+export function CustomerPanel({
+  branchId,
+  focusCustomerId = null,
+}: {
+  branchId: string;
+  // 예약 확인에서 "고객 카드"를 눌러 들어온 경우 그 고객을 바로 펼친다.
+  focusCustomerId?: string | null;
+}) {
   const { db, update } = useDb();
   const toast = useToast();
   const [query, setQuery] = useState("");
   const [nation, setNation] = useState("전체");
-  const [gender, setGender] = useState<"전체" | "여" | "남">("전체");
+  const [gender, setGender] = useState<Gender | "전체">("전체");
   const [channel, setChannel] = useState<Channel | "전체">("전체");
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(focusCustomerId);
   if (!db) return null;
 
   const all = db.customers.filter((c) => c.branchId === branchId);
@@ -235,16 +248,24 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
     const doctor = db.doctors.find((d) => d.id === open.doctorId);
     const charts = db.charts.filter((x) => x.customerId === open.id);
     const spent = charts.reduce((s, x) => s + x.paidAmount, 0);
+    const appUser = open.appUserId
+      ? db.users.find((u) => u.id === open.appUserId)
+      : null;
+    const customerBookings = db.bookings.filter((b) => b.customerId === open.id);
+    const upcoming = customerBookings.filter((b) => b.status === "예약확정");
     const rows: { label: string; value: string }[] = [
-      { label: "전화번호", value: open.phone },
-      { label: "생년월일", value: open.birthday },
+      { label: "전화번호", value: orUnknown(open.phone) },
+      { label: "생년월일", value: orUnknown(open.birthday) },
       { label: "성별", value: open.gender },
-      { label: "국가", value: open.nationality },
+      { label: "국가", value: orUnknown(open.nationality) },
       { label: "유입 경로", value: CHANNEL_LABEL[open.channel] },
       { label: "담당 의사", value: doctor?.name ?? "-" },
-      { label: "관심 시술", value: open.interests.join(", ") },
+      { label: "관심 시술", value: open.interests.join(", ") || "미확인" },
       { label: "등록일", value: open.createdAt.slice(0, 10) },
     ];
+    if (appUser) {
+      rows.push({ label: "앱 계정", value: `${appUser.name} · ${appUser.lineId}` });
+    }
 
     return (
       <div className="space-y-4">
@@ -256,8 +277,14 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
               <h2 className="text-2xl font-bold">{open.name}</h2>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 <ChannelTag channel={open.channel} />
-                <Badge>{open.nationality}</Badge>
-                <Badge tone="pink">{open.gender}</Badge>
+                {/* 앱 예약 직후에는 국적·성별을 모른다. 빈 뱃지를 늘어놓지 않는다. */}
+                {open.nationality.trim() && open.nationality !== "미확인" && (
+                  <Badge>{open.nationality}</Badge>
+                )}
+                {open.gender !== "미확인" && (
+                  <Badge tone="pink">{open.gender}</Badge>
+                )}
+                {appUser && <Badge tone="pink">앱 예약 고객</Badge>}
               </div>
             </div>
             <div className="text-right">
@@ -265,7 +292,10 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
               <div className="text-2xl font-bold tabular-nums">
                 ฿{spent.toLocaleString()}
               </div>
-              <div className="text-xs text-ink-sub">방문 {charts.length}회</div>
+              <div className="text-xs text-ink-sub">
+                방문 {charts.length}회 · 예약 {customerBookings.length}건
+                {upcoming.length > 0 && ` (예정 ${upcoming.length})`}
+              </div>
             </div>
           </div>
 
@@ -303,6 +333,43 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
             <InkButton onClick={() => toast("고객 정보를 저장했습니다")}>
               저장
             </InkButton>
+          </div>
+        </GlassCard>
+
+        <GlassCard soft className="p-6">
+          <SectionTitle
+            title="예약 내역"
+            sub={`총 ${customerBookings.length}건 · 헤이뷰티 앱 예약이 이 카드로 들어옵니다`}
+          />
+          <div className="space-y-2">
+            {customerBookings.length === 0 && (
+              <p className="text-sm text-ink-sub">연결된 예약이 없습니다.</p>
+            )}
+            {customerBookings.map((b) => {
+              const treatment = db.treatments.find((t) => t.id === b.treatmentId);
+              const bookingDoctor = db.doctors.find((d) => d.id === b.doctorId);
+              return (
+                <div key={b.id} className="rounded-cell bg-white/70 p-4 hairline">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-semibold">
+                      {b.date} {b.time}
+                    </span>
+                    <Badge tone={b.status === "취소" ? "danger" : "pink"}>
+                      {b.status}
+                    </Badge>
+                  </div>
+                  <div className="mt-1 text-xs text-ink-sub">
+                    {treatment?.name ?? "시술 미정"} · {bookingDoctor?.name ?? "-"} ·
+                    예약금 ฿{b.depositTHB.toLocaleString()}
+                  </div>
+                  {b.usedReviewCode && (
+                    <div className="mt-2">
+                      <Badge>후기코드 {b.usedReviewCode}</Badge>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </GlassCard>
 
@@ -363,7 +430,7 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
           ))}
         </FilterRow>
         <FilterRow label="성별">
-          {(["전체", "여", "남"] as const).map((g) => (
+          {(["전체", "여", "남", "미확인"] as const).map((g) => (
             <GhostButton
               key={g}
               active={gender === g}
@@ -406,13 +473,15 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
                 <div className="font-semibold">{c.name}</div>
                 <div className="flex items-center gap-1.5">
                   <ChannelTag channel={c.channel} />
-                  <Badge>{c.nationality}</Badge>
-                  <Badge tone="pink">{c.gender}</Badge>
+                  {c.nationality.trim() && c.nationality !== "미확인" && (
+                    <Badge>{c.nationality}</Badge>
+                  )}
+                  {c.gender !== "미확인" && <Badge tone="pink">{c.gender}</Badge>}
                 </div>
               </div>
               <div className="mt-1 truncate text-xs text-ink-sub">
-                {c.phone} · {c.birthday} · 관심 {c.interests.join(", ")} · 담당{" "}
-                {doctor?.name}
+                {orUnknown(c.phone)} · {orUnknown(c.birthday)} · 관심{" "}
+                {c.interests.join(", ") || "미확인"} · 담당 {doctor?.name ?? "-"}
               </div>
             </button>
           );
@@ -439,7 +508,14 @@ function FilterRow({
   );
 }
 
-export function BookingPanel({ branchId }: { branchId: string }) {
+export function BookingPanel({
+  branchId,
+  onOpenCustomer,
+}: {
+  branchId: string;
+  // 예약에 붙은 고객 카드를 고객 관리 화면에서 바로 열어준다.
+  onOpenCustomer?: (customerId: string) => void;
+}) {
   const { db, update } = useDb();
   const toast = useToast();
   const [editId, setEditId] = useState<string | null>(null);
@@ -455,6 +531,17 @@ export function BookingPanel({ branchId }: { branchId: string }) {
       if (b) b.status = status;
     });
     toast(`예약 상태를 ${status}(으)로 변경했습니다`);
+  }
+
+  // 이 기능이 생기기 전에 만들어진 예약에는 고객 카드가 없다. 여기서 바로 붙인다.
+  function registerCustomer(id: string) {
+    let name = "";
+    update((draft) => {
+      const b = draft.bookings.find((x) => x.id === id);
+      if (!b) return;
+      name = linkBookingToCustomer(draft, b).name;
+    });
+    toast(name ? `${name} 고객 카드에 연결했습니다` : "고객 카드를 연결했습니다");
   }
 
   function startEdit(id: string) {
@@ -479,7 +566,10 @@ export function BookingPanel({ branchId }: { branchId: string }) {
 
   return (
     <GlassCard className="p-6">
-      <SectionTitle title="예약 확인" sub={`총 ${bookings.length}건`} />
+      <SectionTitle
+        title="예약 확인"
+        sub={`총 ${bookings.length}건 · 앱 예약은 고객 카드가 자동으로 만들어집니다`}
+      />
       <div className="space-y-2">
         {bookings.length === 0 && (
           <p className="text-sm text-ink-sub">이 지점의 예약이 없습니다.</p>
@@ -488,6 +578,9 @@ export function BookingPanel({ branchId }: { branchId: string }) {
           const treatment = db.treatments.find((t) => t.id === b.treatmentId);
           const doctor = db.doctors.find((d) => d.id === b.doctorId);
           const user = db.users.find((u) => u.id === b.userId);
+          const customer = b.customerId
+            ? db.customers.find((c) => c.id === b.customerId)
+            : null;
           return (
             <div key={b.id} className="rounded-cell bg-white/70 p-4 hairline">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -500,6 +593,33 @@ export function BookingPanel({ branchId }: { branchId: string }) {
                 {treatment?.name} · {b.date} {b.time} · {doctor?.name} · 예약금 ฿
                 {b.depositTHB.toLocaleString()}
               </div>
+
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {customer ? (
+                  <>
+                    <Badge tone="pink">고객 카드 {customer.name}</Badge>
+                    {onOpenCustomer && (
+                      <GhostButton
+                        onClick={() => onOpenCustomer(customer.id)}
+                        className="px-3 py-1.5 text-xs"
+                      >
+                        고객 카드 열기
+                      </GhostButton>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Badge>고객 카드 없음</Badge>
+                    <GhostButton
+                      onClick={() => registerCustomer(b.id)}
+                      className="px-3 py-1.5 text-xs"
+                    >
+                      고객 등록
+                    </GhostButton>
+                  </>
+                )}
+              </div>
+
               <div className="mt-3 flex flex-wrap gap-2">
                 {(["예약확정", "방문완료", "취소"] as const).map((s) => (
                   <GhostButton

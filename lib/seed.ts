@@ -26,11 +26,12 @@ import type {
   StockLog,
   Treatment,
 } from "./types";
+import { linkBookingToCustomer } from "./crm";
 
 const BASE_DATE = new Date("2026-09-17T09:00:00+07:00");
 
 // 스키마가 바뀌면 올린다. 저장된 데모 데이터가 이 값과 다르면 새 시드로 갈아끼운다.
-export const SEED_VERSION = 4;
+export const SEED_VERSION = 5;
 
 function rng(seed: number) {
   let a = seed >>> 0;
@@ -258,6 +259,7 @@ export function buildSeed(): DemoDb {
           doctorId: `${branchId}-D${between(1, 2)}`,
           memo: pick(["재방문 고객", "첫 방문 상담 완료", "프로모션 문의", "지인 소개", "온라인 유입"]),
           createdAt: shiftDays(-between(5, 400)),
+          appUserId: null,
         });
 
         if (cu < 2) {
@@ -424,6 +426,7 @@ export function buildSeed(): DemoDb {
       status: "방문완료",
       usedReviewCode: null,
       createdAt: shiftDays(-18),
+      customerId: null,
     },
     {
       id: "BK2",
@@ -439,6 +442,7 @@ export function buildSeed(): DemoDb {
       status: "예약확정",
       usedReviewCode: "HB-7K2M",
       createdAt: shiftDays(-2),
+      customerId: null,
     },
   ];
 
@@ -555,7 +559,7 @@ export function buildSeed(): DemoDb {
     { id: "PP1", title: "9월 화이트닝 페스티벌", body: "전국 제휴 클리닉 화이트닝 시술 최대 20% 할인", image: "/popups/PP2.jpg", active: true },
   ];
 
-  return {
+  const db: DemoDb = {
     version: SEED_VERSION,
     clinics,
     branches,
@@ -581,4 +585,9 @@ export function buildSeed(): DemoDb {
     accounts,
     smsLogs,
   };
+
+  // 시드 예약도 앱 예약과 같은 규칙으로 고객 카드에 연결해둔다.
+  db.bookings.forEach((b) => linkBookingToCustomer(db, b));
+
+  return db;
 }

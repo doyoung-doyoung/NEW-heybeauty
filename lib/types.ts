@@ -1,7 +1,7 @@
 export type Distribution = "정식" | "병행수입";
 export type Channel = "LINE" | "Meta" | "App";
 export type BookingStatus = "예약확정" | "방문완료" | "취소";
-export type Gender = "여" | "남";
+export type Gender = "여" | "남" | "미확인";
 export type AccountStatus = "사용가능" | "홀드" | "차단";
 export type NoticeTarget = "유저" | "클리닉" | "전체";
 
@@ -127,6 +127,8 @@ export interface Customer {
   doctorId: string;
   memo: string;
   createdAt: string;
+  // 헤이뷰티 앱으로 예약한 유저의 카드면 그 유저 ID. 클리닉이 직접 받은 고객은 null.
+  appUserId: string | null;
 }
 
 export interface OpdChart {
@@ -165,6 +167,8 @@ export interface Booking {
   status: BookingStatus;
   usedReviewCode: string | null;
   createdAt: string;
+  // 이 예약으로 만들어졌거나 이어붙은 파트너 CRM 고객 카드 ID.
+  customerId: string | null;
 }
 
 export interface Review {
