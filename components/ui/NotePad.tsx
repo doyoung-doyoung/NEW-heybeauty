@@ -6,8 +6,16 @@ interface Note {
   id: string;
   text: string;
   where: string;
+  /** 서버가 준 ISO 시각. 보는 사람 시간대로 표시한다. */
   at: string;
   done: boolean;
+}
+
+function formatAt(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export default function NotePad({ where }: { where: string }) {
@@ -201,7 +209,7 @@ export default function NotePad({ where }: { where: string }) {
                     {note.text}
                   </div>
                   <div className="mt-0.5 text-[11px] text-ink-sub">
-                    {note.where} · {note.at}
+                    {note.where} · {formatAt(note.at)}
                   </div>
                 </div>
                 <button

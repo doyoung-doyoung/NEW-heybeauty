@@ -21,14 +21,14 @@ function client() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
+// 시각은 ISO 문자열 그대로 넘긴다. 서버(Vercel)는 UTC라서 여기서 사람이 읽는 형태로
+// 바꾸면 태국·한국에서 몇 시간씩 어긋난다. 표시는 보는 사람 브라우저에 맡긴다.
 function toNote(row: Row) {
-  const at = new Date(row.created_at);
-  const pad = (n: number) => String(n).padStart(2, "0");
   return {
     id: row.id,
     text: row.text,
     where: row.screen,
-    at: `${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${pad(at.getHours())}:${pad(at.getMinutes())}`,
+    at: row.created_at,
     done: row.done,
   };
 }
