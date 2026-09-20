@@ -57,6 +57,8 @@ export default function PartnerTab() {
   const { db } = useDb();
   const [session, setSession] = useState<Session | null>(null);
   const [section, setSection] = useState<Section>("ai");
+  // 예약 확인에서 "고객 카드 열기"로 넘어올 때만 채워진다.
+  const [focusCustomerId, setFocusCustomerId] = useState<string | null>(null);
 
   if (!db) return null;
 
@@ -101,7 +103,10 @@ export default function PartnerTab() {
           <GhostButton
             key={s.id}
             active={section === s.id}
-            onClick={() => setSection(s.id)}
+            onClick={() => {
+              setFocusCustomerId(null);
+              setSection(s.id);
+            }}
             className="shrink-0"
           >
             {s.label}
@@ -114,8 +119,21 @@ export default function PartnerTab() {
           <AiInput clinicId={session.clinicId} branchId={session.branchId} />
         )}
         {section === "inbox" && <InboxPanel branchId={session.branchId} />}
-        {section === "customers" && <CustomerPanel branchId={session.branchId} />}
-        {section === "bookings" && <BookingPanel branchId={session.branchId} />}
+        {section === "customers" && (
+          <CustomerPanel
+            branchId={session.branchId}
+            focusCustomerId={focusCustomerId}
+          />
+        )}
+        {section === "bookings" && (
+          <BookingPanel
+            branchId={session.branchId}
+            onOpenCustomer={(customerId) => {
+              setFocusCustomerId(customerId);
+              setSection("customers");
+            }}
+          />
+        )}
         {section === "charts" && <ChartPanel branchId={session.branchId} />}
         {section === "inventory" && (
           <InventoryPanel branchId={session.branchId} />

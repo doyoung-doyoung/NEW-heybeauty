@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useDb } from "@/lib/db";
+import { linkBookingToCustomer } from "@/lib/crm";
 import { useToast } from "@/components/ui/Toast";
 import {
   Badge,
@@ -13,6 +14,7 @@ import { DEMO_SLIPS, PseudoQR, SlipImage } from "./DemoAssets";
 
 const TIMES = ["10:00", "11:30", "13:00", "14:30", "16:00", "17:30", "19:00"];
 const DEPOSIT = 1000;
+const USER_ID = "U1";
 
 function nextDays(count: number) {
   const out: { value: string; label: string }[] = [];
@@ -53,6 +55,7 @@ export default function BookingFlow({
   const [slipId, setSlipId] = useState<string | null>(null);
   const [showSlipPicker, setShowSlipPicker] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
+  const [crmNotice, setCrmNotice] = useState<string | null>(null);
 
   if (!db) return null;
 
@@ -70,11 +73,14 @@ export default function BookingFlow({
     const id = `BK-${Date.now()}`;
     const threadId = `CH-${Date.now()}`;
     const now = new Date().toISOString();
+    const user = db!.users.find((u) => u.id === USER_ID);
+    const customerName = `${user?.name ?? "앱 고객"} (헤이뷰티 앱)`;
+    let crmLine = "";
 
     update((draft) => {
       draft.bookings.unshift({
         id,
-        userId: "U1",
+        userId: USER_ID,
         clinicId,
         branchId: activeBranchId,
         treatmentId,
@@ -86,12 +92,24 @@ export default function BookingFlow({
         status: "예약확정",
         usedReviewCode: null,
         createdAt: now,
+        customerId: null,
       });
+
+      // 예약만 만들고 끝내면 클리닉 CRM에는 고객이 없다. 같은 지점에 카드가 있으면
+      // 이어붙이고 없으면 새로 만들어, 파트너 탭 "고객 관리"에서 바로 보이게 한다.
+      const before = draft.customers.length;
+      const customer = linkBookingToCustomer(draft, draft.bookings[0]);
+      const branchName =
+        draft.branches.find((b) => b.id === activeBranchId)?.name ?? "";
+      crmLine =
+        draft.customers.length > before
+          ? `${branchName} 고객 카드가 새로 등록되었습니다`
+          : `${branchName} 기존 고객 카드(${customer.name})에 예약이 추가되었습니다`;
 
       draft.chats.unshift({
         id: threadId,
         kind: "clinic",
-        userId: "U1",
+        userId: USER_ID,
         clinicId,
         title: `${clinic!.name}과 대화 · 예약 관련`,
         updatedAt: now,
@@ -117,7 +135,7 @@ export default function BookingFlow({
         clinicId,
         branchId: activeBranchId,
         channel: "App",
-        customerName: "도도 (Hey! Beauty 앱)",
+        customerName,
         unread: true,
         updatedAt: now,
         messages: [
@@ -132,6 +150,7 @@ export default function BookingFlow({
     });
 
     setBookingId(threadId);
+    setCrmNotice(crmLine);
     setStep("done");
     toast("송금이 확인되었습니다");
   }
@@ -351,6 +370,12 @@ export default function BookingFlow({
           <p className="mt-2 text-sm text-ink-sub">
             {clinic.name} · {date} {time} · {treatment.name}
           </p>
+
+          {crmNotice && (
+            <p className="mx-auto mt-4 max-w-sm rounded-cell bg-white/70 px-4 py-3 text-xs leading-relaxed text-ink-sub hairline">
+              클리닉 CRM 연동 · {crmNotice}
+            </p>
+          )}
 
           <div className="mt-6 flex flex-wrap justify-center gap-2">
             <InkButton onClick={() => bookingId && onOpenClinicChat(bookingId)}>
