@@ -2,8 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const KEY = "heybeauty.notes.v1";
-
 interface Note {
   id: string;
   text: string;
@@ -12,31 +10,32 @@ interface Note {
   done: boolean;
 }
 
-function load(): Note[] {
-  try {
-    const raw = localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Note[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 export default function NotePad({ where }: { where: string }) {
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [text, setText] = useState("");
   const [copied, setCopied] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [broken, setBroken] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    setNotes(load());
-    setReady(true);
-  }, []);
+  async function refresh() {
+    try {
+      const res = await fetch("/api/notes", { cache: "no-store" });
+      const body = (await res.json()) as { ok: boolean; notes?: Note[] };
+      if (!body.ok || !body.notes) throw new Error("load failed");
+      setNotes(body.notes);
+      setBroken(false);
+    } catch {
+      setBroken(true);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    if (ready) localStorage.setItem(KEY, JSON.stringify(notes));
-  }, [notes, ready]);
+    refresh();
+  }, []);
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
@@ -44,21 +43,69 @@ export default function NotePad({ where }: { where: string }) {
 
   const todo = notes.filter((n) => !n.done).length;
 
-  function add() {
+  async function add() {
     const body = text.trim();
     if (!body) return;
-    const now = new Date();
-    setNotes((prev) => [
-      {
-        id: `${now.getTime()}`,
-        text: body,
-        where,
-        at: `${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`,
-        done: false,
-      },
-      ...prev,
-    ]);
     setText("");
+    try {
+      const res = await fetch("/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: body, screen: where }),
+      });
+      const json = (await res.json()) as { ok: boolean; note?: Note };
+      if (!json.ok || !json.note) throw new Error("save failed");
+      setNotes((prev) => [json.note as Note, ...prev]);
+      setBroken(false);
+    } catch {
+      setText(body);
+      setBroken(true);
+    }
+  }
+
+  async function toggle(note: Note) {
+    setNotes((prev) =>
+      prev.map((n) => (n.id === note.id ? { ...n, done: !n.done } : n)),
+    );
+    try {
+      const res = await fetch("/api/notes", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: note.id, done: !note.done }),
+      });
+      if (!res.ok) throw new Error("patch failed");
+    } catch {
+      setBroken(true);
+      refresh();
+    }
+  }
+
+  async function remove(id: string) {
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+    try {
+      const res = await fetch(`/api/notes?id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("delete failed");
+    } catch {
+      setBroken(true);
+      refresh();
+    }
+  }
+
+  async function clearDone() {
+    const targets = notes.filter((n) => n.done);
+    setNotes((prev) => prev.filter((n) => !n.done));
+    try {
+      await Promise.all(
+        targets.map((n) =>
+          fetch(`/api/notes?id=${encodeURIComponent(n.id)}`, { method: "DELETE" }),
+        ),
+      );
+    } catch {
+      setBroken(true);
+    }
+    refresh();
   }
 
   async function copyAll() {
@@ -94,7 +141,9 @@ export default function NotePad({ where }: { where: string }) {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-bold">수정할 부분 노트</div>
-              <div className="text-xs text-ink-sub">{where} 화면에서 작성 중</div>
+              <div className="text-xs text-ink-sub">
+                {broken ? "저장 서버에 연결되지 않았습니다" : `${where} 화면에서 작성 중`}
+              </div>
             </div>
             <button
               type="button"
@@ -126,7 +175,10 @@ export default function NotePad({ where }: { where: string }) {
           </div>
 
           <div className="mt-3 flex-1 space-y-2 overflow-y-auto">
-            {notes.length === 0 && (
+            {loading && (
+              <p className="py-6 text-center text-xs text-ink-sub">불러오는 중…</p>
+            )}
+            {!loading && notes.length === 0 && (
               <p className="py-6 text-center text-xs text-ink-sub">
                 테스트하다 고칠 점이 보이면 여기 적어두세요
               </p>
@@ -139,13 +191,7 @@ export default function NotePad({ where }: { where: string }) {
                 <input
                   type="checkbox"
                   checked={note.done}
-                  onChange={() =>
-                    setNotes((prev) =>
-                      prev.map((n) =>
-                        n.id === note.id ? { ...n, done: !n.done } : n,
-                      ),
-                    )
-                  }
+                  onChange={() => toggle(note)}
                   className="mt-0.5 size-4 shrink-0 accent-ink"
                 />
                 <div className="min-w-0 flex-1">
@@ -160,9 +206,7 @@ export default function NotePad({ where }: { where: string }) {
                 </div>
                 <button
                   type="button"
-                  onClick={() =>
-                    setNotes((prev) => prev.filter((n) => n.id !== note.id))
-                  }
+                  onClick={() => remove(note.id)}
                   className="shrink-0 rounded-pill px-2 py-1 text-xs text-ink-sub hover:bg-white"
                 >
                   삭제
@@ -182,7 +226,7 @@ export default function NotePad({ where }: { where: string }) {
               </button>
               <button
                 type="button"
-                onClick={() => setNotes((prev) => prev.filter((n) => !n.done))}
+                onClick={clearDone}
                 className="rounded-pill px-3 py-2 text-xs text-ink-sub hover:bg-white/70"
               >
                 완료한 것 지우기

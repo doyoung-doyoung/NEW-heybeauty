@@ -256,6 +256,8 @@
 - [ ] 디자인 재검토 (Pinterest 레퍼런스 대비 색감·굴절·선 굵기)
 - [ ] **archify 아키텍처 다이어그램** — Vercel 배포 직전, 사용자 승인 후
 - [ ] Phase 2: Supabase 테이블 + RLS + Realtime (localStorage → Supabase 교체는 `lib/storage/` 어댑터만 갈아끼우면 됨)
+  - **데모 데이터는 의도적으로 localStorage에 남긴다.** 공유하면 앞사람이 어드민에서 바꾼 값이 다음 투자자 화면에 그대로 남아 시연이 흔들린다.
+  - 노트는 2026-09-20에 먼저 서버로 옮김 (아래 §11 참고).
 
 ---
 
@@ -314,6 +316,38 @@
 ---
 
 ## 11. 작업 로그
+
+### 2026-09-20 — 후기·팝업 이미지 + 노트 서버 저장
+
+검증: `npm run build` 통과 / 브라우저 콘솔 에러 0 / 노트 추가·체크·삭제 서버 왕복 확인
+
+| 무엇 | 내용 |
+|---|---|
+| 후기·팝업 이미지 | `public/reviews/RV1-1·1-2·2-1·2-2.jpg`, `public/popups/PP1·PP2.jpg` 생성. `lib/seed.ts`에 경로 연결, `SEED_VERSION` 2 → 4 |
+| 팝업 이미지 선택 | 어드민 → 공지·팝업 → 팝업 탭에 프리셋 그리드 추가 (`AdminTab.tsx`의 `POPUP_PRESETS`). 기본값은 시술 사진 `PP2.jpg` |
+| **노트 서버 저장** | 여러 사람이 시연하므로 노트가 각자 브라우저에 갇히면 의미가 없다. Supabase `hb_notes` 테이블 + `app/api/notes/route.ts`(GET/POST/PATCH/DELETE)로 이전. `NotePad.tsx`는 localStorage를 더 이상 쓰지 않는다 |
+
+**노트 저장 위치:** Supabase 프로젝트 `hdujouoaeqatrazrnlhn` (`doyoung-doyoung's Project`), 테이블 `public.hb_notes`.
+같은 프로젝트를 다른 앱들과 공유하므로 테이블 이름은 `hb_` 접두사를 붙인다.
+
+**키는 반드시 서버 전용.** 환경변수 이름에 `NEXT_PUBLIC_`을 붙이면 anon 키가 브라우저로 나가고,
+그 키로 같은 계정의 다른 앱 테이블까지 접근할 수 있게 된다. `SUPABASE_URL` / `SUPABASE_ANON_KEY` 그대로 쓸 것.
+환경변수가 없으면 `/api/notes`가 503 `no_db`를 주고 노트 패널에 "저장 서버에 연결되지 않았습니다"가 뜬다 — 나머지 시연은 그대로 돌아간다.
+
+### 2026-09-18 — Claude OCR 연동 + 노트장 + 첫 커밋
+
+검증: `npx tsc --noEmit` 에러 0 / 브라우저 콘솔 에러 0 / 모바일 375px 가로 넘침 0
+
+| 요청 | 처리 |
+|---|---|
+| §12 Claude API 연동 | `app/api/ocr/route.ts` 신규(서버 전용) + `AiInput.tsx` `useShot()`이 호출. 실패 시 빈 양식 폴백 |
+| 회색 → `#495057` | `--color-ink-sub` 토큰 교체 (기존 `#8a8a8a`). 보조 텍스트 전부 한 번에 적용 |
+| 테스트 중 수정할 점 메모 | `components/ui/NotePad.tsx` 신규. 우하단 `노트` 버튼 → 패널. 현재 탭 이름·시각 자동 기록, 체크/삭제/전체 복사, localStorage(`heybeauty.notes.v1`) 저장 |
+| 커밋 | 4개 탭 전체를 첫 커밋으로 정리 (80 files). `.env.local`은 `.gitignore`로 제외 확인 |
+
+**해결됨:** 처음 발급한 키가 workspace에 연결되지 않아 Claude가 400 거절
+(`This API key is not scoped to a workspace`). 콘솔에서 **Workspace를 지정해 키를 재발급**한 뒤
+Vercel Production 환경변수 등록 + Redeploy로 해결. 배포된 `/api/ocr`이 실제 사진 판독 성공 확인.
 
 ### 2026-09-17 — 1차 피드백 반영 (22건) + 이슈 13건 해결
 
@@ -393,8 +427,14 @@
 2. [x] `app/api/ocr/route.ts` 생성 — 이미지 dataURL → `claude-opus-4-7` vision → `{제품명, 용량, Lot번호, 유통기한, 유통형태}` JSON
 3. [x] `components/partner/AiInput.tsx` `useShot()`에서 `/api/ocr` 호출, 판독 중 버튼은 "AI가 읽는 중..."으로 잠김
 4. [x] 실패 시 빈 양식 + "직접 입력해주세요" 토스트로 폴백 (키 없음·네트워크 오류·판독 불가 모두 동일)
-5. [ ] 로컬 테스트 → Vercel 환경변수 등록 → 배포 확인 — **API 키 발급 대기 중**
+5. [x] 로컬 테스트 → Vercel 환경변수 등록 → 배포 확인 — **2026-09-18 완료**
 
-### 남은 것 (2026-09-18)
-`.env.local`에 `ANTHROPIC_API_KEY=sk-ant-...` 한 줄을 넣고 dev 서버를 재시작하면 진짜 판독이 켜짐.
+### 배포 검증 (2026-09-18)
+Vercel Production에 `ANTHROPIC_API_KEY` 등록 + Redeploy 완료. 실제 제품 사진으로 확인:
+
+| 보낸 사진 | 응답 |
+|---|---|
+| `P10_botox-cosmetic-100u.png` | `{"제품명":"Botox Cosmetic","용량":"100 Units"}` |
+| `P16_rejuran.png` | `{"제품명":"REJU"}` — 박스에 "REJU"까지만 보이므로 정상 |
+
 키가 없으면 서버가 `503 no_api_key`를 돌려주고 화면은 폴백으로 넘어가므로 시연은 그대로 돌아감.
