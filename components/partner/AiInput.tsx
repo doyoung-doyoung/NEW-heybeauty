@@ -111,7 +111,7 @@ function speechErrorMessage(code: string | undefined): {
 const SCREEN_CAPTURES = [
   {
     id: "CAP1",
-    label: "페이스북 페이지 캡처",
+    label: "클리닉 SNS 페이지 캡처",
     text: `클리닉명: 사얌 글로우 클리닉
 영업시간: 월-토 10:00-20:00 / 일 휴무
 주소: Siam Demo Rd. 00, Bangkok
@@ -533,7 +533,7 @@ Lot번호: ${fields?.Lot번호 ?? ""}
 
           <div>
             <div className="mb-2 text-xs font-semibold text-ink-sub">제품 박스</div>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {DEMO_BOX_LABELS.map((label) => {
                 const match = branchInventory.find((i) => {
                   const p = db.products.find((x) => x.id === i.productId);
@@ -581,7 +581,7 @@ Lot번호: ${label.lot}
 신분증 번호: ${card.idNo}
 생년월일: ${card.birth}
 주소: ${card.address}
-발행일: ${card.issued}
+발급일: ${card.issued}
 만료일: ${card.expiry}`,
                       `/idcards/${card.id}.jpg`,
                     )

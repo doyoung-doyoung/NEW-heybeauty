@@ -177,17 +177,14 @@ export const DEMO_SLIPS: SlipData[] = [
   },
 ];
 
-export function SlipImage({
-  slip,
-  compact = false,
-}: {
-  slip: SlipData;
-  compact?: boolean;
-}) {
+export function SlipImage({ slip }: { slip: SlipData }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={`/slips/${slip.id}.jpg`} alt={`${slip.bank} → ${slip.to}, ฿${slip.amount} 송금 견본`}
-      className={`w-full rounded-cell bg-white object-contain hairline ${compact ? "max-h-40" : "max-h-96"}`} />
+    <img
+      src={`/slips/${slip.id}.jpg`}
+      alt={`${slip.bank} → ${slip.to}, ฿${slip.amount} 송금 견본`}
+      className="w-full rounded-cell bg-white hairline"
+    />
   );
 }
 
@@ -202,34 +199,38 @@ export interface IdCardData {
   expiry: string;
 }
 
+// public/idcards/<id>.jpg 에 찍힌 내용과 같아야 한다 (fixtures/ocr/OCR_정답표.txt 기준)
 export const DEMO_ID_CARDS: IdCardData[] = [
   {
-    "id": "IDC1",
-    "name": "Miss Narisa Prasit",
-    "nameTh": "นางสาว นาริสา ประสิทธิ์",
-    "idNo": "0-1234-56789-01-7",
-    "birth": "1994-03-12",
-    "address": "128/45 ถนนสาธิต แขวงตัวอย่าง เขตทดสอบ กรุงเทพมหานคร 10240",
-    "issued": "2024-02-15",
-    "expiry": "2032-03-11"
+    id: "IDC1",
+    name: "Miss Narisa Prasit",
+    nameTh: "นางสาว นาริสา ประสิทธิ์",
+    idNo: "0-1234-56789-01-7",
+    birth: "1994-03-12",
+    address: "128/45 ถนนสาธิต แขวงตัวอย่าง เขตทดสอบ กรุงเทพมหานคร 10240",
+    issued: "2024-02-15",
+    expiry: "2032-03-11",
   },
   {
-    "id": "IDC2",
-    "name": "Mr. Somchai Boonma",
-    "nameTh": "นาย สมชาย บุญมา",
-    "idNo": "0-9876-54321-09-3",
-    "birth": "1988-11-02",
-    "address": "76/9 ถนนจำลอง ตำบลตัวอย่าง อำเภอทดสอบ เชียงใหม่ 50200",
-    "issued": "2025-08-08",
-    "expiry": "2033-11-01"
-  }
+    id: "IDC2",
+    name: "Mr. Somchai Boonma",
+    nameTh: "นาย สมชาย บุญมา",
+    idNo: "0-9876-54321-09-3",
+    birth: "1988-11-02",
+    address: "76/9 ถนนจำลอง ตำบลตัวอย่าง อำเภอทดสอบ เชียงใหม่ 50200",
+    issued: "2025-08-08",
+    expiry: "2033-11-01",
+  },
 ];
 
 export function IdCardImage({ card }: { card: IdCardData }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={`/idcards/${card.id}.jpg`} alt={`${card.name} 가상 ID 카드 견본`}
-      className="w-full rounded-cell bg-white object-contain hairline" />
+    <img
+      src={`/idcards/${card.id}.jpg`}
+      alt={`${card.name} 가상 ID 카드 견본`}
+      className="w-full rounded-cell bg-white hairline"
+    />
   );
 }
 
@@ -250,7 +251,10 @@ export const DEMO_BOX_LABELS: BoxLabelData[] = [
 export function BoxLabelImage({ label }: { label: BoxLabelData }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={`/boxlabels/${label.id}.jpg`} alt={`${label.productName} ${label.volume} 제품 박스 견본`}
-      className="max-h-64 w-full rounded-cell bg-white object-contain hairline" />
+    <img
+      src={`/boxlabels/${label.id}.jpg`}
+      alt={`${label.productName} ${label.volume} 제품 박스 견본`}
+      className="w-full rounded-cell bg-white hairline"
+    />
   );
 }

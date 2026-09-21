@@ -300,7 +300,7 @@ export default function BookingFlow({
               <div className="mb-3 text-xs font-semibold text-ink-sub">
                 저장된 이미지
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {DEMO_SLIPS.map((s) => (
                   <button
                     key={s.id}
@@ -313,7 +313,7 @@ export default function BookingFlow({
                       slipId === s.id ? "ring-2 ring-ink" : ""
                     }`}
                   >
-                    <SlipImage slip={s} compact />
+                    <SlipImage slip={s} />
                   </button>
                 ))}
               </div>

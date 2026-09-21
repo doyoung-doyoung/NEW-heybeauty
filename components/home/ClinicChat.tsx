@@ -114,7 +114,7 @@ export default function ClinicChat({
                 <div className="max-w-[85%] space-y-2">
                   {slip && (
                     <div className="w-48">
-                      <SlipImage slip={slip} compact />
+                      <SlipImage slip={slip} />
                     </div>
                   )}
                   <div
