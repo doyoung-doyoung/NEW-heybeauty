@@ -29,9 +29,12 @@ function readFields(text: string) {
   return out;
 }
 
+// 태국어 글자는 \w가 아니라서 존칭 뒤에 \b 경계가 생기지 않는다.
+// \b를 쓰면 태국 이름은 영영 성별이 안 잡히므로 공백이나 문장 끝으로 끊는다.
+// นาง이 นางสาว의 앞부분이라 긴 쪽을 먼저 봐야 한다.
 function genderFromName(name: string): Gender {
-  if (/^(นางสาว|นาง|Miss|Mrs|Ms)\b\.?/i.test(name)) return "여";
-  if (/^(นาย|Mr)\b\.?/i.test(name)) return "남";
+  if (/^(นางสาว|นาง|Miss|Mrs|Ms)\.?(\s|$)/i.test(name)) return "여";
+  if (/^(นาย|Mr)\.?(\s|$)/i.test(name)) return "남";
   return "미입력";
 }
 
@@ -167,6 +170,9 @@ export default function AiInput({
   const [manager, setManager] = useState("");
   const [employeeNo, setEmployeeNo] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  // 저장 한 번이 CRM 기록·고객 카드·재고를 동시에 건드린다. 토스트는 하나만 스쳐 지나가서
+  // 시연 중에 그 연결이 안 보이므로, 무엇으로 연동됐는지 홈 화면에 남긴다.
+  const [linked, setLinked] = useState<string[] | null>(null);
 
   const [shot, setShot] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
@@ -463,7 +469,7 @@ Lot번호: ${fields?.Lot번호 ?? ""}
     const summary = draft.text.split("\n")[0].slice(0, 40);
     const fields = readFields(draft.text);
     const now = new Date().toISOString();
-    let sideEffect = "";
+    const links: string[] = [];
 
     update((drft) => {
       const entry: CrmEntry = {
@@ -477,6 +483,7 @@ Lot번호: ${fields?.Lot번호 ?? ""}
         at: new Date().toISOString(),
       };
       drft.crmEntries.unshift(entry);
+      links.push(`CRM 기록 · ${draft.source}`);
 
       if (fields["신분증 번호"] && fields["이름"]) {
         const name = fields["이름"];
@@ -485,7 +492,7 @@ Lot번호: ${fields?.Lot번호 ?? ""}
         );
         if (existing) {
           existing.memo = `신분증 재확인 · ${fields["신분증 번호"]}`;
-          sideEffect = `${name} 고객 정보 갱신`;
+          links.push(`고객 카드 · ${name} 정보 갱신`);
         } else {
           drft.customers.unshift({
             id: `CU-${Date.now()}`,
@@ -502,7 +509,7 @@ Lot번호: ${fields?.Lot번호 ?? ""}
             memo: `신분증 촬영 등록 · ${fields["신분증 번호"]}`,
             createdAt: now,
           });
-          sideEffect = `${name} 고객 등록`;
+          links.push(`고객 카드 · ${name} 신규 등록`);
         }
       }
 
@@ -526,7 +533,7 @@ Lot번호: ${fields?.Lot번호 ?? ""}
             at: now,
             by: manager.trim(),
           });
-          sideEffect = `${fields["제품명"]} 재고 1개 입고`;
+          links.push(`재고 · ${fields["제품명"]} 1개 입고`);
         } else if (product) {
           drft.inventory.unshift({
             id: `IV-${Date.now()}`,
@@ -545,7 +552,7 @@ Lot번호: ${fields?.Lot번호 ?? ""}
             lotNo: fields["Lot번호"],
             warnPct: 15,
           });
-          sideEffect = `${fields["제품명"]} 재고 신규 등록`;
+          links.push(`재고 · ${fields["제품명"]} 신규 등록`);
         }
       }
 
@@ -562,16 +569,15 @@ Lot번호: ${fields?.Lot번호 ?? ""}
             at: new Date().toISOString(),
             by: manager.trim(),
           });
+          const name = drft.products.find((p) => p.id === item.productId)?.name;
+          links.push(`재고 · ${name ?? "제품"} ${draft.usedQty}개 차감`);
         }
       }
     });
-    const used = draft.usedInventoryId;
-    const qty = draft.usedQty;
     setDraft(null);
     setStep("home");
-    if (used) toast(`저장되었습니다 · 재고 ${qty}개 차감`);
-    else if (sideEffect) toast(`저장되었습니다 · ${sideEffect}`);
-    else toast("저장 완료되었습니다");
+    setLinked(links);
+    toast(`저장되었습니다 · ${links.length}곳에 연동`);
   }
 
   if (step === "camera") {
@@ -931,6 +937,31 @@ Lot번호: ${label.lot}
         title="AI 정보 입력"
         sub="사진을 찍거나 말하면 AI가 텍스트로 정리합니다. 확인 후 수정하고 저장하세요."
       />
+
+      {linked && (
+        <div className="animate-rise mb-4 rounded-card bg-hb-400/15 p-4 hairline">
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-sm font-bold">
+              입력 한 번으로 {linked.length}곳에 연동되었습니다
+            </div>
+            <button
+              type="button"
+              onClick={() => setLinked(null)}
+              className="shrink-0 rounded-pill px-2 py-0.5 text-xs text-ink-sub hairline"
+            >
+              닫기
+            </button>
+          </div>
+          <ul className="mt-2 space-y-1">
+            {linked.map((l) => (
+              <li key={l} className="flex items-center gap-2 text-sm text-ink/80">
+                <span className="text-hb-600">→</span>
+                <span className="min-w-0 truncate">{l}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <BigAction
