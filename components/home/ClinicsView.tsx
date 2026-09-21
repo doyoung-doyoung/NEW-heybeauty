@@ -2,30 +2,23 @@
 
 import { useState } from "react";
 import { useDb } from "@/lib/db";
-import { t, type LangCode } from "@/lib/i18n";
+import { useT } from "@/lib/i18n";
 import { ClinicPhoto } from "@/components/home/DemoAssets";
 import { Badge, GlassCard, InkButton, GhostButton } from "@/components/ui/primitives";
 
 const CATEGORIES = ["전체", "화이트닝", "V라인", "리프팅", "스킨부스터", "필러"];
 
-const CATEGORY_KEY: Record<string, string> = {
-  전체: "All",
-  화이트닝: "화이트닝",
-  V라인: "V라인",
-  리프팅: "리프팅",
-  스킨부스터: "스킨부스터",
-  필러: "필러",
-};
+// 사전 키는 영문이라 "전체"만 갈아끼우면 나머지는 한국어 그대로 붙여 쓴다.
+const CATEGORY_KEY: Record<string, string> = { 전체: "All" };
 
 export default function ClinicsView({
-  lang,
   initialCategory = "전체",
   onBook,
 }: {
-  lang: LangCode;
   initialCategory?: string;
   onBook: (clinicId: string, treatmentId: string) => void;
 }) {
+  const { t } = useT();
   const { db } = useDb();
   const [category, setCategory] = useState(initialCategory);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -34,8 +27,8 @@ export default function ClinicsView({
 
   const isAll = category === "전체";
   const suffix = CATEGORY_KEY[category] ?? category;
-  const categoryLabel = t(`cat${suffix}`, lang);
-  const categoryDesc = t(`catDesc${suffix}`, lang);
+  const categoryLabel = t(`cat${suffix}`);
+  const categoryDesc = t(`catDesc${suffix}`);
 
   const matches = (clinicId: string) =>
     isAll ||
@@ -61,45 +54,45 @@ export default function ClinicsView({
 
     return (
       <div className="space-y-4">
-        <GhostButton onClick={() => setOpenId(null)}>← {t("back", lang)}</GhostButton>
+        <GhostButton onClick={() => setOpenId(null)}>← {t("back")}</GhostButton>
 
         <GlassCard className="overflow-hidden">
           <div className="h-48 w-full sm:h-60">
             <ClinicPhoto
               clinicId={open.id}
-              name={open.name}
-              district={open.district}
+              name={t(open.name)}
+              district={t(open.district)}
               src={open.image}
             />
           </div>
           <div className="p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 className="text-2xl font-bold">{open.name}</h2>
+                <h2 className="text-2xl font-bold">{t(open.name)}</h2>
                 <p className="mt-1 text-sm text-ink-sub">
-                  {open.district} · {open.address}
+                  {t(open.district)} · {t(open.address)}
                 </p>
               </div>
               <div className="text-right">
                 <div className="text-xl font-bold">★ {open.rating}</div>
                 <div className="text-xs text-ink-sub">
-                  {open.reviewCount} {t("reviewCount", lang)}
+                  {open.reviewCount} {t("reviewCount")}
                 </div>
               </div>
             </div>
-            <p className="mt-4 text-sm leading-relaxed text-ink/75">{open.intro}</p>
+            <p className="mt-4 text-sm leading-relaxed text-ink/75">{t(open.intro)}</p>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <div className="rounded-cell bg-white/60 p-4 hairline">
                 <div className="text-xs font-semibold text-ink-sub">
-                  {t("hours", lang)}
+                  {t("hours")}
                 </div>
                 <ul className="mt-2 space-y-0.5 text-sm">
                   {open.hours.map((h) => (
                     <li key={h.day} className="flex justify-between">
-                      <span>{h.day}</span>
+                      <span>{t(h.day)}</span>
                       <span className={h.closed ? "text-ink-sub" : ""}>
-                        {h.closed ? t("closedDay", lang) : `${h.open} - ${h.close}`}
+                        {h.closed ? t("closedDay") : `${h.open} - ${h.close}`}
                       </span>
                     </li>
                   ))}
@@ -108,13 +101,13 @@ export default function ClinicsView({
               <div className="space-y-3">
                 <div className="rounded-cell bg-white/60 p-4 hairline">
                   <div className="text-xs font-semibold text-ink-sub">
-                    {t("parking", lang)}
+                    {t("parking")}
                   </div>
-                  <div className="mt-1 text-sm">{open.parking}</div>
+                  <div className="mt-1 text-sm">{t(open.parking)}</div>
                 </div>
                 <div className="rounded-cell bg-white/60 p-4 hairline">
                   <div className="text-xs font-semibold text-ink-sub">
-                    {t("contact", lang)}
+                    {t("contact")}
                   </div>
                   <div className="mt-1 text-sm">
                     {open.phone} · LINE {open.lineId}
@@ -123,11 +116,11 @@ export default function ClinicsView({
                 {branches.length > 1 && (
                   <div className="rounded-cell bg-white/60 p-4 hairline">
                     <div className="text-xs font-semibold text-ink-sub">
-                      {t("branches", lang)}
+                      {t("branches")}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {branches.map((b) => (
-                        <Badge key={b.id}>{b.name}</Badge>
+                        <Badge key={b.id}>{t(b.name)}</Badge>
                       ))}
                     </div>
                   </div>
@@ -139,13 +132,13 @@ export default function ClinicsView({
 
         {promos.length > 0 && (
           <GlassCard soft className="p-6">
-            <h3 className="font-bold">{t("activePromos", lang)}</h3>
+            <h3 className="font-bold">{t("activePromos")}</h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               {promos.map((p) => (
                 <div key={p.id} className="rounded-cell bg-hb-50 p-4 hairline">
                   <Badge tone="pink">{p.discountPct}%</Badge>
-                  <div className="mt-2 text-sm font-semibold">{p.title}</div>
-                  <p className="mt-1 text-xs text-ink-sub">{p.description}</p>
+                  <div className="mt-2 text-sm font-semibold">{t(p.title)}</div>
+                  <p className="mt-1 text-xs text-ink-sub">{t(p.description)}</p>
                   <p className="mt-2 text-[11px] text-ink-sub">{p.period}</p>
                 </div>
               ))}
@@ -154,7 +147,7 @@ export default function ClinicsView({
         )}
 
         <GlassCard soft className="p-6">
-          <h3 className="font-bold">{t("treatmentList", lang)}</h3>
+          <h3 className="font-bold">{t("treatmentList")}</h3>
           <div className="mt-3 space-y-2">
             {sorted.map((x) => {
               const hit = !isAll && x.category === category;
@@ -169,12 +162,12 @@ export default function ClinicsView({
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold">{x.name}</span>
-                      <Badge tone={hit ? "pink" : "neutral"}>{x.category}</Badge>
+                      <span className="font-semibold">{t(x.name)}</span>
+                      <Badge tone={hit ? "pink" : "neutral"}>{t(x.category)}</Badge>
                     </div>
                     <p className="mt-1 text-xs text-ink-sub">
                       {x.durationMin}
-                      {t("minutes", lang)} · {x.description}
+                      {t("minutes")} · {t(x.description)}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -182,7 +175,7 @@ export default function ClinicsView({
                       ฿{x.price.toLocaleString()}
                     </span>
                     <InkButton onClick={() => onBook(open.id, x.id)}>
-                      {t("book", lang)}
+                      {t("book")}
                     </InkButton>
                   </div>
                 </div>
@@ -193,13 +186,13 @@ export default function ClinicsView({
 
         <div className="grid gap-4 md:grid-cols-2">
           <GlassCard soft className="p-6">
-            <h3 className="font-bold">{t("doctors", lang)}</h3>
+            <h3 className="font-bold">{t("doctors")}</h3>
             <div className="mt-3 space-y-2">
               {doctors.slice(0, 6).map((d) => (
                 <div key={d.id} className="rounded-cell bg-white/70 p-3 hairline">
-                  <div className="text-sm font-semibold">{d.name}</div>
+                  <div className="text-sm font-semibold">{t(d.name)}</div>
                   <div className="text-xs text-ink-sub">
-                    {d.title} · {d.specialties.join(", ")}
+                    {t(d.title)} · {d.specialties.map((sp) => t(sp)).join(", ")}
                   </div>
                 </div>
               ))}
@@ -207,10 +200,10 @@ export default function ClinicsView({
           </GlassCard>
 
           <GlassCard soft className="p-6">
-            <h3 className="font-bold">{t("reviews", lang)}</h3>
+            <h3 className="font-bold">{t("reviews")}</h3>
             <div className="mt-3 space-y-2">
               {reviews.length === 0 && (
-                <p className="text-sm text-ink-sub">{t("noReviews", lang)}</p>
+                <p className="text-sm text-ink-sub">{t("noReviews")}</p>
               )}
               {reviews.map((r) => (
                 <div key={r.id} className="rounded-cell bg-white/70 p-3 hairline">
@@ -218,11 +211,11 @@ export default function ClinicsView({
                     <span className="text-sm">{"★".repeat(r.rating)}</span>
                     {r.code && (
                       <Badge tone="pink">
-                        {t("reviewCode", lang)} {r.code}
+                        {t("reviewCode")} {r.code}
                       </Badge>
                     )}
                   </div>
-                  <p className="mt-2 text-sm text-ink/80">{r.text}</p>
+                  <p className="mt-2 text-sm text-ink/80">{t(r.text)}</p>
                   {r.images.length > 0 && (
                     <div className="mt-2 grid grid-cols-3 gap-1.5">
                       {r.images.map((src) => (
@@ -254,7 +247,7 @@ export default function ClinicsView({
             active={c === category}
             onClick={() => setCategory(c)}
           >
-            {t(`cat${CATEGORY_KEY[c] ?? c}`, lang)}
+            {t(`cat${CATEGORY_KEY[c] ?? c}`)}
           </GhostButton>
         ))}
       </div>
@@ -273,14 +266,14 @@ export default function ClinicsView({
           </div>
           <div className="text-right">
             <div className="text-3xl font-black tabular-nums">{clinics.length}</div>
-            <div className="text-xs text-ink-sub">{t("clinicCount", lang)}</div>
+            <div className="text-xs text-ink-sub">{t("clinicCount")}</div>
           </div>
         </div>
       </GlassCard>
 
       {clinics.length === 0 && (
         <GlassCard soft className="p-8 text-center text-sm text-ink-sub">
-          {t("noClinicInCategory", lang)}
+          {t("noClinicInCategory")}
         </GlassCard>
       )}
 
@@ -306,19 +299,19 @@ export default function ClinicsView({
               <div className="h-36 w-full">
                 <ClinicPhoto
                   clinicId={c.id}
-                  name={c.name}
-                  district={c.district}
+                  name={t(c.name)}
+                  district={t(c.district)}
                   src={c.image}
                 />
               </div>
               <div className="p-5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="truncate font-bold">{c.name}</div>
+                    <div className="truncate font-bold">{t(c.name)}</div>
                     <div className="mt-1 text-xs text-ink-sub">
-                      {c.district}
+                      {t(c.district)}
                       {c.hasBranches
-                        ? ` · ${t("branches", lang)} ${db.branches.filter((b) => b.clinicId === c.id).length}`
+                        ? ` · ${t("branches")} ${db.branches.filter((b) => b.clinicId === c.id).length}`
                         : ""}
                     </div>
                   </div>
@@ -330,7 +323,7 @@ export default function ClinicsView({
                 {promo && (
                   <div className="mt-3">
                     <Badge tone="pink">
-                      {promo.title} {promo.discountPct}%
+                      {t(promo.title)} {promo.discountPct}%
                     </Badge>
                   </div>
                 )}
@@ -339,11 +332,11 @@ export default function ClinicsView({
                   <div className="min-w-0">
                     <div className="text-[11px] text-ink-sub">
                       {isAll
-                        ? `${t("treatments", lang)} ${scoped.length}`
-                        : `${categoryLabel} ${t("fromPrice", lang)}`}
+                        ? `${t("treatments")} ${scoped.length}`
+                        : `${categoryLabel} ${t("fromPrice")}`}
                     </div>
                     <div className="truncate text-sm font-medium">
-                      {best ? best.name : t("preparingTreatments", lang)}
+                      {best ? t(best.name) : t("preparingTreatments")}
                     </div>
                   </div>
                   {best && (

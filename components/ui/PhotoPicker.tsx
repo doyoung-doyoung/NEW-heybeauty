@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { useT } from "@/lib/i18n";
 
 // 브라우저에서 바로 줄여서 저장한다. localStorage 용량을 아끼려고 긴 변을 720px로 맞춘다.
 function shrinkToDataUrl(file: File, maxSide = 720): Promise<string> {
@@ -40,6 +41,7 @@ export function PhotoPicker({
   hint?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const { t } = useT();
 
   async function pick(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -72,7 +74,7 @@ export function PhotoPicker({
               onClick={() => onChange(images.filter((_, idx) => idx !== i))}
               className="absolute right-1.5 top-1.5 rounded-pill bg-ink/70 px-2 py-0.5 text-[10px] font-semibold text-white"
             >
-              삭제
+              {t("removePhoto")}
             </button>
           </div>
         ))}
@@ -84,7 +86,7 @@ export function PhotoPicker({
             className="flex h-24 flex-col items-center justify-center gap-1 rounded-cell bg-white/60 text-ink-sub transition hairline hover:bg-white"
           >
             <PlusIcon />
-            <span className="text-[11px]">사진 추가</span>
+            <span className="text-[11px]">{t("addPhoto")}</span>
           </button>
         )}
       </div>

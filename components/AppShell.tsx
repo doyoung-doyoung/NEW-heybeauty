@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useDb } from "@/lib/db";
 import { useToast } from "@/components/ui/Toast";
-import { LANGS, type LangCode } from "@/lib/i18n";
+import { LANGS, LangProvider, type LangCode } from "@/lib/i18n";
 import HomeTab from "@/components/tabs/HomeTab";
 import AdminTab from "@/components/tabs/AdminTab";
 import PartnerTab from "@/components/tabs/PartnerTab";
@@ -89,7 +89,11 @@ export default function AppShell() {
       </header>
 
       <main key={tab} className="animate-rise mt-5">
-        {tab === "home" && <HomeTab lang={lang} />}
+        {tab === "home" && (
+          <LangProvider value={lang}>
+            <HomeTab />
+          </LangProvider>
+        )}
         {tab === "admin" && <AdminTab />}
         {tab === "partner" && <PartnerTab />}
         {tab === "company" && <CompanyTab />}

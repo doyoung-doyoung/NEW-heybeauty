@@ -16,7 +16,24 @@ import {
   DEMO_ID_CARDS,
   IdCardImage,
 } from "@/components/home/DemoAssets";
-import type { CrmEntry } from "@/lib/types";
+import type { CrmEntry, Gender } from "@/lib/types";
+
+// 검토 화면의 "항목: 값" 줄들을 그대로 읽는다. 사용자가 고친 뒤 저장해도 고친 값이 들어간다.
+function readFields(text: string) {
+  const out: Record<string, string> = {};
+  for (const line of text.split("\n")) {
+    const at = line.indexOf(":");
+    if (at <= 0) continue;
+    out[line.slice(0, at).trim()] = line.slice(at + 1).trim();
+  }
+  return out;
+}
+
+function genderFromName(name: string): Gender {
+  if (/^(นางสาว|นาง|Miss|Mrs|Ms)\b\.?/i.test(name)) return "여";
+  if (/^(นาย|Mr)\b\.?/i.test(name)) return "남";
+  return "미입력";
+}
 
 type Kind = "음성" | "사진" | "텍스트";
 type Step = "home" | "camera" | "voice" | "review";
@@ -444,6 +461,10 @@ Lot번호: ${fields?.Lot번호 ?? ""}
       return;
     }
     const summary = draft.text.split("\n")[0].slice(0, 40);
+    const fields = readFields(draft.text);
+    const now = new Date().toISOString();
+    let sideEffect = "";
+
     update((drft) => {
       const entry: CrmEntry = {
         id: `CRM-${Date.now()}`,
@@ -456,6 +477,77 @@ Lot번호: ${fields?.Lot번호 ?? ""}
         at: new Date().toISOString(),
       };
       drft.crmEntries.unshift(entry);
+
+      if (fields["신분증 번호"] && fields["이름"]) {
+        const name = fields["이름"];
+        const existing = drft.customers.find(
+          (c) => c.branchId === branchId && c.name === name,
+        );
+        if (existing) {
+          existing.memo = `신분증 재확인 · ${fields["신분증 번호"]}`;
+          sideEffect = `${name} 고객 정보 갱신`;
+        } else {
+          drft.customers.unshift({
+            id: `CU-${Date.now()}`,
+            clinicId,
+            branchId,
+            name,
+            phone: fields["전화번호"] ?? "",
+            birthday: fields["생년월일"] ?? "",
+            gender: genderFromName(name),
+            nationality: "태국",
+            channel: "App",
+            interests: [],
+            doctorId: drft.doctors.find((d) => d.branchId === branchId)?.id ?? "",
+            memo: `신분증 촬영 등록 · ${fields["신분증 번호"]}`,
+            createdAt: now,
+          });
+          sideEffect = `${name} 고객 등록`;
+        }
+      }
+
+      if (fields["제품명"] && fields["Lot번호"]) {
+        const product = drft.products.find((p) => p.name === fields["제품명"]);
+        const row =
+          product &&
+          drft.inventory.find(
+            (i) => i.branchId === branchId && i.productId === product.id,
+          );
+        if (row) {
+          row.qty += 1;
+          row.lotNo = fields["Lot번호"];
+          row.expiry = fields["유통기한"] || row.expiry;
+          drft.stockLogs.unshift({
+            id: `SL-IN-${Date.now()}`,
+            inventoryItemId: row.id,
+            type: "입고",
+            qty: 1,
+            reason: "제품 박스 촬영 입고",
+            at: now,
+            by: manager.trim(),
+          });
+          sideEffect = `${fields["제품명"]} 재고 1개 입고`;
+        } else if (product) {
+          drft.inventory.unshift({
+            id: `IV-${Date.now()}`,
+            clinicId,
+            branchId,
+            productId: product.id,
+            qty: 1,
+            distribution: fields["유통 형태"] === "병행수입" ? "병행수입" : "정식",
+            volume: fields["용량"] ?? product.unit,
+            expiry: fields["유통기한"] ?? "",
+            supplier: "RAON Thailand",
+            manager: manager.trim(),
+            purchaseDate: now.slice(0, 10),
+            purchasePrice: product.unitPriceTHB,
+            salePrice: product.unitPriceTHB,
+            lotNo: fields["Lot번호"],
+            warnPct: 15,
+          });
+          sideEffect = `${fields["제품명"]} 재고 신규 등록`;
+        }
+      }
 
       if (draft.usedInventoryId && draft.usedQty) {
         const item = drft.inventory.find((i) => i.id === draft.usedInventoryId);
@@ -477,7 +569,9 @@ Lot번호: ${fields?.Lot번호 ?? ""}
     const qty = draft.usedQty;
     setDraft(null);
     setStep("home");
-    toast(used ? `저장되었습니다 · 재고 ${qty}개 차감` : "저장 완료되었습니다");
+    if (used) toast(`저장되었습니다 · 재고 ${qty}개 차감`);
+    else if (sideEffect) toast(`저장되었습니다 · ${sideEffect}`);
+    else toast("저장 완료되었습니다");
   }
 
   if (step === "camera") {
@@ -689,6 +783,12 @@ Lot번호: ${label.lot}
   }
 
   if (step === "review" && draft) {
+    const f = readFields(draft.text);
+    const willCreate = [
+      f["신분증 번호"] && f["이름"] ? `고객 "${f["이름"]}"` : null,
+      f["제품명"] && f["Lot번호"] ? `재고 "${f["제품명"]}"` : null,
+    ].filter(Boolean);
+
     return (
       <GlassCard className="min-w-0 p-6">
         <div className="mb-4">
@@ -779,6 +879,12 @@ Lot번호: ${label.lot}
           {draft.usedInventoryId && (
             <p className="text-xs text-hb-600">
               저장 시 사용 제품 {draft.usedQty}개가 재고에서 자동 차감됩니다.
+            </p>
+          )}
+
+          {willCreate.length > 0 && (
+            <p className="text-xs text-hb-600">
+              저장하면 {willCreate.join(" · ")}가 이 지점에 자동 등록됩니다.
             </p>
           )}
 

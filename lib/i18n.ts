@@ -1,3 +1,8 @@
+"use client";
+
+import { createContext, useContext } from "react";
+import { CONTENT, CONTENT_PATTERNS } from "./i18n-content";
+
 export type LangCode = "ko" | "en" | "th" | "zh" | "ru" | "ar";
 
 export const LANGS: { code: LangCode; label: string; comingSoon?: boolean }[] = [
@@ -9,7 +14,7 @@ export const LANGS: { code: LangCode; label: string; comingSoon?: boolean }[] = 
   { code: "ar", label: "AR", comingSoon: true },
 ];
 
-type Entry = Partial<Record<LangCode, string>>;
+export type Entry = Partial<Record<LangCode, string>>;
 
 // KO가 기준값. AR은 준비 중이라 전환되지 않고 KO로 떨어진다.
 const DICT: Record<string, Entry> = {
@@ -68,10 +73,99 @@ const DICT: Record<string, Entry> = {
   "catDesc리프팅": { ko: "울쎄라·올리지오 RF로 처진 조직을 끌어올립니다.", en: "Ulthera and Oligio RF to lift sagging tissue.", th: "อัลเทอร่าและโอลิจิโอ RF ยกกระชับผิวที่หย่อนคล้อย", zh: "超声刀与 Oligio 射频，提拉松弛组织。", ru: "Ultherapy и Oligio RF для подтяжки тканей." },
   "catDesc스킨부스터": { ko: "리쥬란·엑소좀으로 피부결과 속건조를 개선합니다.", en: "Rejuran and exosomes to improve texture and inner dryness.", th: "รีจูรันและเอ็กโซโซมเพื่อผิวเรียบเนียนชุ่มชื้น", zh: "丽珠兰与外泌体，改善肤质与深层干燥。", ru: "Rejuran и экзосомы для текстуры и глубокого увлажнения." },
   "catDesc필러": { ko: "부족한 볼륨을 채워 얼굴 비율의 균형을 맞춥니다.", en: "Restore lost volume to balance facial proportions.", th: "เติมวอลลุ่มที่ขาดหายเพื่อสัดส่วนใบหน้าที่สมดุล", zh: "填补流失容积，平衡面部比例。", ru: "Восполнение объёма для баланса пропорций лица." },
+
+  detail: { ko: "자세히 보기", en: "View details", th: "ดูรายละเอียด", zh: "查看详情", ru: "Подробнее" },
+  goBack: { ko: "뒤로", en: "Back", th: "ย้อนกลับ", zh: "返回", ru: "Назад" },
+  goHome: { ko: "홈으로", en: "Home", th: "หน้าแรก", zh: "返回首页", ru: "На главную" },
+  optional: { ko: "선택", en: "optional", th: "ไม่บังคับ", zh: "选填", ru: "необязательно" },
+
+  chatTitle: { ko: "어떤 고민이 있으세요?", en: "What's on your mind?", th: "คุณกังวลเรื่องอะไรอยู่", zh: "您有什么困扰？", ru: "Что вас беспокоит?" },
+  chatSubtitle: { ko: "아래 질문을 눌러 바로 상담을 시작할 수 있어요.", en: "Tap a question below to start the consultation right away.", th: "แตะคำถามด้านล่างเพื่อเริ่มปรึกษาได้ทันที", zh: "点击下方问题即可立即开始咨询。", ru: "Нажмите на вопрос ниже, чтобы начать консультацию." },
+  chatPlaceholder: { ko: "궁금한 시술을 물어보세요", en: "Ask about any treatment", th: "สอบถามเกี่ยวกับหัตถการที่สนใจ", zh: "询问您想了解的项目", ru: "Спросите о любой процедуре" },
+  bookShort: { ko: "예약 →", en: "Book →", th: "จอง →", zh: "预约 →", ru: "Запись →" },
+  chatEnded: { ko: "클리닉 상담을 종료했습니다", en: "Clinic chat ended", th: "จบการสนทนากับคลินิกแล้ว", zh: "已结束诊所咨询", ru: "Чат с клиникой завершён" },
+
+  clinicFallback: { ko: "클리닉", en: "Clinic", th: "คลินิก", zh: "诊所", ru: "Клиника" },
+  replyTime: { ko: "보통 5분 내 답변", en: "Usually replies within 5 minutes", th: "ตอบกลับภายใน 5 นาทีโดยเฉลี่ย", zh: "通常 5 分钟内回复", ru: "Обычно отвечает в течение 5 минут" },
+  endChat: { ko: "종료하기", en: "End chat", th: "จบการสนทนา", zh: "结束对话", ru: "Завершить" },
+  msgPlaceholder: { ko: "메시지를 입력하세요", en: "Type a message", th: "พิมพ์ข้อความ", zh: "请输入消息", ru: "Введите сообщение" },
+
+  branch: { ko: "지점", en: "Branch", th: "สาขา", zh: "分店", ru: "Филиал" },
+  attendingDoctor: { ko: "담당 의사", en: "Doctor in charge", th: "แพทย์ผู้ดูแล", zh: "主诊医生", ru: "Лечащий врач" },
+  codeFromFriend: { ko: "친구에게 받은 코드 · 예: HB-7K2M", en: "Code from a friend · e.g. HB-7K2M", th: "โค้ดจากเพื่อน · เช่น HB-7K2M", zh: "朋友分享的码 · 例：HB-7K2M", ru: "Код от друга · напр. HB-7K2M" },
+  codeNotFound: { ko: "일치하는 후기코드가 없습니다", en: "No matching review code", th: "ไม่พบโค้ดรีวิวที่ตรงกัน", zh: "找不到匹配的评价码", ru: "Совпадающий код отзыва не найден" },
+  codeIsMine: { ko: "내가 받은 코드는 쓸 수 없어요", en: "You can't use your own code", th: "ใช้โค้ดของตัวเองไม่ได้", zh: "不能使用自己的评价码", ru: "Нельзя использовать собственный код" },
+  codeNotApproved: { ko: "아직 승인되지 않은 후기의 코드입니다", en: "This code's review isn't approved yet", th: "รีวิวของโค้ดนี้ยังไม่ได้รับการอนุมัติ", zh: "该码对应的评价尚未审核", ru: "Отзыв по этому коду ещё не одобрен" },
+  confirmed: { ko: "확인됨", en: "Confirmed", th: "ยืนยันแล้ว", zh: "已确认", ru: "Подтверждено" },
+  codeOwnerEarns: { ko: "{0}님에게 ฿{1} 적립", en: "{0} earns ฿{1}", th: "{0} จะได้รับ ฿{1}", zh: "{0} 将获得 ฿{1}", ru: "{0} получит ฿{1}" },
+  codeApplied: { ko: "송금이 확인되었습니다 · 후기코드 {0} 적용", en: "Transfer confirmed · review code {0} applied", th: "ยืนยันการโอนแล้ว · ใช้โค้ดรีวิว {0}", zh: "转账已确认 · 已使用评价码 {0}", ru: "Перевод подтверждён · код отзыва {0} применён" },
+  transferConfirmed: { ko: "송금이 확인되었습니다", en: "Transfer confirmed", th: "ยืนยันการโอนแล้ว", zh: "转账已确认", ru: "Перевод подтверждён" },
+  depositNotice: { ko: "예약금 ฿{0}은 시술 금액에서 차감됩니다. 방문 24시간 전까지 취소 시 전액 환불되며, 이후 취소 또는 미방문 시 예약금은 환불되지 않습니다.", en: "The ฿{0} deposit is deducted from the treatment price. Cancel at least 24 hours before your visit for a full refund; later cancellations and no-shows are non-refundable.", th: "มัดจำ ฿{0} จะถูกหักจากค่าหัตถการ ยกเลิกก่อนเข้ารับบริการอย่างน้อย 24 ชั่วโมงคืนเงินเต็มจำนวน หากยกเลิกภายหลังหรือไม่มาตามนัดจะไม่คืนเงิน", zh: "฿{0} 定金将从项目费用中扣除。到店前 24 小时以上取消可全额退款，之后取消或未到店则不予退还。", ru: "Депозит ฿{0} вычитается из стоимости процедуры. Полный возврат при отмене не позднее чем за 24 часа до визита; позже — без возврата." },
+  payDeposit: { ko: "예약금 ฿{0} 결제하기", en: "Pay ฿{0} deposit", th: "ชำระมัดจำ ฿{0}", zh: "支付 ฿{0} 定金", ru: "Оплатить депозит ฿{0}" },
+  scanQr: { ko: "QR을 스캔해 ฿{0}을 송금해주세요", en: "Scan the QR and transfer ฿{0}", th: "สแกน QR แล้วโอน ฿{0}", zh: "扫描二维码并转账 ฿{0}", ru: "Отсканируйте QR и переведите ฿{0}" },
+  demoQr: { ko: "DEMO QR · 실제 결제 아님", en: "DEMO QR · not a real payment", th: "QR สาธิต · ไม่ใช่การชำระเงินจริง", zh: "演示二维码 · 非真实付款", ru: "DEMO QR · не настоящий платёж" },
+  sentAttachSlip: { ko: "송금했어요 · 슬립 첨부하기", en: "I've transferred · attach slip", th: "โอนแล้ว · แนบสลิป", zh: "已转账 · 上传凭证", ru: "Перевёл · прикрепить чек" },
+  chatWithClinicTitle: { ko: "{0}과의 채팅", en: "Chat with {0}", th: "แชทกับ {0}", zh: "与 {0} 的对话", ru: "Чат с {0}" },
+  slipHint: { ko: "송금 슬립을 첨부하면 클리닉이 확인합니다.", en: "Attach your transfer slip and the clinic will verify it.", th: "แนบสลิปการโอนแล้วคลินิกจะตรวจสอบให้", zh: "上传转账凭证后，诊所会进行核对。", ru: "Прикрепите чек — клиника проверит перевод." },
+  slipGreeting: { ko: "안녕하세요! 예약금 송금 후 슬립을 보내주시면 바로 확인해 드릴게요.", en: "Hello! Send us the slip after transferring the deposit and we'll confirm right away.", th: "สวัสดีค่ะ! โอนมัดจำแล้วส่งสลิปมาได้เลย เราจะตรวจสอบให้ทันที", zh: "您好！转账定金后发送凭证给我们，我们会立即确认。", ru: "Здравствуйте! Пришлите чек после перевода депозита — мы сразу подтвердим." },
+  attachImage: { ko: "이미지 첨부", en: "Attach image", th: "แนบรูปภาพ", zh: "添加图片", ru: "Прикрепить фото" },
+  savedImages: { ko: "저장된 이미지", en: "Saved images", th: "รูปภาพที่บันทึกไว้", zh: "已保存的图片", ru: "Сохранённые изображения" },
+  transferDone: { ko: "송금 확인 완료", en: "Transfer verified", th: "ตรวจสอบการโอนเรียบร้อย", zh: "转账核对完成", ru: "Перевод подтверждён" },
+  chatWithClinic: { ko: "클리닉과 채팅하기", en: "Chat with the clinic", th: "แชทกับคลินิก", zh: "与诊所聊天", ru: "Чат с клиникой" },
+
+  noBookings: { ko: "아직 예약이 없습니다.", en: "No bookings yet.", th: "ยังไม่มีการจอง", zh: "暂无预约。", ru: "Записей пока нет." },
+  depositPaid: { ko: "예약금 ฿{0} 결제완료", en: "฿{0} deposit paid", th: "ชำระมัดจำ ฿{0} แล้ว", zh: "已支付 ฿{0} 定金", ru: "Депозит ฿{0} оплачен" },
+
+  reviewIntro: { ko: "방문 후 발행된 후기코드를 입력하면 후기를 작성할 수 있어요.", en: "Enter the review code issued after your visit to write a review.", th: "กรอกโค้ดรีวิวที่ได้รับหลังเข้ารับบริการเพื่อเขียนรีวิว", zh: "输入到店后发放的评价码即可撰写评价。", ru: "Введите код отзыва, выданный после визита, чтобы оставить отзыв." },
+  codeExample: { ko: "예: HB-7K2M", en: "e.g. HB-7K2M", th: "เช่น HB-7K2M", zh: "例：HB-7K2M", ru: "напр. HB-7K2M" },
+  rating: { ko: "평점", en: "Rating", th: "คะแนน", zh: "评分", ru: "Оценка" },
+  reviewBody: { ko: "내용", en: "Your review", th: "เนื้อหารีวิว", zh: "评价内容", ru: "Текст отзыва" },
+  reviewPlaceholder: { ko: "시술 경험을 남겨주세요", en: "Tell us about your experience", th: "เล่าประสบการณ์ของคุณ", zh: "请分享您的体验", ru: "Расскажите о своём опыте" },
+  photoLabel: { ko: "시술 사진 (최대 3장)", en: "Treatment photos (up to 3)", th: "รูปภาพหัตถการ (สูงสุด 3 รูป)", zh: "项目照片（最多 3 张）", ru: "Фото процедуры (до 3)" },
+  photoHint: { ko: "사진을 선택하면 자동으로 크기를 줄여 저장합니다", en: "Selected photos are resized automatically before saving", th: "รูปที่เลือกจะถูกย่อขนาดอัตโนมัติก่อนบันทึก", zh: "选择的照片会自动压缩后保存", ru: "Выбранные фото автоматически уменьшаются перед сохранением" },
+  userGreeting: { ko: "{0}님", en: "{0}", th: "คุณ{0}", zh: "{0}", ru: "{0}" },
+  addPhoto: { ko: "사진 추가", en: "Add photo", th: "เพิ่มรูป", zh: "添加照片", ru: "Добавить фото" },
+  removePhoto: { ko: "삭제", en: "Remove", th: "ลบ", zh: "删除", ru: "Удалить" },
+  submitReview: { ko: "후기 등록", en: "Submit review", th: "ส่งรีวิว", zh: "提交评价", ru: "Отправить отзыв" },
+  myReviews: { ko: "내가 쓴 후기", en: "My reviews", th: "รีวิวของฉัน", zh: "我的评价", ru: "Мои отзывы" },
+  reviewBlocked: { ko: "차단됨", en: "Blocked", th: "ถูกระงับ", zh: "已屏蔽", ru: "Заблокирован" },
+  reviewApproved: { ko: "승인됨", en: "Approved", th: "อนุมัติแล้ว", zh: "已通过", ru: "Одобрен" },
+  reviewPending: { ko: "승인 대기", en: "Pending", th: "รออนุมัติ", zh: "审核中", ru: "На рассмотрении" },
+  checkCode: { ko: "후기코드를 확인해주세요", en: "Please check the review code", th: "กรุณาตรวจสอบโค้ดรีวิว", zh: "请检查评价码", ru: "Проверьте код отзыва" },
+  writeSomething: { ko: "후기 내용을 입력해주세요", en: "Please write your review", th: "กรุณาเขียนเนื้อหารีวิว", zh: "请填写评价内容", ru: "Напишите текст отзыва" },
+  reviewSubmitted: { ko: "후기가 등록되었습니다 · 어드민 승인 후 노출됩니다", en: "Review submitted · it goes live after admin approval", th: "ส่งรีวิวแล้ว · จะแสดงหลังผู้ดูแลอนุมัติ", zh: "评价已提交 · 通过管理员审核后显示", ru: "Отзыв отправлен · появится после одобрения" },
 };
 
-export function t(key: keyof typeof DICT | string, lang: LangCode): string {
-  const entry = DICT[key];
-  if (!entry) return key;
-  return entry[lang] ?? entry.ko ?? key;
+// "{0}" 자리에 값을 끼워 넣는다. 언어마다 값의 위치가 달라서 문장을 쪼개 붙이면 어순이 깨진다.
+export function tf(key: string, lang: LangCode, ...values: (string | number)[]) {
+  return t(key, lang).replace(/\{(\d+)\}/g, (_, i) => String(values[Number(i)] ?? ""));
+}
+
+export function t(key: string, lang: LangCode): string {
+  const entry = DICT[key] ?? CONTENT[key];
+  if (entry) return entry[lang] ?? entry.ko ?? key;
+
+  // 시드가 만들어 내는 문장은 이름·카테고리가 끼워 넣어져 있어 통째로 사전에 담을 수 없다.
+  // 틀만 번역해 두고, 끼워 넣어진 조각은 다시 t()에 태워 번역한다.
+  for (const p of CONTENT_PATTERNS) {
+    const m = p.match.exec(key);
+    if (!m) continue;
+    const tpl = CONTENT[p.key]?.[lang];
+    if (!tpl) break;
+    return tpl.replace(/\{(\d+)\}/g, (_, i) => t(m[Number(i) + 1], lang));
+  }
+  return key;
+}
+
+// 홈 탭 안쪽 화면까지 lang을 손으로 내려보내면 중간 컴포넌트가 전부 그 값을 받아 나르게 된다.
+const LangContext = createContext<LangCode>("ko");
+export const LangProvider = LangContext.Provider;
+
+export function useT() {
+  const lang = useContext(LangContext);
+  return {
+    lang,
+    t: (key: string) => t(key, lang),
+    tf: (key: string, ...values: (string | number)[]) => tf(key, lang, ...values),
+  };
 }

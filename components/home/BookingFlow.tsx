@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useDb } from "@/lib/db";
 import { useToast } from "@/components/ui/Toast";
+import { useT } from "@/lib/i18n";
 import {
   Badge,
   GhostButton,
@@ -13,16 +14,18 @@ import { DEMO_SLIPS, PseudoQR, SlipImage } from "./DemoAssets";
 
 const TIMES = ["10:00", "11:30", "13:00", "14:30", "16:00", "17:30", "19:00"];
 const DEPOSIT = 1000;
+const COMMISSION_PCT = 15;
 
 function nextDays(count: number) {
-  const out: { value: string; label: string }[] = [];
+  const out: { value: string; label: string; day: string }[] = [];
   const base = new Date();
   for (let i = 1; i <= count; i++) {
     const d = new Date(base);
     d.setDate(d.getDate() + i);
     out.push({
       value: d.toISOString().slice(0, 10),
-      label: `${d.getMonth() + 1}/${d.getDate()} (${["일", "월", "화", "수", "목", "금", "토"][d.getDay()]})`,
+      label: `${d.getMonth() + 1}/${d.getDate()}`,
+      day: ["일", "월", "화", "수", "목", "금", "토"][d.getDay()],
     });
   }
   return out;
@@ -41,6 +44,7 @@ export default function BookingFlow({
   onBack: () => void;
   onOpenClinicChat: (threadId: string) => void;
 }) {
+  const { t, tf } = useT();
   const { db, update } = useDb();
   const toast = useToast();
   const days = useMemo(() => nextDays(10), []);
@@ -53,6 +57,7 @@ export default function BookingFlow({
   const [slipId, setSlipId] = useState<string | null>(null);
   const [showSlipPicker, setShowSlipPicker] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
+  const [reviewCode, setReviewCode] = useState("");
 
   if (!db) return null;
 
@@ -65,6 +70,34 @@ export default function BookingFlow({
   const doctors = db.doctors.filter((d) => d.branchId === activeBranchId);
   const activeDoctorId = doctorId || doctors[0]?.id || "";
   const slip = DEMO_SLIPS.find((s) => s.id === slipId) ?? null;
+
+  const typedCode = reviewCode.trim().toUpperCase();
+  const matchedCode =
+    db.reviewCodes.find((rc) => rc.code.toUpperCase() === typedCode) ?? null;
+  const codeOwner = matchedCode
+    ? db.users.find((u) => u.id === matchedCode.ownerUserId)
+    : null;
+  // 코드를 준 후기가 어드민 승인을 통과해야 커미션이 붙는다.
+  const codeApproved =
+    !!matchedCode &&
+    db.reviews.some(
+      (r) => r.code.toUpperCase() === typedCode && r.approved && !r.blocked,
+    );
+  const codeUsable = codeApproved && matchedCode!.ownerUserId !== "U1";
+  const commission = Math.round((DEPOSIT * COMMISSION_PCT) / 100);
+
+  const codeNotice = !typedCode
+    ? null
+    : !matchedCode
+      ? { ok: false, text: t("codeNotFound") }
+      : matchedCode.ownerUserId === "U1"
+        ? { ok: false, text: t("codeIsMine") }
+        : !codeApproved
+          ? { ok: false, text: t("codeNotApproved") }
+          : {
+              ok: true,
+              text: `${t("confirmed")} · ${tf("codeOwnerEarns", t(codeOwner?.name ?? ""), commission.toLocaleString())}`,
+            };
 
   function confirmPayment() {
     const id = `BK-${Date.now()}`;
@@ -84,9 +117,50 @@ export default function BookingFlow({
         depositTHB: DEPOSIT,
         slipImage: slipId,
         status: "예약확정",
-        usedReviewCode: null,
+        usedReviewCode: codeUsable ? matchedCode!.code : null,
         createdAt: now,
       });
+
+      if (codeUsable) {
+        const rc = draft.reviewCodes.find((x) => x.id === matchedCode!.id);
+        rc?.usedByBookingIds.push(id);
+        draft.commissions.unshift({
+          id: `CM-${Date.now()}`,
+          reviewCodeId: matchedCode!.id,
+          bookingId: id,
+          amountTHB: commission,
+          at: now,
+        });
+      }
+
+      const me = draft.users.find((u) => u.id === "U1");
+      const memo = `Hey! Beauty 앱 예약 · ${date} ${time} ${treatment!.name}`;
+      const existing = draft.customers.find(
+        (c) => c.branchId === activeBranchId && c.phone === me?.phone,
+      );
+      if (existing) {
+        if (!existing.interests.includes(treatment!.category)) {
+          existing.interests.push(treatment!.category);
+        }
+        existing.doctorId = activeDoctorId;
+        existing.memo = memo;
+      } else {
+        draft.customers.unshift({
+          id: `CU-${Date.now()}`,
+          clinicId,
+          branchId: activeBranchId,
+          name: me?.name ?? "앱 고객",
+          phone: me?.phone ?? "",
+          birthday: "",
+          gender: "미입력",
+          nationality: "한국",
+          channel: "App",
+          interests: [treatment!.category],
+          doctorId: activeDoctorId,
+          memo,
+          createdAt: now,
+        });
+      }
 
       draft.chats.unshift({
         id: threadId,
@@ -133,18 +207,22 @@ export default function BookingFlow({
 
     setBookingId(threadId);
     setStep("done");
-    toast("송금이 확인되었습니다");
+    toast(
+      codeUsable
+        ? tf("codeApplied", matchedCode!.code)
+        : t("transferConfirmed"),
+    );
   }
 
   return (
     <div className="space-y-4">
-      <GhostButton onClick={onBack}>← 뒤로</GhostButton>
+      <GhostButton onClick={onBack}>← {t("goBack")}</GhostButton>
 
       <GlassCard className="p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <div className="text-xs text-ink-sub">{clinic.name}</div>
-            <h2 className="text-xl font-bold">{treatment.name}</h2>
+            <div className="text-xs text-ink-sub">{t(clinic.name)}</div>
+            <h2 className="text-xl font-bold">{t(treatment.name)}</h2>
           </div>
           <div className="text-lg font-bold">฿{treatment.price.toLocaleString()}</div>
         </div>
@@ -167,7 +245,7 @@ export default function BookingFlow({
         <GlassCard soft className="animate-rise space-y-5 p-6">
           {branches.length > 1 && (
             <div>
-              <div className="mb-2 text-sm font-semibold">지점</div>
+              <div className="mb-2 text-sm font-semibold">{t("branch")}</div>
               <div className="flex flex-wrap gap-2">
                 {branches.map((b) => (
                   <GhostButton
@@ -178,7 +256,7 @@ export default function BookingFlow({
                       setDoctorId("");
                     }}
                   >
-                    {b.name}
+                    {t(b.name)}
                   </GhostButton>
                 ))}
               </div>
@@ -186,7 +264,7 @@ export default function BookingFlow({
           )}
 
           <div>
-            <div className="mb-2 text-sm font-semibold">날짜</div>
+            <div className="mb-2 text-sm font-semibold">{t("date")}</div>
             <div className="flex flex-wrap gap-2">
               {days.map((d) => (
                 <GhostButton
@@ -194,14 +272,14 @@ export default function BookingFlow({
                   active={d.value === date}
                   onClick={() => setDate(d.value)}
                 >
-                  {d.label}
+                  {d.label} ({t(d.day)})
                 </GhostButton>
               ))}
             </div>
           </div>
 
           <div>
-            <div className="mb-2 text-sm font-semibold">시간</div>
+            <div className="mb-2 text-sm font-semibold">{t("time")}</div>
             <div className="flex flex-wrap gap-2">
               {TIMES.map((t) => (
                 <GhostButton key={t} active={t === time} onClick={() => setTime(t)}>
@@ -212,7 +290,7 @@ export default function BookingFlow({
           </div>
 
           <div>
-            <div className="mb-2 text-sm font-semibold">담당 의사</div>
+            <div className="mb-2 text-sm font-semibold">{t("attendingDoctor")}</div>
             <div className="flex flex-wrap gap-2">
               {doctors.map((d) => (
                 <GhostButton
@@ -220,20 +298,38 @@ export default function BookingFlow({
                   active={d.id === activeDoctorId}
                   onClick={() => setDoctorId(d.id)}
                 >
-                  {d.name}
+                  {t(d.name)}
                 </GhostButton>
               ))}
             </div>
           </div>
 
+          <div>
+            <div className="mb-2 text-sm font-semibold">
+              {t("reviewCode")}{" "}
+              <span className="font-normal text-ink-sub">({t("optional")})</span>
+            </div>
+            <input
+              value={reviewCode}
+              onChange={(e) => setReviewCode(e.target.value)}
+              placeholder={t("codeFromFriend")}
+              className="w-full rounded-pill bg-white/70 px-5 py-3 text-sm outline-none hairline placeholder:text-ink-sub focus:bg-white"
+            />
+            {codeNotice && (
+              <p
+                className={`mt-2 text-xs ${codeNotice.ok ? "text-hb-600" : "text-danger"}`}
+              >
+                {codeNotice.text}
+              </p>
+            )}
+          </div>
+
           <div className="rounded-cell bg-white/70 p-4 text-xs leading-relaxed text-ink-sub hairline">
-            예약금 ฿{DEPOSIT.toLocaleString()}은 시술 금액에서 차감됩니다. 방문 24시간
-            전까지 취소 시 전액 환불되며, 이후 취소 또는 미방문 시 예약금은 환불되지
-            않습니다.
+            {tf("depositNotice", DEPOSIT.toLocaleString())}
           </div>
 
           <InkButton onClick={() => setStep("qr")}>
-            예약금 ฿{DEPOSIT.toLocaleString()} 결제하기
+            {tf("payDeposit", DEPOSIT.toLocaleString())}
           </InkButton>
         </GlassCard>
       )}
@@ -243,22 +339,22 @@ export default function BookingFlow({
           <div className="text-center">
             <Badge tone="pink">PromptPay</Badge>
             <h3 className="mt-3 text-lg font-bold">
-              QR을 스캔해 ฿{DEPOSIT.toLocaleString()}을 송금해주세요
+              {tf("scanQr", DEPOSIT.toLocaleString())}
             </h3>
             <p className="mt-1 text-xs text-ink-sub">
-              {clinic.name} · {date} {time}
+              {t(clinic.name)} · {date} {time}
             </p>
 
             <div className="mx-auto mt-5 w-52 animate-pop overflow-hidden rounded-card bg-white p-4 shadow-float">
               <PseudoQR seed={`${clinicId}-${date}-${time}`} className="w-full" />
               <div className="mt-3 text-[11px] font-semibold tracking-wide text-ink-sub">
-                DEMO QR · 실제 결제 아님
+                {t("demoQr")}
               </div>
             </div>
 
             <div className="mt-6">
               <InkButton onClick={() => setStep("slip")}>
-                송금했어요 · 슬립 첨부하기
+                {t("sentAttachSlip")}
               </InkButton>
             </div>
           </div>
@@ -267,15 +363,15 @@ export default function BookingFlow({
 
       {step === "slip" && (
         <GlassCard soft className="animate-rise p-6">
-          <h3 className="font-bold">{clinic.name}과의 채팅</h3>
+          <h3 className="font-bold">{tf("chatWithClinicTitle", t(clinic.name))}</h3>
           <p className="mt-1 text-xs text-ink-sub">
-            송금 슬립을 첨부하면 클리닉이 확인합니다.
+            {t("slipHint")}
           </p>
 
           <div className="mt-4 space-y-3">
             <div className="flex justify-start">
               <div className="max-w-[85%] rounded-card bg-white/75 px-4 py-3 text-sm hairline">
-                안녕하세요! 예약금 송금 후 슬립을 보내주시면 바로 확인해 드릴게요.
+                {t("slipGreeting")}
               </div>
             </div>
 
@@ -290,15 +386,15 @@ export default function BookingFlow({
 
           <div className="mt-5 flex flex-wrap items-center gap-2">
             <GhostButton onClick={() => setShowSlipPicker((v) => !v)}>
-              이미지 첨부
+              {t("attachImage")}
             </GhostButton>
-            {slip && <InkButton onClick={confirmPayment}>보내기</InkButton>}
+            {slip && <InkButton onClick={confirmPayment}>{t("send")}</InkButton>}
           </div>
 
           {showSlipPicker && (
             <div className="mt-4 animate-rise rounded-card bg-white/70 p-4 hairline">
               <div className="mb-3 text-xs font-semibold text-ink-sub">
-                저장된 이미지
+                {t("savedImages")}
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {DEMO_SLIPS.map((s) => (
@@ -347,16 +443,16 @@ export default function BookingFlow({
           </svg>
           <style>{`@keyframes draw { to { stroke-dashoffset: 0; } }`}</style>
 
-          <h3 className="mt-4 text-xl font-bold">송금 확인 완료</h3>
+          <h3 className="mt-4 text-xl font-bold">{t("transferDone")}</h3>
           <p className="mt-2 text-sm text-ink-sub">
-            {clinic.name} · {date} {time} · {treatment.name}
+            {t(clinic.name)} · {date} {time} · {t(treatment.name)}
           </p>
 
           <div className="mt-6 flex flex-wrap justify-center gap-2">
             <InkButton onClick={() => bookingId && onOpenClinicChat(bookingId)}>
-              클리닉과 채팅하기
+              {t("chatWithClinic")}
             </InkButton>
-            <GhostButton onClick={onBack}>홈으로</GhostButton>
+            <GhostButton onClick={onBack}>{t("goHome")}</GhostButton>
           </div>
         </GlassCard>
       )}

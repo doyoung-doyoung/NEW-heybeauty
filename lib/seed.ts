@@ -30,7 +30,7 @@ import type {
 const BASE_DATE = new Date("2026-09-17T09:00:00+07:00");
 
 // 스키마가 바뀌면 올린다. 저장된 데모 데이터가 이 값과 다르면 새 시드로 갈아끼운다.
-export const SEED_VERSION = 4;
+export const SEED_VERSION = 5;
 
 function rng(seed: number) {
   let a = seed >>> 0;
@@ -110,6 +110,19 @@ const CLINIC_DEFS = [
   { name: "차이나타운 벨르", district: "차이나타운", branches: [] },
 ] as const;
 
+// LINE 아이디는 실제로 로마자다. 동네 이름을 그대로 쓰면 영어 화면에 한글이 남는다.
+const DISTRICT_SLUG: Record<string, string> = {
+  사얌: "siam",
+  프롬퐁: "phrompong",
+  아속: "asok",
+  통러: "thonglor",
+  실롬: "silom",
+  아리: "ari",
+  에까마이: "ekkamai",
+  라차다: "ratchada",
+  차이나타운: "chinatown",
+};
+
 const DAYS = ["월", "화", "수", "목", "금", "토", "일"] as const;
 const DOCTOR_NAMES = ["나린", "쁘라윳", "깐야", "아난", "수니사", "위라왓", "말리완", "티라폰", "차이야", "펀사이"];
 const STAFF_NAMES = ["쏨차이", "니차", "밧사꼰", "쁘라니", "아윳", "깐톤", "사이완", "피차야"];
@@ -166,7 +179,7 @@ export function buildSeed(): DemoDb {
       district: def.district,
       address: `${def.district} 로드 ${between(10, 240)}, 방콕`,
       phone: `02-${between(200, 999)}-${between(1000, 9999)}`,
-      lineId: `@${def.district.toLowerCase()}${ci + 1}`,
+      lineId: `@${DISTRICT_SLUG[def.district]}${ci + 1}`,
       parking: pick(["발렛 가능", "건물 주차장 2시간 무료", "인근 유료 주차", "주차 불가 (BTS 도보 3분)"]),
       hours: makeHours(ci),
       rating: Number((4.1 + rand() * 0.8).toFixed(1)),

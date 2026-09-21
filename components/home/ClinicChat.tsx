@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useDb } from "@/lib/db";
+import { useT } from "@/lib/i18n";
 import { GhostButton, GlassCard, InkButton } from "@/components/ui/primitives";
 import { DEMO_SLIPS, SlipImage } from "./DemoAssets";
 
@@ -21,6 +22,7 @@ export default function ClinicChat({
   onBack: () => void;
   onEnd: () => void;
 }) {
+  const { t } = useT();
   const { db, update } = useDb();
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
@@ -83,13 +85,13 @@ export default function ClinicChat({
 
   return (
     <div className="space-y-4">
-      <GhostButton onClick={onBack}>← 뒤로</GhostButton>
+      <GhostButton onClick={onBack}>← {t("goBack")}</GhostButton>
 
       <GlassCard className="flex h-[calc(100dvh-18rem)] min-h-[26rem] flex-col p-5">
         <div className="flex items-start justify-between gap-3 border-b border-ink/10 pb-3">
           <div className="min-w-0">
-            <div className="truncate font-bold">{clinic?.name ?? "클리닉"}</div>
-            <div className="text-xs text-ink-sub">보통 5분 내 답변</div>
+            <div className="truncate font-bold">{clinic ? t(clinic.name) : t("clinicFallback")}</div>
+            <div className="text-xs text-ink-sub">{t("replyTime")}</div>
           </div>
           {/* 클리닉 상담이 끝나면 원래 보던 AI 대화로 돌아간다. */}
           <button
@@ -97,7 +99,7 @@ export default function ClinicChat({
             onClick={onEnd}
             className="shrink-0 rounded-pill px-3 py-1.5 text-xs text-ink-sub transition hairline hover:bg-white/70"
           >
-            종료하기
+            {t("endChat")}
           </button>
         </div>
 
@@ -124,7 +126,7 @@ export default function ClinicChat({
                         : "bg-white/75 text-ink hairline"
                     }`}
                   >
-                    {m.text}
+                    {t(m.text)}
                   </div>
                 </div>
               </div>
@@ -157,10 +159,10 @@ export default function ClinicChat({
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="메시지를 입력하세요"
+            placeholder={t("msgPlaceholder")}
             className="flex-1 rounded-pill bg-white/70 px-5 py-3 text-sm outline-none hairline placeholder:text-ink-sub focus:bg-white"
           />
-          <InkButton onClick={send}>보내기</InkButton>
+          <InkButton onClick={send}>{t("send")}</InkButton>
         </form>
       </GlassCard>
     </div>

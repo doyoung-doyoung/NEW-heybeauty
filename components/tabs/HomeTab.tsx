@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useDb } from "@/lib/db";
 import { useToast } from "@/components/ui/Toast";
-import { t, type LangCode } from "@/lib/i18n";
+import { useT } from "@/lib/i18n";
 import { GlassCard, InkButton } from "@/components/ui/primitives";
 import ChatView from "@/components/home/ChatView";
 import ClinicsView from "@/components/home/ClinicsView";
@@ -21,7 +21,8 @@ type View =
   | { name: "review" }
   | { name: "notice" };
 
-export default function HomeTab({ lang }: { lang: LangCode }) {
+export default function HomeTab() {
+  const { t, tf } = useT();
   const { db } = useDb();
   const toast = useToast();
   const [view, setView] = useState<View>({ name: "chat", threadId: null });
@@ -82,11 +83,11 @@ export default function HomeTab({ lang }: { lang: LangCode }) {
               onClick={() => setPopupOpen(true)}
               className="min-w-0 text-left"
             >
-              <div className="text-xs text-white/60">{t("noticePopup", lang)}</div>
-              <div className="mt-1 font-bold">{popup.title}</div>
-              <p className="mt-1 text-sm text-white/75">{popup.body}</p>
+              <div className="text-xs text-white/60">{t("noticePopup")}</div>
+              <div className="mt-1 font-bold">{t(popup.title)}</div>
+              <p className="mt-1 text-sm text-white/75">{t(popup.body)}</p>
               <span className="mt-2 inline-block text-xs text-white/60 underline">
-                자세히 보기
+                {t("detail")}
               </span>
             </button>
             <button
@@ -94,7 +95,7 @@ export default function HomeTab({ lang }: { lang: LangCode }) {
               onClick={() => setPopupClosed(true)}
               className="shrink-0 rounded-pill border border-white/25 px-3 py-1.5 text-xs"
             >
-              {t("close", lang)}
+              {t("close")}
             </button>
           </div>
         </div>
@@ -120,9 +121,9 @@ export default function HomeTab({ lang }: { lang: LangCode }) {
               />
             )}
             <div className="p-5">
-              <div className="text-xs text-ink-sub">{t("noticePopup", lang)}</div>
-              <div className="mt-1 text-lg font-bold">{popup.title}</div>
-              <p className="mt-2 text-sm text-ink/75">{popup.body}</p>
+              <div className="text-xs text-ink-sub">{t("noticePopup")}</div>
+              <div className="mt-1 text-lg font-bold">{t(popup.title)}</div>
+              <p className="mt-2 text-sm text-ink/75">{t(popup.body)}</p>
               <div className="mt-5 flex flex-wrap gap-2">
                 <InkButton
                   arrow={false}
@@ -131,17 +132,17 @@ export default function HomeTab({ lang }: { lang: LangCode }) {
                     setView({ name: "clinics", category: "전체" });
                   }}
                 >
-                  {t("clinics", lang)}
+                  {t("clinics")}
                 </InkButton>
                 <InkButton arrow={false} onClick={bookFromPopup}>
-                  {t("book", lang)}
+                  {t("book")}
                 </InkButton>
                 <button
                   type="button"
                   onClick={() => setPopupOpen(false)}
                   className="rounded-pill px-4 py-2.5 text-sm text-ink-sub hairline"
                 >
-                  {t("close", lang)}
+                  {t("close")}
                 </button>
               </div>
             </div>
@@ -155,11 +156,11 @@ export default function HomeTab({ lang }: { lang: LangCode }) {
           {loggedIn ? (
             <div className="mb-3 flex items-center gap-2 rounded-cell bg-white/70 p-3 hairline">
               <span className="flex size-8 items-center justify-center rounded-pill bg-hb-400/30 text-xs font-bold text-hb-600">
-                도
+                {t("도도").slice(0, 1)}
               </span>
               <div className="text-sm">
-                <div className="font-semibold">도도님</div>
-                <div className="text-[11px] text-ink-sub">{t("lineLinked", lang)}</div>
+                <div className="font-semibold">{tf("userGreeting", t("도도"))}</div>
+                <div className="text-[11px] text-ink-sub">{t("lineLinked")}</div>
               </div>
             </div>
           ) : (
@@ -167,11 +168,11 @@ export default function HomeTab({ lang }: { lang: LangCode }) {
               type="button"
               onClick={() => {
                 setLoggedIn(true);
-                toast(t("loginDone", lang));
+                toast(t("loginDone"));
               }}
               className="mb-3 w-full rounded-pill bg-[#06C755] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-95"
             >
-              {t("login", lang)}
+              {t("login")}
             </button>
           )}
 
@@ -181,21 +182,21 @@ export default function HomeTab({ lang }: { lang: LangCode }) {
               className="w-full justify-center"
               onClick={() => setView({ name: "chat", threadId: null })}
             >
-              {t("newChat", lang)}
+              {t("newChat")}
             </InkButton>
           </div>
 
           <div className="flex gap-2 overflow-x-auto pb-1 lg:block lg:space-y-1 lg:overflow-visible lg:pb-0">
-            {sideItem("clinics", t("clinics", lang), view.name === "clinics", () =>
+            {sideItem("clinics", t("clinics"), view.name === "clinics", () =>
               setView({ name: "clinics", category: "전체" }),
             )}
-            {sideItem("mybookings", t("myBookings", lang), view.name === "mybookings", () =>
+            {sideItem("mybookings", t("myBookings"), view.name === "mybookings", () =>
               setView({ name: "mybookings" }),
             )}
-            {sideItem("review", t("writeReview", lang), view.name === "review", () =>
+            {sideItem("review", t("writeReview"), view.name === "review", () =>
               setView({ name: "review" }),
             )}
-            {sideItem("notice", t("notice", lang), view.name === "notice", () =>
+            {sideItem("notice", t("notice"), view.name === "notice", () =>
               setView({ name: "notice" }),
             )}
           </div>
@@ -213,7 +214,6 @@ export default function HomeTab({ lang }: { lang: LangCode }) {
 
           {view.name === "clinics" && (
             <ClinicsView
-              lang={lang}
               initialCategory={view.category}
               onBook={(clinicId, treatmentId) =>
                 setView({ name: "booking", clinicId, treatmentId })
@@ -241,7 +241,7 @@ export default function HomeTab({ lang }: { lang: LangCode }) {
                 const prev = db.chats
                   .filter((c) => c.kind === "ai")
                   .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
-                toast("클리닉 상담을 종료했습니다");
+                toast(t("chatEnded"));
                 setView({ name: "chat", threadId: prev?.id ?? null });
               }}
             />
@@ -249,14 +249,15 @@ export default function HomeTab({ lang }: { lang: LangCode }) {
 
           {view.name === "mybookings" && <MyBookings />}
           {view.name === "review" && <WriteReview />}
-          {view.name === "notice" && <NoticeList lang={lang} />}
+          {view.name === "notice" && <NoticeList />}
         </div>
       </div>
     </div>
   );
 }
 
-function NoticeList({ lang }: { lang: LangCode }) {
+function NoticeList() {
+  const { t } = useT();
   const { db } = useDb();
   if (!db) return null;
 
@@ -264,15 +265,15 @@ function NoticeList({ lang }: { lang: LangCode }) {
 
   return (
     <GlassCard className="p-6">
-      <h2 className="text-xl font-bold tracking-tight">{t("notice", lang)}</h2>
+      <h2 className="text-xl font-bold tracking-tight">{t("notice")}</h2>
       <div className="mt-4 space-y-2">
         {notices.map((n) => (
           <div key={n.id} className="rounded-cell bg-white/70 p-4 hairline">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-semibold">{n.title}</span>
+              <span className="font-semibold">{t(n.title)}</span>
               <span className="text-[11px] text-ink-sub">{n.at.slice(0, 10)}</span>
             </div>
-            <p className="mt-1.5 text-sm text-ink/75">{n.body}</p>
+            <p className="mt-1.5 text-sm text-ink/75">{t(n.body)}</p>
           </div>
         ))}
       </div>

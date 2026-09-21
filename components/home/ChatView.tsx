@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SCENARIOS, type Scenario, turnAt } from "@/lib/scenario";
 import { useDb } from "@/lib/db";
+import { useT } from "@/lib/i18n";
 import { InkButton } from "@/components/ui/primitives";
 
 interface Bubble {
@@ -24,6 +25,7 @@ export default function ChatView({
   threadId: string | null;
   onCta: (category: string) => void;
 }) {
+  const { t } = useT();
   const { db, update } = useDb();
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [scenario, setScenario] = useState<Scenario | null>(null);
@@ -146,10 +148,10 @@ export default function ChatView({
         {empty && (
           <div className="animate-rise pt-6">
             <h2 className="text-2xl font-bold leading-snug">
-              어떤 고민이 있으세요?
+              {t("chatTitle")}
             </h2>
             <p className="mt-2 text-sm text-ink-sub">
-              아래 질문을 눌러 바로 상담을 시작할 수 있어요.
+              {t("chatSubtitle")}
             </p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {SCENARIOS.map((s) => (
@@ -164,10 +166,10 @@ export default function ChatView({
                   className="lift rounded-card bg-white/70 p-5 text-left hairline"
                 >
                   <div className="text-xs font-semibold text-hb-600">
-                    {s.category}
+                    {t(s.category)}
                   </div>
                   <div className="mt-2 font-semibold leading-snug">
-                    {s.question}
+                    {t(s.question)}
                   </div>
                 </button>
               ))}
@@ -189,7 +191,7 @@ export default function ChatView({
                     : "bg-white/75 text-ink hairline"
                 }`}
               >
-                {b.text}
+                {t(b.text)}
               </div>
             </div>
 
@@ -202,7 +204,7 @@ export default function ChatView({
                     onClick={() => ask(q)}
                     className="block w-full rounded-pill bg-white/60 px-4 py-2.5 text-left text-sm transition hairline hover:bg-white"
                   >
-                    {q}
+                    {t(q)}
                   </button>
                 ))}
                 {b.cta && (
@@ -211,8 +213,8 @@ export default function ChatView({
                     onClick={() => onCta(b.category ?? "전체")}
                     className="flex w-full items-center justify-between gap-3 rounded-pill bg-hb-400/25 px-4 py-2.5 text-left text-sm font-medium text-hb-600 transition hover:bg-hb-400/40"
                   >
-                    {b.cta}
-                    <span className="shrink-0 text-xs">예약 →</span>
+                    {t(b.cta)}
+                    <span className="shrink-0 text-xs">{t("bookShort")}</span>
                   </button>
                 )}
               </div>
@@ -246,11 +248,11 @@ export default function ChatView({
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="궁금한 시술을 물어보세요"
+          placeholder={t("chatPlaceholder")}
           className="flex-1 rounded-pill bg-white/70 px-5 py-3 text-sm outline-none hairline placeholder:text-ink-sub focus:bg-white"
         />
         <InkButton onClick={() => input.trim() && ask(input.trim())}>
-          보내기
+          {t("send")}
         </InkButton>
       </form>
     </div>

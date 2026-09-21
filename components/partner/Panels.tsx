@@ -237,7 +237,7 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
     const spent = charts.reduce((s, x) => s + x.paidAmount, 0);
     const rows: { label: string; value: string }[] = [
       { label: "전화번호", value: open.phone },
-      { label: "생년월일", value: open.birthday },
+      { label: "생년월일", value: open.birthday || "미입력" },
       { label: "성별", value: open.gender },
       { label: "국가", value: open.nationality },
       { label: "유입 경로", value: CHANNEL_LABEL[open.channel] },
