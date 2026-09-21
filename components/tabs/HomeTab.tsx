@@ -28,6 +28,9 @@ export default function HomeTab() {
   const [view, setView] = useState<View>({ name: "chat", threadId: null });
   const [loggedIn, setLoggedIn] = useState(false);
   const [popupClosed, setPopupClosed] = useState(false);
+  // 새 대화를 눌러도 threadId가 null 그대로면 ChatView의 초기화 효과가 다시 돌지 않는다.
+  // 이 값을 key로 써서 아예 새로 마운트시킨다.
+  const [chatNonce, setChatNonce] = useState(0);
   const [popupOpen, setPopupOpen] = useState(false);
 
   if (!db) return null;
@@ -180,7 +183,10 @@ export default function HomeTab() {
             <InkButton
               arrow={false}
               className="w-full justify-center"
-              onClick={() => setView({ name: "chat", threadId: null })}
+              onClick={() => {
+                setChatNonce((n) => n + 1);
+                setView({ name: "chat", threadId: null });
+              }}
             >
               {t("newChat")}
             </InkButton>
@@ -206,6 +212,7 @@ export default function HomeTab() {
           {view.name === "chat" && (
             <GlassCard className="p-5">
               <ChatView
+                key={chatNonce}
                 threadId={view.threadId}
                 onCta={(category) => setView({ name: "clinics", category })}
               />

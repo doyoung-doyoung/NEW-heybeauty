@@ -10,7 +10,8 @@ import {
 } from "react";
 import type { DemoDb } from "./types";
 import { storage } from "./storage";
-import { buildSeed, SEED_VERSION } from "./seed";
+import { buildSeed } from "./seed";
+import { migrate } from "./migrate";
 
 interface DbContextValue {
   db: DemoDb | null;
@@ -29,11 +30,10 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
 
     storage.load().then((loaded) => {
       if (!alive) return;
-      const usable = loaded?.version === SEED_VERSION ? loaded : null;
-      const next = usable ?? buildSeed();
+      const next = migrate(loaded);
       dbRef.current = next;
       setDb(next);
-      if (!usable) storage.save(next);
+      if (next !== loaded) storage.save(next);
     });
 
     const unsubscribe = storage.subscribe((incoming) => {

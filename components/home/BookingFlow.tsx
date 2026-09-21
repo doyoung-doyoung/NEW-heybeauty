@@ -66,7 +66,7 @@ export default function BookingFlow({
   if (!clinic || !treatment) return null;
 
   const branches = db.branches.filter((b) => b.clinicId === clinicId);
-  const activeBranchId = branchId || branches[0].id;
+  const activeBranchId = branchId || branches[0]?.id || "";
   const doctors = db.doctors.filter((d) => d.branchId === activeBranchId);
   const activeDoctorId = doctorId || doctors[0]?.id || "";
   const slip = DEMO_SLIPS.find((s) => s.id === slipId) ?? null;
