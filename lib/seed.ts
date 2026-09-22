@@ -31,7 +31,7 @@ import { COMMISSION_BASELINE } from "./commission";
 const BASE_DATE = new Date("2026-09-17T09:00:00+07:00");
 
 // 스키마가 바뀌면 올린다. 저장된 데모 데이터가 이 값과 다르면 새 시드로 갈아끼운다.
-export const SEED_VERSION = 7;
+export const SEED_VERSION = 8;
 
 function rng(seed: number) {
   let a = seed >>> 0;
@@ -122,7 +122,32 @@ const DISTRICT_SLUG: Record<string, string> = {
   에까마이: "ekkamai",
   라차다: "ratchada",
   차이나타운: "chinatown",
+  // 아래는 채움용 클리닉(C11~)이 쓰는 동네. 위 아홉 곳만으로 89곳을 만들면
+  // 같은 동네 이름이 열 번씩 반복돼서 목록이 복사-붙여넣기처럼 보인다.
+  사톤: "sathorn",
+  짜뚜짝: "chatuchak",
+  방나: "bangna",
+  랏프라오: "ladprao",
+  프라카농: "phrakhanong",
+  후아이꽝: "huaikhwang",
+  온눗: "onnut",
+  빅토리: "victory",
 };
+
+/**
+ * 어드민 클리닉 목록을 실제 서비스 규모(99곳)로 채우는 데 쓰는 부품들.
+ *
+ * 동네 17곳 × 브랜드말 8개 = 136가지라서 89곳을 겹치지 않게 뽑을 수 있다.
+ * 순서대로 돌리지 않고 서로 나누어떨어지지 않는 수로 건너뛰며 뽑는다 —
+ * 그래야 "사얌 글로우 / 사얌 루체 / 사얌 노블"처럼 같은 동네가 줄줄이 붙지 않는다.
+ */
+const FILLER_DISTRICTS = Object.keys(DISTRICT_SLUG);
+const FILLER_BRANDS = ["글로우", "루체", "노블", "세레나", "오로라", "엘리시아", "프리마", "미라클"];
+const FILLER_SUFFIXES = ["클리닉", "의원", "스킨랩", "뷰티하우스", "더마클리닉"];
+const FILLER_BRANCH_AREAS = ["본점", "2호점", "사얌점", "통러점", "아속점", "실롬점", "아리점", "라차다점", "방나점", "사톤점"];
+
+/** 전체 클리닉 수. 손으로 쓴 10곳 + 채움용 89곳. */
+const CLINIC_COUNT = 99;
 
 const DAYS = ["월", "화", "수", "목", "금", "토", "일"] as const;
 const DOCTOR_NAMES = ["나린", "쁘라윳", "깐야", "아난", "수니사", "위라왓", "말리완", "티라폰", "차이야", "펀사이"];
@@ -444,9 +469,6 @@ export function buildSeed(): DemoDb {
     }
   });
 
-  // 최신 기록이 위로 오게. 상세 화면은 이 순서를 그대로 쓴다.
-  stockLogs.sort((a, b) => (a.at < b.at ? 1 : -1));
-
   const users: AppUser[] = [
     { id: "U1", name: "도도", lineId: "dodo_line", phone: "0812345678", blocked: false },
     { id: "U2", name: "나리사 쁘라싯", lineId: "narisa_l", phone: "0823456789", blocked: false },
@@ -481,6 +503,157 @@ export function buildSeed(): DemoDb {
       status: u.blocked ? "차단" : "사용가능",
     });
   });
+
+  /*
+   * 채움용 클리닉 C11~C99.
+   *
+   * 위 열 곳은 시연에서 실제로 눌러 보는 곳이라 재고·고객·차트·문의함까지 다 들어 있다.
+   * 그걸 89번 더 찍으면 재고 356칸 + 입출고 7,000줄이 되어 localStorage(5MB)가 위험해진다.
+   * 그래서 여기서는 **목록에서 보이는 것만** 만든다 — 클리닉·지점·의사·시술·프로모션·마스터 계정.
+   * 유저 99명을 예약 없이 숫자만 들려 보낸 것과 같은 방식이다.
+   *
+   * 재고는 완전히 비우지 않고 본점에 두 칸만 둔다. 마스터 계정이 99개인데
+   * 그중 하나로 로그인하면 파트너 화면이 텅 비는 게 더 이상해서다.
+   *
+   * 일반 : 지점 = 대략 2 : 1. 세 번째마다 지점을 단다(손으로 쓴 열 곳도 3/10이라 비율이 이어진다).
+   */
+  for (let ci = CLINIC_DEFS.length; ci < CLINIC_COUNT; ci++) {
+    const clinicId = `C${String(ci + 1).padStart(2, "0")}`;
+    const district = FILLER_DISTRICTS[(ci * 7) % FILLER_DISTRICTS.length];
+    const brand = FILLER_BRANDS[(ci * 3) % FILLER_BRANDS.length];
+    const name = `${district} ${brand} ${FILLER_SUFFIXES[ci % FILLER_SUFFIXES.length]}`;
+    const hasBranches = ci % 3 === 0;
+    const branchCount = hasBranches ? 2 + (ci % 3) : 1;
+
+    clinics.push({
+      id: clinicId,
+      name,
+      hasBranches,
+      district,
+      address: `${district} 로드 ${between(10, 240)}, 방콕`,
+      phone: `02-${between(200, 999)}-${between(1000, 9999)}`,
+      lineId: `@${DISTRICT_SLUG[district]}${ci + 1}`,
+      parking: pick(["발렛 가능", "건물 주차장 2시간 무료", "인근 유료 주차", "주차 불가 (BTS 도보 3분)"]),
+      hours: makeHours(ci),
+      rating: Number((4.0 + rand() * 0.9).toFixed(1)),
+      reviewCount: between(12, 480),
+      intro: `${district} 중심가에 위치한 ${name}. 화이트닝·V라인·리프팅 중심의 시술을 제공합니다.`,
+      // 사진은 손으로 준비한 열 장(C01~C10)뿐이라 일부러 비워 둔다.
+      // `/clinics/C42.jpg`처럼 적어 두면 있지도 않은 파일을 89번 부르고 나서야
+      // `onError`로 대체 그림이 뜬다. 처음부터 비워 두면 그 왕복이 아예 없다.
+      image: "",
+    });
+
+    accounts.push({
+      id: `AC-${clinicId}`,
+      kind: "clinic",
+      label: `${name} 마스터 계정`,
+      loginId: `master${ci + 1}`,
+      password: `hb${1000 + ci}`,
+      // 99개 중 몇 개는 홀드/차단이어야 상태 칸이 장식처럼 안 보인다.
+      status: ci % 17 === 0 ? "홀드" : ci % 29 === 0 ? "차단" : "사용가능",
+    });
+
+    for (let bi = 0; bi < branchCount; bi++) {
+      const branchId = `${clinicId}-B${bi + 1}`;
+      branches.push({
+        id: branchId,
+        clinicId,
+        name: hasBranches ? FILLER_BRANCH_AREAS[(ci + bi) % FILLER_BRANCH_AREAS.length] : "본점",
+        address: `${district} 소이 ${between(1, 60)}, 방콕`,
+        phone: `02-${between(200, 999)}-${between(1000, 9999)}`,
+        parking: pick(["발렛 가능", "건물 주차장 2시간 무료", "인근 유료 주차"]),
+        hours: makeHours(ci + bi),
+      });
+
+      for (let d = 0; d < 2; d++) {
+        doctors.push({
+          id: `${branchId}-D${d + 1}`,
+          clinicId,
+          branchId,
+          name: `${DOCTOR_NAMES[(ci * 2 + bi + d) % DOCTOR_NAMES.length]} 원장`,
+          title: d === 0 ? "대표원장" : "진료원장",
+          specialties: [pick(["화이트닝", "V라인", "리프팅", "스킨부스터"]), pick(["필러", "톡신", "레이저"])],
+          employeeNo: `EMP${clinicId}${bi + 1}${d + 1}`,
+        });
+      }
+    }
+
+    // 본점에만 재고 두 칸. 파트너 화면이 빈 껍데기로 보이지 않을 만큼만.
+    for (let iv = 0; iv < 2; iv++) {
+      const product = PRODUCTS[(ci * 7 + iv * 5) % PRODUCTS.length];
+      const itemId = `${clinicId}-B1-IV${iv + 1}`;
+      inventory.push({
+        id: itemId,
+        clinicId,
+        branchId: `${clinicId}-B1`,
+        productId: product.id,
+        qty: between(30, 900),
+        distribution: (rand() > 0.72 ? "병행수입" : "정식") as Distribution,
+        volume: pick(["1ml", "2ml", "100U", "500U", "5ml", "10 vial"]),
+        expiry: dateOnly(between(90, 720)),
+        supplier: pick(SUPPLIERS),
+        manager: STAFF_NAMES[(ci + iv) % STAFF_NAMES.length],
+        purchaseDate: dateOnly(-between(20, 300)),
+        purchasePrice: between(900, 9000),
+        salePrice: between(3000, 24000),
+        lotNo: `LOT${between(10000, 99999)}`,
+        warnPct: pick([10, 15, 20]),
+      });
+
+      // 손으로 쓴 열 곳은 한 칸에 20줄쯤 쌓지만 여기는 다섯 줄이면 충분하다.
+      // 178칸 × 20줄이면 입출고만 3,500줄이 더 붙어서 저장 공간이 아깝다.
+      stockLogs.push({
+        id: `${itemId}-SL0`,
+        inventoryItemId: itemId,
+        type: "입고",
+        qty: between(60, 900),
+        reason: "초기 재고 등록",
+        at: shiftDays(-between(200, 320)),
+        by: STAFF_NAMES[(ci + iv) % STAFF_NAMES.length],
+      });
+      for (let n = 1; n <= 4; n++) {
+        const roll = rand();
+        const type: StockLog["type"] =
+          roll < 0.62 ? "사용" : roll < 0.9 ? "입고" : "조정";
+        stockLogs.push({
+          id: `${itemId}-SL${n}`,
+          inventoryItemId: itemId,
+          type,
+          qty:
+            type === "사용"
+              ? between(1, 12)
+              : type === "입고"
+                ? between(20, 200)
+                : between(1, 5),
+          reason:
+            type === "사용"
+              ? pick(STOCK_USE_REASONS)
+              : type === "입고"
+                ? pick(STOCK_IN_REASONS)
+                : pick(STOCK_FIX_REASONS),
+          at: shiftDays(-between(1, 190)),
+          by: STAFF_NAMES[(ci + n) % STAFF_NAMES.length],
+        });
+      }
+    }
+
+    TREATMENT_POOL.forEach((t, ti) => {
+      treatments.push({
+        id: `${clinicId}-T${ti + 1}`,
+        clinicId,
+        name: t.name,
+        category: t.category,
+        price: Math.round((t.base * (0.85 + rand() * 0.4)) / 100) * 100,
+        durationMin: t.min,
+        description: `${t.name} — ${t.category} 시술. 상담 후 개인별 프로토콜로 진행합니다.`,
+      });
+    });
+  }
+
+  // 최신 기록이 위로 오게. 상세 화면은 이 순서를 그대로 쓴다.
+  // 채움용 클리닉 몫까지 다 쌓은 뒤에 한 번만 정렬한다.
+  stockLogs.sort((a, b) => (a.at < b.at ? 1 : -1));
 
   const bookings: Booking[] = [
     {

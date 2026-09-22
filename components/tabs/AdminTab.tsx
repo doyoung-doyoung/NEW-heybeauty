@@ -51,6 +51,18 @@ const SECTIONS: { id: Section; label: string }[] = [
 const inputClass =
   "w-full rounded-cell bg-white/75 px-3 py-2 text-sm outline-none hairline placeholder:text-ink-sub focus:bg-white";
 
+/**
+ * 표에 넣을 짧은 클리닉 이름.
+ *
+ * 99줄이 전부 "○○ 클리닉"이면 뒤의 "클리닉" 세 글자는 읽을 게 없는데 자리는 꼬박꼬박 먹는다.
+ * 표 첫 칸은 폰에서 왼쪽에 고정되니까 그 폭만큼 화면이 계속 사라진다 —
+ * 계정 표에서 "마스터 계정"을 떼서 237px → 179px로 줄였던 것과 같은 이야기다.
+ * 떼고 나서 이름이 비면(= 이름이 그냥 "클리닉") 원래 이름을 그대로 쓴다.
+ */
+function shortClinic(name: string) {
+  return name.replace(/\s*클리닉$/, "").trim() || name;
+}
+
 const DEFAULT_HOURS: Hours[] = [
   { day: "월", open: "10:00", close: "20:00" },
   { day: "화", open: "10:00", close: "20:00" },
@@ -464,35 +476,6 @@ function ReviewSection() {
     });
   }
 
-  function issueCode(bookingId: string) {
-    const booking = db?.bookings.find((b) => b.id === bookingId);
-    if (!booking) return;
-    const code = `HB-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-    update((draft) => {
-      draft.reviewCodes.unshift({
-        id: `RC-${Date.now()}`,
-        code,
-        ownerUserId: booking.userId,
-        clinicId: booking.clinicId,
-        bookingId: booking.id,
-        issuedAt: new Date().toISOString(),
-        usedByBookingIds: [],
-      });
-    });
-    const user = db?.users.find((u) => u.id === booking.userId);
-    showLinked(
-      [
-        `내 예약 · ${user?.name ?? "고객"}님 ${booking.id} 카드에 ${code} 배지 표시`,
-        `후기 작성 · 이 코드로 후기를 쓸 수 있게 열림`,
-        `커미션 정산 · 이 코드로 들어온 예약부터 집계 시작`,
-      ],
-      bookingId,
-    );
-    toast(`후기코드 ${code} 발행 완료`);
-  }
-
-  const visited = db.bookings.filter((b) => b.status === "방문완료");
-
   const settlements = buildSettlements(db);
   const addedTotal = db.commissions.reduce((s, c) => s + c.amountTHB, 0);
   const totalCommission = BASELINE_TOTAL + addedTotal;
@@ -507,10 +490,23 @@ function ReviewSection() {
     };
   });
 
+  /*
+   * 위 기둥에서 달을 고르면 아래 표도 그 달만 본다.
+   * 정산 한 건은 달이 딱 하나라서, 그 달로 걸러 놓고 클리닉별로 더하면
+   * 표의 정산액 합이 기둥에 적힌 금액과 정확히 같아진다.
+   * (예: 8월 ฿221,734을 누르면 아래 클리닉들의 정산액을 다 더해도 221,734.)
+   * 아무 달도 안 골랐으면 누적 전체를 본다.
+   */
+  const scoped =
+    openMonth === null
+      ? settlements
+      : settlements.filter((s) => s.monthsAgo === openMonth);
+  const scopedLabel = months.find((m) => m.monthsAgo === openMonth)?.label;
+
   // 클리닉별 합계. 정산액이 큰 곳이 위로.
   const byClinic = db.clinics
     .map((c) => {
-      const rows = settlements.filter((s) => s.clinicId === c.id);
+      const rows = scoped.filter((s) => s.clinicId === c.id);
       return {
         clinic: c,
         codes: rows.length,
@@ -523,7 +519,7 @@ function ReviewSection() {
     .sort((a, b) => b.amount - a.amount);
 
   const detail = openClinic
-    ? settlements.filter((s) => s.clinicId === openClinic)
+    ? scoped.filter((s) => s.clinicId === openClinic)
     : [];
   const detailClinic = db.clinics.find((c) => c.id === openClinic);
 
@@ -582,50 +578,6 @@ function ReviewSection() {
 
       <GlassCard soft className="p-6">
         <SectionTitle
-          title="후기코드 발행"
-          sub="방문완료 예약 건에 대해 후기코드를 발행합니다"
-        />
-        <div className="space-y-2">
-          {visited.length === 0 && (
-            <p className="text-sm text-ink-sub">방문완료 예약이 없습니다.</p>
-          )}
-          {visited.map((b) => {
-            const clinic = db.clinics.find((c) => c.id === b.clinicId);
-            const issued = db.reviewCodes.find((rc) => rc.bookingId === b.id);
-            return (
-              <div key={b.id} className="rounded-cell bg-white/70 p-4 hairline">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-sm">
-                    <div className="font-semibold">{clinic?.name}</div>
-                    <div className="text-xs text-ink-sub">
-                      {b.date} {b.time} · {b.id}
-                    </div>
-                  </div>
-                  {issued ? (
-                    <Badge tone="pink">발행됨 {issued.code}</Badge>
-                  ) : (
-                    <GhostButton onClick={() => issueCode(b.id)}>
-                      후기코드 발행
-                    </GhostButton>
-                  )}
-                </div>
-
-                {note?.key === b.id && (
-                  <LinkedNote
-                    note={note}
-                    title="후기코드가 고객 화면으로 넘어갔습니다"
-                    onClose={dismiss}
-                    className="mt-3"
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </GlassCard>
-
-      <GlassCard soft className="p-6">
-        <SectionTitle
           title="발행된 후기코드"
           sub={`총 ${db.reviewCodes.length}건 · 시술을 받은 고객에게만 발행됩니다`}
         />
@@ -662,16 +614,28 @@ function ReviewSection() {
         />
 
         <div className="mt-6">
-          <div className="mb-2 text-sm font-semibold">
-            클리닉별 정산
-            <span className="ml-2 text-xs font-normal text-ink-sub">
-              줄을 누르면 후기 한 건씩 뜯어봅니다
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <div className="text-sm font-semibold">
+              클리닉별 정산
+              {scopedLabel && (
+                <span className="ml-2 text-xs font-normal text-hb-600">
+                  {scopedLabel}만 보는 중 · 기둥을 다시 누르면 전체
+                </span>
+              )}
+            </div>
+            {/* 표에 적힌 정산액을 다 더한 값. 위 기둥의 금액과 같아야 맞는 것이다. */}
+            <span className="text-xs text-ink-sub tabular-nums">
+              {scopedLabel ?? "누적"} 합계 ฿
+              {byClinic.reduce((s, r) => s + r.amount, 0).toLocaleString()} ·{" "}
+              {byClinic.length}개 클리닉
             </span>
           </div>
           <TableOnly maxH="max-h-[26rem]">
             <Table minW="min-w-[34rem]">
               <Thead>
-                <Th stick>클리닉</Th>
+                <Th stick className="w-28 sm:w-40">
+                  클리닉
+                </Th>
                 <Th align="right">후기코드</Th>
                 <Th align="right">클릭</Th>
                 <Th align="right">정산액</Th>
@@ -687,11 +651,16 @@ function ReviewSection() {
                   >
                     <Td
                       stick
-                      className={`max-w-[10rem] truncate lg:max-w-none ${
+                      className={
                         openClinic === r.clinic.id ? "font-bold" : "font-medium"
-                      }`}
+                      }
                     >
-                      {r.clinic.name}
+                      <span
+                        className="block max-w-[6rem] truncate sm:max-w-[9rem]"
+                        title={r.clinic.name}
+                      >
+                        {shortClinic(r.clinic.name)}
+                      </span>
                     </Td>
                     <Td align="right" muted nums>
                       {r.codes}
@@ -858,8 +827,14 @@ function CodeTable() {
     };
   });
 
+  /*
+   * 6줄만 보이고 나머지는 스크롤.
+   * 재 보니 헤더 33px, 한 줄 41px이다. 6줄이면 33 + 246 = 279px인데 18rem(288px)으로 잡았다.
+   * 딱 맞게 자르면 999건이 여섯 건처럼 보여서, 7번째 줄이 아래에 살짝 걸치도록 9px을 더 줬다.
+   * 그 잘린 줄 하나가 "더 있다, 밀어라"를 말해 준다.
+   */
   return (
-    <TableOnly maxH="max-h-[26rem]">
+    <TableOnly maxH="max-h-[18rem]">
       <Table minW="min-w-[40rem]">
         <Thead>
           <Th stick>코드</Th>
@@ -875,8 +850,10 @@ function CodeTable() {
               <Td stick className="font-medium">
                 {r.code}
               </Td>
-              <Td muted className="max-w-[10rem] truncate lg:max-w-none">
-                {r.clinic}
+              <Td muted>
+                <span className="block max-w-[6rem] truncate sm:max-w-[9rem]" title={r.clinic}>
+                  {shortClinic(r.clinic)}
+                </span>
               </Td>
               <Td muted>{r.owner}</Td>
               <Td muted nums>
@@ -1254,10 +1231,20 @@ function ClinicSection() {
         />
       )}
 
-      <TableOnly>
+      {/* 99줄을 그냥 펼치면 카드가 4,000px짜리가 되어 아래 있는 것들이 스크롤 저편으로 밀린다.
+          유저 관리 표와 같은 높이(34rem)로 잘라 두고 안에서 스크롤하게 한다. */}
+      <TableOnly maxH="max-h-[34rem]">
         <Table minW="min-w-[42rem]">
           <Thead>
-            <Th stick>클리닉</Th>
+            {/*
+              이름 칸 폭을 못박는다. 안 그러면 남는 폭을 첫 칸이 다 먹어서
+              여덟 글자짜리 이름 옆에 빈 공간이 200px씩 붙는다.
+              폰에서 더 좁게(7rem) 잡는 이유: 이 칸은 왼쪽에 고정돼서 폭이 곧 화면 손실이다.
+              293px짜리 스크롤 창에서 10rem이면 혼자 55%를 가져간다.
+            */}
+            <Th stick className="w-28 sm:w-40">
+              클리닉
+            </Th>
             <Th>지역</Th>
             <Th>전화</Th>
             <Th>구분</Th>
@@ -1271,8 +1258,18 @@ function ClinicSection() {
               ).length;
               return (
                 <Tr key={c.id} onClick={() => setClinicId(c.id)}>
+                  {/*
+                   * 첫 칸은 왼쪽에 고정돼서 폭이 곧 화면 손실이다. 그래서 두 번 줄인다 —
+                   * "클리닉" 세 글자를 떼고, 그래도 긴 이름은 9rem에서 말줄임.
+                   * 전체 이름은 줄을 눌러 상세로 들어가면 제목에 그대로 나온다.
+                   */}
                   <Td stick className="font-medium">
-                    {c.name}
+                    <span
+                      className="block max-w-[6rem] truncate sm:max-w-[9rem]"
+                      title={c.name}
+                    >
+                      {shortClinic(c.name)}
+                    </span>
                   </Td>
                   <Td muted>{c.district}</Td>
                   <Td muted nums>
@@ -1545,6 +1542,28 @@ function NoticeSection() {
     toast(asPopup ? "팝업을 등록했습니다" : "공지를 등록했습니다");
   }
 
+  /**
+   * 공지를 목록에서 뺀다.
+   *
+   * 되돌리기를 안 붙였다. 데모에서 지울 게 몇 건뿐이고, 잘못 눌러도 "데모 리셋"이
+   * 원래대로 되돌려 놓는다. 확인창을 하나 더 띄우면 시연 흐름만 끊긴다.
+   *
+   * 등록할 때 쓰는 `LinkedNote`도 여기선 안 쓴다. 그 쪽지는 맨 위 등록 카드 안에 뜨는데,
+   * 삭제 버튼은 맨 아래 표에 있어서 눌러도 화면 밖에서 조용히 떴다 사라진다.
+   * 그래서 어디서 사라졌는지를 토스트 한 줄에 같이 적었다.
+   */
+  function removeNotice(noticeId: string) {
+    const gone = db!.notices.find((n) => n.id === noticeId);
+    update((draft) => {
+      draft.notices = draft.notices.filter((n) => n.id !== noticeId);
+    });
+    toast(
+      gone?.target === "클리닉"
+        ? "공지 삭제 · 파트너 화면에서도 내려갔습니다"
+        : "공지 삭제 · 홈 탭 공지사항에서도 내려갔습니다",
+    );
+  }
+
   function togglePopup(popupId: string) {
     update((draft) => {
       const target2 = draft.popups.find((p) => p.id === popupId);
@@ -1698,20 +1717,55 @@ function NoticeSection() {
       </GlassCard>
 
       <GlassCard soft className="p-6">
-        <SectionTitle title="공지 목록" />
-        <div className="space-y-2">
-          {db.notices.map((n) => (
-            <div key={n.id} className="rounded-cell bg-white/70 p-4 hairline">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-sm font-semibold">{n.title}</span>
-                <Badge tone={n.target === "클리닉" ? "neutral" : "pink"}>
-                  {n.target}
-                </Badge>
-              </div>
-              <p className="mt-1 text-sm text-ink-sub">{n.body}</p>
-            </div>
-          ))}
-        </div>
+        <SectionTitle
+          title="공지 목록"
+          sub={`총 ${db.notices.length}건 · 내린 공지는 고객 화면에서도 바로 사라집니다`}
+        />
+        {db.notices.length === 0 ? (
+          <p className="text-sm text-ink-sub">등록된 공지가 없습니다.</p>
+        ) : (
+          <TableOnly maxH="max-h-[26rem]">
+            <Table minW="min-w-[46rem]">
+              <Thead>
+                <Th stick className="w-28 sm:w-40">
+                  제목
+                </Th>
+                <Th>대상</Th>
+                <Th>내용</Th>
+                <Th>등록일</Th>
+                <Th align="right" />
+              </Thead>
+              <tbody>
+                {db.notices.map((n) => (
+                  <Tr key={n.id}>
+                    <Td stick className="font-medium">
+                      <span className="block max-w-[7rem] truncate sm:max-w-[10rem]" title={n.title}>
+                        {n.title}
+                      </span>
+                    </Td>
+                    <Td>
+                      <Badge tone={n.target === "클리닉" ? "neutral" : "pink"}>
+                        {n.target}
+                      </Badge>
+                    </Td>
+                    {/* 공지는 끝까지 읽어야 뜻이 있는 칸이라 줄바꿈을 켠다. */}
+                    <Td wrap muted className="max-w-[22rem]">
+                      {n.body}
+                    </Td>
+                    <Td muted nums>
+                      {n.at.slice(0, 10)}
+                    </Td>
+                    <Td align="right">
+                      <GhostButton onClick={() => removeNotice(n.id)}>
+                        삭제
+                      </GhostButton>
+                    </Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableOnly>
+        )}
       </GlassCard>
     </div>
   );
@@ -1724,6 +1778,7 @@ function AccountSection() {
   const toast = useToast();
   const [reveal, setReveal] = useState(false);
   const [kind, setKind] = useState<"clinic" | "user">("clinic");
+  const [q, setQ] = useState("");
   if (!db) return null;
 
   function setPassword(accountId: string, value: string) {
@@ -1747,7 +1802,23 @@ function AccountSection() {
     toast(`상태를 ${status}(으)로 변경했습니다`);
   }
 
-  const rows = db.accounts.filter((a) => a.kind === kind);
+  /*
+   * 찾기 칸.
+   *
+   * 클리닉 99개 + 유저 99명이라 표를 눈으로 훑어서 한 사람을 찾는 건 이제 불가능하다.
+   * 이름·로그인 ID 어느 쪽으로 쳐도 걸리게 했다 — 전화로 "아이디가 master42인데요"
+   * 하는 경우와 "사톤 루체요" 하는 경우가 반반이라 둘 다 받아야 한다.
+   * 비밀번호는 일부러 검색 대상에서 뺐다. 가려 놓은 값을 검색으로 알아낼 수 있으면
+   * 가린 의미가 없다.
+   */
+  const query = q.trim().toLowerCase();
+  const rows = db.accounts.filter(
+    (a) =>
+      a.kind === kind &&
+      (query === "" ||
+        a.label.toLowerCase().includes(query) ||
+        a.loginId.toLowerCase().includes(query)),
+  );
   const clinicCount = db.accounts.filter((a) => a.kind === "clinic").length;
   const userCount = db.accounts.length - clinicCount;
 
@@ -1770,10 +1841,31 @@ function AccountSection() {
         </GhostButton>
       </div>
 
+      {/* 찾기 칸은 표 **바로 위**에 붙인다. 표 안 헤더에 넣으면 가로로 밀 때 같이 밀려 나가고,
+          카드 맨 위에 두면 탭 버튼 줄과 섞여서 버튼처럼 안 보인다. */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="이름 또는 로그인 ID로 찾기"
+          className={`${inputClass} sm:max-w-xs`}
+        />
+        <span className="text-xs text-ink-sub tabular-nums">
+          {q.trim()
+            ? `${rows.length}건 찾음`
+            : `${rows.length}건 · 이름 일부만 쳐도 됩니다`}
+        </span>
+        {q.trim() && (
+          <GhostButton onClick={() => setQ("")}>지우기</GhostButton>
+        )}
+      </div>
+
       <TableOnly maxH="max-h-[30rem]">
         <Table minW="min-w-[44rem]">
           <Thead>
-            <Th stick>계정</Th>
+            <Th stick className="w-32 sm:w-44">
+              계정
+            </Th>
             <Th>로그인 ID</Th>
             <Th>비밀번호</Th>
             <Th>상태</Th>
@@ -1789,7 +1881,7 @@ function AccountSection() {
                  * 클리닉/유저 구분은 위 필터 버튼이 이미 말해 주고 있다.
                  */}
                 <Td stick className="font-medium">
-                  <span className="block max-w-[11rem] truncate" title={a.label}>
+                  <span className="block max-w-[7rem] truncate sm:max-w-[11rem]" title={a.label}>
                     {a.label.replace(/\s*(마스터|유저) 계정$/, "")}
                   </span>
                 </Td>
@@ -1826,6 +1918,13 @@ function AccountSection() {
                 </Td>
               </Tr>
             ))}
+            {rows.length === 0 && (
+              <Tr>
+                <Td muted className="py-6">
+                  &ldquo;{q.trim()}&rdquo;로 찾은 계정이 없습니다.
+                </Td>
+              </Tr>
+            )}
           </tbody>
         </Table>
       </TableOnly>

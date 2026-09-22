@@ -68,17 +68,27 @@ export function Th({
   children,
   align = "left",
   stick = false,
+  className = "",
 }: {
   children?: ReactNode;
   align?: "left" | "right";
   /** 첫 칸 전용. 가로로 밀어도 왼쪽에 남는다 — 아래 `Td`의 `stick` 설명 참고. */
   stick?: boolean;
+  /**
+   * 칸 폭을 잡을 때 쓴다(`w-36` 같은 것).
+   *
+   * 표가 `w-full`이라 남는 폭을 브라우저가 알아서 나눠 주는데, 그냥 두면 대개
+   * **첫 칸**이 제일 많이 먹는다. 이름이 여덟 글자인데 칸만 300px이 되는 식이다.
+   * 헤더 칸에 폭을 못박아 두면 남는 폭이 나머지 칸들로 흩어진다. 몸통(`Td`)이 아니라
+   * 헤더에 거는 이유는, 표의 칸 폭은 **열의 첫 칸**이 정하기 때문이다.
+   */
+  className?: string;
 }) {
   return (
     <th
       className={`sticky top-0 z-10 whitespace-nowrap border-b border-ink/15 bg-hb-50 px-2 py-2 font-semibold ${
         align === "right" ? "text-right" : ""
-      } ${stick ? "left-0 z-20 border-r border-ink/10" : ""}`}
+      } ${stick ? "left-0 z-20 border-r border-ink/10" : ""} ${className}`}
     >
       {children}
     </th>

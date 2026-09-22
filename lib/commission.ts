@@ -325,8 +325,37 @@ const SHORT_REVIEWS = [
   "예약 변경이 앱으로 바로 됩니다.",
 ];
 
-/** 클리닉 열 곳에 978개를 나눈다. 고르게 쪼개면 가짜 티가 나서 폭을 다르게 뒀다. */
-const TAIL_SHARE = [128, 116, 104, 97, 95, 92, 88, 86, 91, 81];
+/** 꼬리로 찍어 내는 후기코드 수. 대표 20건과 합쳐 998건이 된다. */
+const TAIL_TOTAL = 978;
+
+/** 어드민에 들어 있는 클리닉 수. `lib/seed.ts`의 `CLINIC_COUNT`와 같은 값이다. */
+const TAIL_CLINICS = 99;
+
+/**
+ * 978개를 클리닉 99곳에 나눈 몫.
+ *
+ * 예전에는 열 곳에만 뿌렸는데, 클리닉이 99곳이 되면서 클리닉별 정산 표가
+ * 열 줄만 나오고 나머지 89곳은 "정산 0"이라 아예 안 보였다. 그러면 99곳을 만든 의미가 없다.
+ *
+ * 그렇다고 똑같이 10개씩 나누면 그것도 거짓말이다. 제휴란 게 원래 위쪽 몇 곳이
+ * 대부분을 가져가고 나머지는 한두 건씩 있는 긴 꼬리다. 그래서 앞 열 곳(손으로 쓴
+ * 대표 클리닉, 대표 후기 20건도 여기에 붙는다)에 40쯤, 나머지에 4~12쯤을 주고
+ * 비율대로 978개에 맞춰 눌렀다. `% 13`, `% 9`는 그냥 들쭉날쭉하게 만드는 장치다 —
+ * 똑같은 숫자가 줄줄이 있으면 표가 자동생성 티를 낸다.
+ */
+const TAIL_SHARE = (() => {
+  const weights = Array.from({ length: TAIL_CLINICS }, (_, ci) =>
+    ci < 10 ? 40 + ((ci * 7) % 13) : 4 + ((ci * 5) % 9),
+  );
+  const weightSum = weights.reduce((s, w) => s + w, 0);
+  const share = weights.map((w) =>
+    Math.max(1, Math.floor((w * TAIL_TOTAL) / weightSum)),
+  );
+  // 내림 때문에 몇 개가 남는다. 앞에서부터 한 개씩 얹어 총합을 정확히 맞춘다.
+  let gap = TAIL_TOTAL - share.reduce((s, n) => s + n, 0);
+  for (let i = 0; gap > 0; i = (i + 1) % TAIL_CLINICS, gap--) share[i]++;
+  return share;
+})();
 
 const CODE_CHARS = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 
