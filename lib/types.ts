@@ -153,6 +153,15 @@ export interface AppUser {
   lineId: string;
   phone: string;
   blocked: boolean;
+  /**
+   * 시연용으로 깔아 둔 누적 실적. 유저 관리 표를 99명으로 채우면서 생겼다.
+   *
+   * 실제로 예약이 있는 계정(U1~U4)에는 **없다** — 그쪽은 `db.bookings`를 더해서 계산한다.
+   * 가짜 유저 95명에게 가짜 예약까지 만들어 주면 파트너 예약확인 화면까지 흔들려서,
+   * 숫자만 들고 다니게 했다.
+   */
+  seedSpentTHB?: number;
+  seedVisits?: number;
 }
 
 export interface Booking {
@@ -192,6 +201,12 @@ export interface ReviewCode {
   bookingId: string;
   issuedAt: string;
   usedByBookingIds: string[];
+  /**
+   * 과거 실적으로 미리 깔아 둔 코드에만 있다(`lib/commission.ts`).
+   * 그 코드들의 주인은 데모 계정(U1~U4)이 아니라 이름만 있는 사람이라
+   * `users`에서 찾아지지 않는다. 그래서 보여줄 이름을 코드가 직접 들고 다닌다.
+   */
+  ownerName?: string;
 }
 
 export interface Commission {

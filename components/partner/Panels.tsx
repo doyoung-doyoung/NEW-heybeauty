@@ -6,6 +6,14 @@ import { useToast } from "@/components/ui/Toast";
 import { LinkedNote, useLinkedNote } from "@/components/ui/LinkedNote";
 import { categoriesForTreatment, isLowStock, LOW_STOCK_QTY } from "@/lib/stock";
 import {
+  Table,
+  TableOnly,
+  Td,
+  Th,
+  Thead,
+  Tr,
+} from "@/components/ui/DataTable";
+import {
   Badge,
   GhostButton,
   GlassCard,
@@ -542,35 +550,50 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
         </FilterRow>
       </div>
 
-      <div className="max-h-[30rem] space-y-2 overflow-y-auto pr-1">
-        {customers.length === 0 && (
-          <p className="text-sm text-ink-sub">조건에 맞는 고객이 없습니다.</p>
-        )}
-        {customers.map((c) => {
-          const doctor = db.doctors.find((d) => d.id === c.doctorId);
-          return (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setOpenId(c.id)}
-              className="w-full rounded-cell bg-white/70 p-4 text-left transition hairline hover:bg-white"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="font-semibold">{c.name}</div>
-                <div className="flex items-center gap-1.5">
-                  <ChannelTag channel={c.channel} />
-                  <Badge>{c.nationality}</Badge>
-                  <Badge tone="pink">{c.gender}</Badge>
-                </div>
-              </div>
-              <div className="mt-1 truncate text-xs text-ink-sub">
-                {c.phone} · {c.birthday} · 관심 {c.interests.join(", ")} · 담당{" "}
-                {doctor?.name}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+      {customers.length === 0 && (
+        <p className="text-sm text-ink-sub">조건에 맞는 고객이 없습니다.</p>
+      )}
+
+      {/* 넓은 화면: 표. 이름 밑에 뭉쳐 있던 전화·생일·관심·담당을 각자 열로 흩어 놓는다. */}
+      <TableOnly maxH="max-h-[30rem]">
+        <Table minW="min-w-[46rem]">
+          <Thead>
+            <Th stick>이름</Th>
+            <Th>연락처</Th>
+            <Th>생일</Th>
+            <Th>국가</Th>
+            <Th>성별</Th>
+            <Th>경로</Th>
+            <Th>관심 시술</Th>
+            <Th>담당</Th>
+          </Thead>
+          <tbody>
+            {customers.map((c) => {
+              const doctor = db.doctors.find((d) => d.id === c.doctorId);
+              return (
+                <Tr key={c.id} onClick={() => setOpenId(c.id)}>
+                  <Td stick className="font-medium">
+                    {c.name}
+                  </Td>
+                  <Td muted nums>
+                    {c.phone}
+                  </Td>
+                  <Td muted nums>
+                    {c.birthday}
+                  </Td>
+                  <Td muted>{c.nationality}</Td>
+                  <Td muted>{c.gender}</Td>
+                  <Td>
+                    <ChannelTag channel={c.channel} />
+                  </Td>
+                  <Td muted>{c.interests.join(", ")}</Td>
+                  <Td muted>{doctor?.name}</Td>
+                </Tr>
+              );
+            })}
+          </tbody>
+        </Table>
+      </TableOnly>
     </GlassCard>
   );
 }

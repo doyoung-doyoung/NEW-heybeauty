@@ -79,9 +79,13 @@ export default function BookingFlow({
   const typedCode = reviewCode.trim().toUpperCase();
   const matchedCode =
     db.reviewCodes.find((rc) => rc.code.toUpperCase() === typedCode) ?? null;
-  const codeOwner = matchedCode
-    ? db.users.find((u) => u.id === matchedCode.ownerUserId)
-    : null;
+  // 과거 실적으로 깔아 둔 코드는 주인이 데모 계정이 아니라서 `users`에서 안 나온다.
+  // 그럴 땐 코드가 들고 다니는 이름을 쓴다(`ReviewCode.ownerName`).
+  const codeOwnerName = matchedCode
+    ? (db.users.find((u) => u.id === matchedCode.ownerUserId)?.name ??
+      matchedCode.ownerName ??
+      "")
+    : "";
   // 코드를 준 후기가 어드민 승인을 통과해야 커미션이 붙는다.
   const codeApproved =
     !!matchedCode &&
@@ -101,7 +105,7 @@ export default function BookingFlow({
           ? { ok: false, text: t("codeNotApproved") }
           : {
               ok: true,
-              text: `${t("confirmed")} · ${tf("codeOwnerEarns", t(codeOwner?.name ?? ""), commission.toLocaleString())}`,
+              text: `${t("confirmed")} · ${tf("codeOwnerEarns", t(codeOwnerName), commission.toLocaleString())}`,
             };
 
   const me = db.users.find((u) => u.id === "U1");
@@ -217,7 +221,7 @@ export default function BookingFlow({
     setBookingId(threadId);
     setLinked({
       newCustomer: isNewCustomer,
-      commissionTo: codeUsable ? (codeOwner?.name ?? "") : null,
+      commissionTo: codeUsable ? codeOwnerName : null,
     });
     setStep("done");
     toast(

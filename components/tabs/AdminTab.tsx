@@ -5,10 +5,25 @@ import { useDb } from "@/lib/db";
 import { useToast } from "@/components/ui/Toast";
 import { isLowStock, LOW_STOCK_QTY } from "@/lib/stock";
 import { TREATMENT_POOL } from "@/lib/seed";
+import {
+  BASELINE_TOTAL,
+  COMMISSION_BASELINE,
+  dateFromDaysAgo,
+  recentMonths,
+} from "@/lib/commission";
 import { PhotoPicker } from "@/components/ui/PhotoPicker";
 import { LinkedNote, useLinkedNote } from "@/components/ui/LinkedNote";
+import {
+  Table,
+  TableOnly,
+  Td,
+  Th,
+  Thead,
+  Tr,
+} from "@/components/ui/DataTable";
 import type { AccountStatus, Hours, NoticeTarget } from "@/lib/types";
 import {
+  BackToList,
   Badge,
   GhostButton,
   GlassCard,
@@ -72,8 +87,6 @@ export default function AdminTab() {
         {section === "notice" && <NoticeSection />}
         {section === "account" && <AccountSection />}
       </div>
-
-      <DemoReset />
     </div>
   );
 }
@@ -82,6 +95,7 @@ function InventorySection() {
   const { db } = useDb();
   const [onlyLow, setOnlyLow] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [openLogId, setOpenLogId] = useState<string | null>(null);
   if (!db) return null;
 
   const rows = db.inventory.filter((i) => !onlyLow || isLowStock(i));
@@ -115,10 +129,10 @@ function InventorySection() {
       { label: "경고 기준", value: `잔여 ${LOW_STOCK_QTY}개 이하` },
     ];
 
+    const openLog = openLogId ? logs.find((l) => l.id === openLogId) : null;
+
     return (
       <div className="space-y-4">
-        <GhostButton onClick={() => setOpenId(null)}>← 목록으로</GhostButton>
-
         <GlassCard className="p-6">
           <SectionTitle
             title={product?.name ?? "재고 상세"}
@@ -135,32 +149,87 @@ function InventorySection() {
               </div>
             ))}
           </div>
+          <BackToList onClick={() => setOpenId(null)} label="재고 목록으로" />
         </GlassCard>
 
         <GlassCard soft className="p-6">
-          <SectionTitle title="입출고 기록" sub={`총 ${logs.length}건`} />
-          <div className="space-y-2">
-            {logs.length === 0 && (
-              <p className="text-sm text-ink-sub">기록이 없습니다.</p>
-            )}
-            {logs.map((l) => (
-              <div
-                key={l.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-cell bg-white/70 p-3 text-sm hairline"
-              >
-                <div className="min-w-0">
-                  <Badge tone={l.type === "사용" ? "neutral" : "pink"}>
-                    {l.type}
-                  </Badge>
-                  <span className="ml-2 text-xs text-ink-sub">{l.reason}</span>
-                </div>
-                <div className="text-xs text-ink-sub">
-                  {l.type === "사용" ? "-" : "+"}
-                  {l.qty} · {l.by} · {l.at.slice(0, 10)}
-                </div>
+          {/* 기록 하나를 고르면 같은 카드 안에서 표가 상세로 바뀐다. 화면을 갈아엎지 않으니
+              "어느 제품 얘기였지"를 다시 찾을 필요가 없다. */}
+          {openLog ? (
+            <>
+              <SectionTitle
+                title={`${openLog.type} ${openLog.qty}${openLog.type === "사용" ? "개 차감" : "개"}`}
+                sub={openLog.at.slice(0, 10)}
+              />
+              <div className="grid gap-2 sm:grid-cols-2">
+                {[
+                  { label: "구분", value: openLog.type },
+                  {
+                    label: "수량",
+                    value: `${openLog.type === "사용" ? "-" : "+"}${openLog.qty}`,
+                  },
+                  { label: "사유", value: openLog.reason },
+                  { label: "처리자", value: openLog.by },
+                  { label: "일시", value: openLog.at.slice(0, 16).replace("T", " ") },
+                  { label: "대상 재고", value: `${product?.name ?? "-"} · ${openLog.id}` },
+                ].map((r) => (
+                  <div
+                    key={r.label}
+                    className="flex items-center justify-between gap-3 rounded-cell bg-white/70 px-4 py-3 text-sm hairline"
+                  >
+                    <span className="text-xs text-ink-sub">{r.label}</span>
+                    <span className="truncate font-medium">{r.value}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+              <BackToList onClick={() => setOpenLogId(null)} />
+            </>
+          ) : (
+            <>
+              <SectionTitle
+                title="입출고 기록"
+                sub={`총 ${logs.length}건 · 줄을 누르면 상세가 열립니다`}
+              />
+              <TableOnly maxH="max-h-[24rem]">
+                <Table minW="min-w-[34rem]">
+                  <Thead>
+                    <Th stick>일자</Th>
+                    <Th>구분</Th>
+                    <Th align="right">수량</Th>
+                    <Th>사유</Th>
+                    <Th>처리자</Th>
+                  </Thead>
+                  <tbody>
+                    {logs.map((l) => (
+                      <Tr key={l.id} onClick={() => setOpenLogId(l.id)}>
+                        <Td stick nums className="font-medium">
+                          {l.at.slice(0, 10)}
+                        </Td>
+                        <Td>
+                          <Badge tone={l.type === "사용" ? "neutral" : "pink"}>
+                            {l.type}
+                          </Badge>
+                        </Td>
+                        <Td
+                          align="right"
+                          nums
+                          className={`font-semibold ${l.type === "사용" ? "text-danger" : ""}`}
+                        >
+                          {l.type === "사용" ? "-" : "+"}
+                          {l.qty}
+                        </Td>
+                        <Td muted>{l.reason}</Td>
+                        <Td muted>{l.by}</Td>
+                      </Tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </TableOnly>
+              {logs.length === 0 && (
+                <p className="mt-3 text-sm text-ink-sub">기록이 없습니다.</p>
+              )}
+            </>
+          )}
         </GlassCard>
       </div>
     );
@@ -182,54 +251,167 @@ function InventorySection() {
         </GhostButton>
       </div>
 
-      <div className="max-h-[32rem] space-y-2 overflow-y-auto pr-1">
-        {rows.map((item) => {
-          const product = db.products.find((p) => p.id === item.productId);
-          const branch = db.branches.find((b) => b.id === item.branchId);
-          const clinic = db.clinics.find((c) => c.id === item.clinicId);
-          const low = isLowStock(item);
-          return (
-            <div
-              key={item.id}
-              className={`rounded-cell p-4 hairline ${low ? "bg-danger/10" : "bg-white/70"}`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="truncate font-semibold">{product?.name}</div>
-                  <div className="truncate text-xs text-ink-sub">
-                    {clinic?.name} · {branch?.name} · {item.volume} ·{" "}
-                    {item.distribution} · LOT {item.lotNo}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`text-lg font-bold tabular-nums ${low ? "animate-warn text-danger" : ""}`}
+      {/* 넓은 화면: 표. 64건을 위아래로 훑으며 지점끼리 비교할 수 있어야 한다. */}
+      <TableOnly maxH="max-h-[32rem]">
+        <Table minW="min-w-[56rem]">
+          <Thead>
+            <Th stick>제품</Th>
+            <Th>클리닉 · 지점</Th>
+            <Th align="right">잔여</Th>
+            <Th>유효기간</Th>
+            <Th>LOT</Th>
+            <Th>공급처</Th>
+            <Th>담당</Th>
+            <Th align="right">매입</Th>
+            <Th align="right">판매</Th>
+            <Th />
+          </Thead>
+          <tbody>
+            {rows.map((item) => {
+              const product = db.products.find((p) => p.id === item.productId);
+              const branch = db.branches.find((b) => b.id === item.branchId);
+              const clinic = db.clinics.find((c) => c.id === item.clinicId);
+              const low = isLowStock(item);
+              return (
+                <Tr
+                  key={item.id}
+                  tone={low ? "danger" : undefined}
+                  onClick={() => {
+                    setOpenId(item.id);
+                    setOpenLogId(null);
+                  }}
+                >
+                  {/* 폭을 좁혀 두는 건 폰 때문이다. 제품명이 길면 고정된 첫 칸이 화면의
+                      3분의 2를 먹어서 정작 볼 숫자가 안 보인다. 넓은 화면에선 풀어 준다. */}
+                  <Td
+                    stick
+                    className="max-w-[9rem] truncate font-medium lg:max-w-none"
                   >
-                    {item.qty}
-                  </span>
-                  {low && <Badge tone="danger">재고 부족</Badge>}
-                  <GhostButton onClick={() => setOpenId(item.id)}>
-                    상세 내용보기
-                  </GhostButton>
-                </div>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink-sub">
-                <span>유효기간 {item.expiry}</span>
-                <span>공급처 {item.supplier}</span>
-                <span>담당 {item.manager}</span>
-                <span>매입 ฿{item.purchasePrice.toLocaleString()}</span>
-                <span>판매 ฿{item.salePrice.toLocaleString()}</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                    {product?.name}
+                  </Td>
+                  <Td muted>
+                    {clinic?.name} · {branch?.name}
+                  </Td>
+                  <Td align="right" nums>
+                    <span className={`font-bold ${low ? "text-danger" : ""}`}>
+                      {item.qty}
+                    </span>
+                    {low && (
+                      <span className="ml-1 text-[10px] font-medium text-danger">
+                        부족
+                      </span>
+                    )}
+                  </Td>
+                  <Td muted nums>
+                    {item.expiry}
+                  </Td>
+                  <Td muted>{item.lotNo}</Td>
+                  <Td muted>{item.supplier}</Td>
+                  <Td muted>{item.manager}</Td>
+                  <Td align="right" muted nums>
+                    ฿{item.purchasePrice.toLocaleString()}
+                  </Td>
+                  <Td align="right" nums>
+                    ฿{item.salePrice.toLocaleString()}
+                  </Td>
+                  <Td align="right">
+                    <span className="whitespace-nowrap rounded-pill px-2.5 py-1 text-xs text-ink-sub hairline">
+                      상세
+                    </span>
+                  </Td>
+                </Tr>
+              );
+            })}
+          </tbody>
+        </Table>
+      </TableOnly>
+
     </GlassCard>
+  );
+}
+
+/** 후기 한 건이 지금까지 만들어 낸 돈. 과거 실적 한 줄 + 이번 데모에서 더해진 금액. */
+type Settlement = {
+  code: string;
+  clinicId: string;
+  reviewer: string;
+  rating: number;
+  review: string;
+  /** 이 코드를 타고 들어온 예약 수 */
+  clicks: number;
+  /** 총 발생액 */
+  amountTHB: number;
+  /** 그중 이번 데모에서 새로 더해진 금액. 0이면 과거 실적 그대로다. */
+  addedTHB: number;
+  monthsAgo: number;
+};
+
+/** `at`이 몇 달 전인지. 0이면 이번 달. */
+function monthsAgoOf(iso: string): number {
+  const d = new Date(iso);
+  const now = new Date();
+  return (
+    (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth())
+  );
+}
+
+/**
+ * 과거 실적(`lib/commission.ts`)을 깔고, 그 위에 `db.commissions`를 **더한다.**
+ * 같은 후기코드로 새 예약이 들어오면 그 줄의 클릭 수와 금액이 올라가고,
+ * 기초에 없던 코드(데모 중에 발행한 것)는 새 줄로 맨 앞에 붙는다.
+ */
+function buildSettlements(db: NonNullable<ReturnType<typeof useDb>["db"]>) {
+  const byCode = new Map<string, Settlement>();
+
+  for (const row of COMMISSION_BASELINE) {
+    byCode.set(row.code, {
+      code: row.code,
+      clinicId: row.clinicId,
+      reviewer: row.reviewer,
+      rating: row.rating,
+      review: row.review,
+      clicks: row.clicks,
+      amountTHB: row.amountTHB,
+      addedTHB: 0,
+      monthsAgo: row.monthsAgo,
+    });
+  }
+
+  for (const c of db.commissions) {
+    const rc = db.reviewCodes.find((x) => x.id === c.reviewCodeId);
+    if (!rc) continue;
+    const hit = byCode.get(rc.code);
+    if (hit) {
+      hit.clicks += 1;
+      hit.amountTHB += c.amountTHB;
+      hit.addedTHB += c.amountTHB;
+      continue;
+    }
+    const review = db.reviews.find((r) => r.code === rc.code);
+    const owner = db.users.find((u) => u.id === rc.ownerUserId);
+    byCode.set(rc.code, {
+      code: rc.code,
+      clinicId: rc.clinicId,
+      reviewer: owner?.name ?? rc.ownerName ?? "-",
+      rating: review?.rating ?? 0,
+      review: review?.text ?? "후기 내용이 아직 없습니다",
+      clicks: 1,
+      amountTHB: c.amountTHB,
+      addedTHB: c.amountTHB,
+      monthsAgo: monthsAgoOf(c.at),
+    });
+  }
+
+  // 새로 더해진 줄이 위로 오게. 그다음은 금액 큰 순.
+  return [...byCode.values()].sort(
+    (a, b) => b.addedTHB - a.addedTHB || b.amountTHB - a.amountTHB,
   );
 }
 
 function ReviewSection() {
   const { db, update } = useDb();
+  const [openClinic, setOpenClinic] = useState<string | null>(null);
+  const [openMonth, setOpenMonth] = useState<number | null>(null);
   const toast = useToast();
   // 승인 버튼 하나가 고객 앱 클리닉 상세의 후기 목록과 평점 줄을 같이 바꾼다.
   const { note, show: showLinked, dismiss } = useLinkedNote();
@@ -310,7 +492,40 @@ function ReviewSection() {
   }
 
   const visited = db.bookings.filter((b) => b.status === "방문완료");
-  const totalCommission = db.commissions.reduce((s, c) => s + c.amountTHB, 0);
+
+  const settlements = buildSettlements(db);
+  const addedTotal = db.commissions.reduce((s, c) => s + c.amountTHB, 0);
+  const totalCommission = BASELINE_TOTAL + addedTotal;
+
+  // 월별 막대. 과거 실적은 `monthsAgo`를, 새로 생긴 건은 날짜에서 계산한 달을 쓴다.
+  const months = recentMonths(6).map((m) => {
+    const rows = settlements.filter((s) => s.monthsAgo === m.monthsAgo);
+    return {
+      ...m,
+      amount: rows.reduce((s, r) => s + r.amountTHB, 0),
+      clicks: rows.reduce((s, r) => s + r.clicks, 0),
+    };
+  });
+
+  // 클리닉별 합계. 정산액이 큰 곳이 위로.
+  const byClinic = db.clinics
+    .map((c) => {
+      const rows = settlements.filter((s) => s.clinicId === c.id);
+      return {
+        clinic: c,
+        codes: rows.length,
+        clicks: rows.reduce((s, r) => s + r.clicks, 0),
+        amount: rows.reduce((s, r) => s + r.amountTHB, 0),
+        added: rows.reduce((s, r) => s + r.addedTHB, 0),
+      };
+    })
+    .filter((r) => r.codes > 0)
+    .sort((a, b) => b.amount - a.amount);
+
+  const detail = openClinic
+    ? settlements.filter((s) => s.clinicId === openClinic)
+    : [];
+  const detailClinic = db.clinics.find((c) => c.id === openClinic);
 
   return (
     <div className="space-y-4">
@@ -411,35 +626,280 @@ function ReviewSection() {
 
       <GlassCard soft className="p-6">
         <SectionTitle
-          title="커미션 정산"
-          sub={`누적 ฿${totalCommission.toLocaleString()}`}
+          title="발행된 후기코드"
+          sub={`총 ${db.reviewCodes.length}건 · 시술을 받은 고객에게만 발행됩니다`}
         />
-        <div className="space-y-2">
-          {db.commissions.map((c) => {
-            const rc = db.reviewCodes.find((x) => x.id === c.reviewCodeId);
-            return (
-              <div
-                key={c.id}
-                className="flex items-center justify-between rounded-cell bg-white/70 p-3 text-sm hairline"
-              >
-                <span>
-                  {rc?.code} · 예약 {c.bookingId}
-                </span>
-                <span className="font-semibold">
-                  ฿{c.amountTHB.toLocaleString()}
-                </span>
-              </div>
-            );
-          })}
+        <CodeTable />
+      </GlassCard>
+
+      <GlassCard soft className="p-6">
+        <SectionTitle
+          title="커미션 정산"
+          sub="후기코드를 타고 들어온 예약에서 발생한 금액입니다"
+        />
+
+        {/* 누적액을 크게 한 번. 그 밑에 "기초 + 이번에 더해진 것"으로 쪼개 보여준다 —
+            데모 중에 예약을 하나 넣으면 이 줄이 바로 올라가는 걸 보여주려는 것이다. */}
+        <div className="mb-5 rounded-cell bg-white/70 p-5 hairline">
+          <div className="text-xs text-ink-sub">누적 정산액</div>
+          <div className="mt-1 text-3xl font-extrabold tabular-nums">
+            ฿{totalCommission.toLocaleString()}
+          </div>
+          <div className="mt-1 text-xs text-ink-sub tabular-nums">
+            기존 실적 ฿{BASELINE_TOTAL.toLocaleString()}
+            {addedTotal > 0 && (
+              <span className="ml-1 font-semibold text-hb-600">
+                + 신규 ฿{addedTotal.toLocaleString()}
+              </span>
+            )}
+          </div>
         </div>
+
+        <MonthChart
+          months={months}
+          openMonth={openMonth}
+          onPick={(m) => setOpenMonth(openMonth === m ? null : m)}
+        />
+
+        <div className="mt-6">
+          <div className="mb-2 text-sm font-semibold">
+            클리닉별 정산
+            <span className="ml-2 text-xs font-normal text-ink-sub">
+              줄을 누르면 후기 한 건씩 뜯어봅니다
+            </span>
+          </div>
+          <TableOnly maxH="max-h-[26rem]">
+            <Table minW="min-w-[34rem]">
+              <Thead>
+                <Th stick>클리닉</Th>
+                <Th align="right">후기코드</Th>
+                <Th align="right">클릭</Th>
+                <Th align="right">정산액</Th>
+                <Th align="right">신규</Th>
+              </Thead>
+              <tbody>
+                {byClinic.map((r) => (
+                  <Tr
+                    key={r.clinic.id}
+                    onClick={() =>
+                      setOpenClinic(openClinic === r.clinic.id ? null : r.clinic.id)
+                    }
+                  >
+                    <Td
+                      stick
+                      className={`max-w-[10rem] truncate lg:max-w-none ${
+                        openClinic === r.clinic.id ? "font-bold" : "font-medium"
+                      }`}
+                    >
+                      {r.clinic.name}
+                    </Td>
+                    <Td align="right" muted nums>
+                      {r.codes}
+                    </Td>
+                    <Td align="right" muted nums>
+                      {r.clicks.toLocaleString()}
+                    </Td>
+                    <Td align="right" nums className="font-semibold">
+                      ฿{r.amount.toLocaleString()}
+                    </Td>
+                    <Td align="right" nums>
+                      {r.added > 0 ? (
+                        <span className="font-semibold text-hb-600">
+                          +฿{r.added.toLocaleString()}
+                        </span>
+                      ) : (
+                        <span className="text-ink-sub">–</span>
+                      )}
+                    </Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableOnly>
+        </div>
+
+        {detailClinic && (
+          <div className="animate-rise mt-5 rounded-cell bg-white/70 p-5 hairline">
+            <SectionTitle
+              title={detailClinic.name}
+              sub={`후기 ${detail.length}건 · 고객 후기 한 건이 얼마를 만들었는지`}
+            />
+            {/* 후기 본문만 `wrap`을 켠다. 한 줄로 두면 표가 화면 몇 개 폭으로 늘어난다. */}
+            <TableOnly maxH="max-h-[32rem]">
+              <Table minW="min-w-[52rem]">
+                <Thead>
+                  <Th stick>후기자</Th>
+                  <Th>별점</Th>
+                  <Th>후기코드</Th>
+                  <Th>후기 내용</Th>
+                  <Th align="right">예약</Th>
+                  <Th align="right">건당 평균</Th>
+                  <Th align="right">정산액</Th>
+                </Thead>
+                <tbody>
+                  {detail.map((s) => (
+                    <Tr key={s.code}>
+                      <Td stick className="font-medium">
+                        {s.reviewer}
+                      </Td>
+                      <Td muted>{"★".repeat(s.rating)}</Td>
+                      <Td muted nums>
+                        {s.code}
+                      </Td>
+                      <Td wrap muted className="max-w-[20rem] text-ink/80">
+                        {s.review}
+                      </Td>
+                      <Td align="right" nums muted>
+                        {s.clicks.toLocaleString()}건
+                      </Td>
+                      {/* 안 쓰인 코드는 클릭이 0이라 나누면 NaN이 된다. 그럴 땐 줄표. */}
+                      <Td align="right" nums muted>
+                        {s.clicks > 0
+                          ? `฿${Math.round(s.amountTHB / s.clicks).toLocaleString()}`
+                          : "–"}
+                      </Td>
+                      <Td align="right" nums className="font-semibold">
+                        ฿{s.amountTHB.toLocaleString()}
+                        {s.addedTHB > 0 && (
+                          <span className="ml-1 text-xs font-semibold text-hb-600">
+                            (+{s.addedTHB.toLocaleString()})
+                          </span>
+                        )}
+                      </Td>
+                    </Tr>
+                  ))}
+                </tbody>
+              </Table>
+            </TableOnly>
+
+            <BackToList onClick={() => setOpenClinic(null)} label="정산 표로" />
+          </div>
+        )}
       </GlassCard>
     </div>
+  );
+}
+
+/**
+ * 월별 발생액 기둥 차트. 기둥을 누르면 그 달의 금액과 클릭 수가 위에 뜬다.
+ * 폰에서는 기둥 폭이 45px밖에 안 돼서 금액을 항상 띄울 수가 없다 — 그래서 눌러서 보는 방식이다.
+ */
+function MonthChart({
+  months,
+  openMonth,
+  onPick,
+}: {
+  months: { monthsAgo: number; label: string; amount: number; clicks: number }[];
+  openMonth: number | null;
+  onPick: (monthsAgo: number) => void;
+}) {
+  const max = Math.max(1, ...months.map((m) => m.amount));
+  const picked = months.find((m) => m.monthsAgo === openMonth);
+
+  return (
+    <div className="rounded-cell bg-white/70 p-5 hairline">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <span className="text-sm font-semibold">월별 발생액</span>
+        <span className="text-xs text-ink-sub tabular-nums">
+          {picked
+            ? `${picked.label} · 클릭 ${picked.clicks.toLocaleString()}건 · ฿${picked.amount.toLocaleString()}`
+            : "기둥을 누르면 그 달 금액이 보입니다"}
+        </span>
+      </div>
+
+      <div className="mt-4 flex h-40 items-end gap-2">
+        {months.map((m) => {
+          const on = m.monthsAgo === openMonth;
+          return (
+            <button
+              key={m.monthsAgo}
+              type="button"
+              onClick={() => onPick(m.monthsAgo)}
+              className="flex h-full flex-1 cursor-pointer flex-col justify-end gap-1.5"
+            >
+              <span
+                className={`rounded-cell transition-[height,background-color] duration-700 ${
+                  on ? "bg-ink" : "bg-hb-400 hover:bg-hb-600"
+                }`}
+                style={{ height: `${Math.max(4, (m.amount / max) * 100)}%` }}
+              />
+              <span
+                className={`text-[11px] ${on ? "font-bold" : "text-ink-sub"}`}
+              >
+                {m.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** 발행된 후기코드 전체 목록. 과거 실적으로 깔아 둔 20건과 데모 중 발행한 것이 함께 나온다. */
+function CodeTable() {
+  const { db } = useDb();
+  if (!db) return null;
+
+  const baseline = new Map(COMMISSION_BASELINE.map((r) => [r.code, r]));
+
+  const rows = db.reviewCodes.map((rc) => {
+    const base = baseline.get(rc.code);
+    const live = db.commissions.filter((c) => c.reviewCodeId === rc.id);
+    const owner = db.users.find((u) => u.id === rc.ownerUserId);
+    return {
+      code: rc.code,
+      clinic: db.clinics.find((c) => c.id === rc.clinicId)?.name ?? "-",
+      owner: owner?.name ?? rc.ownerName ?? "-",
+      issuedAt: base ? dateFromDaysAgo(base.daysAgo) : rc.issuedAt.slice(0, 10),
+      clicks: (base?.clicks ?? 0) + rc.usedByBookingIds.length,
+      amount:
+        (base?.amountTHB ?? 0) + live.reduce((s, c) => s + c.amountTHB, 0),
+    };
+  });
+
+  return (
+    <TableOnly maxH="max-h-[26rem]">
+      <Table minW="min-w-[40rem]">
+        <Thead>
+          <Th stick>코드</Th>
+          <Th>클리닉</Th>
+          <Th>발행 고객</Th>
+          <Th>발행일</Th>
+          <Th align="right">클릭</Th>
+          <Th align="right">발생 커미션</Th>
+        </Thead>
+        <tbody>
+          {rows.map((r) => (
+            <Tr key={r.code}>
+              <Td stick className="font-medium">
+                {r.code}
+              </Td>
+              <Td muted className="max-w-[10rem] truncate lg:max-w-none">
+                {r.clinic}
+              </Td>
+              <Td muted>{r.owner}</Td>
+              <Td muted nums>
+                {r.issuedAt}
+              </Td>
+              <Td align="right" muted nums>
+                {r.clicks.toLocaleString()}
+              </Td>
+              <Td align="right" nums className="font-semibold">
+                ฿{r.amount.toLocaleString()}
+              </Td>
+            </Tr>
+          ))}
+        </tbody>
+      </Table>
+    </TableOnly>
   );
 }
 
 function UserSection() {
   const { db, update } = useDb();
   const toast = useToast();
+  const [openId, setOpenId] = useState<string | null>(null);
   const [noticeFor, setNoticeFor] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -460,13 +920,28 @@ function UserSection() {
     toast(blocked ? "유저를 차단했습니다" : "차단을 해제했습니다");
   }
 
+  /**
+   * 누적 구매금액. 실제 예약이 붙어 있는 계정은 예약을 더해서 내고, 표를 채우려고
+   * 만든 시연용 계정은 `seedSpentTHB`에 들어 있는 숫자를 그대로 쓴다.
+   * (가짜 유저 95명에게 가짜 예약까지 만들면 파트너 예약확인 화면이 흔들린다.)
+   */
   function spent(userId: string) {
-    return db!.bookings
+    const user = db!.users.find((u) => u.id === userId);
+    const fromBookings = db!.bookings
       .filter((b) => b.userId === userId && b.status !== "취소")
       .reduce((sum, b) => {
         const treatment = db!.treatments.find((t) => t.id === b.treatmentId);
         return sum + (treatment?.price ?? 0);
       }, 0);
+    return fromBookings || (user?.seedSpentTHB ?? 0);
+  }
+
+  function visits(userId: string) {
+    const user = db!.users.find((u) => u.id === userId);
+    const fromBookings = db!.bookings.filter(
+      (b) => b.userId === userId && b.status !== "취소",
+    ).length;
+    return fromBookings || (user?.seedVisits ?? 0);
   }
 
   function sendNotice(userId: string) {
@@ -491,81 +966,130 @@ function UserSection() {
     toast(`${user.name}님에게 공지를 보냈습니다`);
   }
 
+  const openUser = openId ? db.users.find((u) => u.id === openId) : null;
+
+  if (openUser) {
+    const total = spent(openUser.id);
+    const count = visits(openUser.id);
+    return (
+      <GlassCard className="p-6">
+        <SectionTitle
+          title={openUser.name}
+          sub={`${openUser.lineId} · ${openUser.phone}`}
+        />
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="flex items-center justify-between rounded-cell bg-hb-50 px-4 py-2.5 text-sm hairline">
+            <span className="text-xs text-ink-sub">총 구매금액</span>
+            <span className="font-bold tabular-nums">
+              ฿{total.toLocaleString()}
+            </span>
+          </div>
+          <div className="flex items-center justify-between rounded-cell bg-white/70 px-4 py-2.5 text-sm hairline">
+            <span className="text-xs text-ink-sub">이용 건수</span>
+            <span className="font-semibold tabular-nums">{count}건</span>
+          </div>
+          <div className="flex items-center justify-between rounded-cell bg-white/70 px-4 py-2.5 text-sm hairline">
+            <span className="text-xs text-ink-sub">계정 상태</span>
+            <Badge tone={openUser.blocked ? "danger" : "neutral"}>
+              {openUser.blocked ? "차단됨" : "정상"}
+            </Badge>
+          </div>
+          <div className="flex items-center justify-between rounded-cell bg-white/70 px-4 py-2.5 text-sm hairline">
+            <span className="text-xs text-ink-sub">유저 ID</span>
+            <span className="font-semibold tabular-nums">{openUser.id}</span>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <GhostButton
+            active={noticeFor === openUser.id}
+            onClick={() =>
+              setNoticeFor(noticeFor === openUser.id ? null : openUser.id)
+            }
+          >
+            공지 보내기
+          </GhostButton>
+          <GhostButton onClick={() => toggleBlock(openUser.id)}>
+            {openUser.blocked ? "차단 해제" : "차단"}
+          </GhostButton>
+        </div>
+
+        {noticeFor === openUser.id && (
+          <div className="animate-rise mt-3 space-y-2 rounded-cell bg-white/70 p-3 hairline">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="공지 제목"
+              className={inputClass}
+            />
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={2}
+              placeholder="공지 내용"
+              className={`${inputClass} resize-none`}
+            />
+            <InkButton arrow={false} onClick={() => sendNotice(openUser.id)}>
+              보내기
+            </InkButton>
+          </div>
+        )}
+
+        <BackToList onClick={() => setOpenId(null)} label="유저 목록으로" />
+      </GlassCard>
+    );
+  }
+
   return (
     <GlassCard className="p-6">
       <SectionTitle
         title="유저 관리"
-        sub="공지는 유저 앱 홈 탭의 공지사항에 쌓입니다"
+        sub={`총 ${db.users.length}명 · 줄을 누르면 상세와 공지 보내기가 열립니다`}
       />
-      <div className="space-y-2">
-        {db.users.map((u) => {
-          const total = spent(u.id);
-          const count = db.bookings.filter(
-            (b) => b.userId === u.id && b.status !== "취소",
-          ).length;
-          return (
-            <div key={u.id} className="rounded-cell bg-white/70 p-4 hairline">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-sm">
-                  <div className="font-semibold">{u.name}</div>
-                  <div className="text-xs text-ink-sub">
-                    {u.lineId} · {u.phone}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
+      <TableOnly maxH="max-h-[34rem]">
+        <Table minW="min-w-[40rem]">
+          <Thead>
+            <Th stick>이름</Th>
+            <Th>LINE ID</Th>
+            <Th>전화</Th>
+            <Th align="right">총 구매금액</Th>
+            <Th align="right">이용</Th>
+            <Th>상태</Th>
+          </Thead>
+          <tbody>
+            {db.users.map((u) => (
+              <Tr
+                key={u.id}
+                onClick={() => {
+                  setOpenId(u.id);
+                  setNoticeFor(null);
+                }}
+                tone={u.blocked ? "danger" : undefined}
+              >
+                <Td stick className="font-medium">
+                  {u.name}
+                </Td>
+                <Td muted>{u.lineId}</Td>
+                <Td muted nums>
+                  {u.phone}
+                </Td>
+                <Td align="right" nums className="font-semibold">
+                  ฿{spent(u.id).toLocaleString()}
+                </Td>
+                <Td align="right" nums muted>
+                  {visits(u.id)}건
+                </Td>
+                <Td>
                   <Badge tone={u.blocked ? "danger" : "neutral"}>
                     {u.blocked ? "차단됨" : "정상"}
                   </Badge>
-                  <GhostButton
-                    onClick={() =>
-                      setNoticeFor(noticeFor === u.id ? null : u.id)
-                    }
-                  >
-                    공지 보내기
-                  </GhostButton>
-                  <GhostButton onClick={() => toggleBlock(u.id)}>
-                    {u.blocked ? "차단 해제" : "차단"}
-                  </GhostButton>
-                </div>
-              </div>
-
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <div className="flex items-center justify-between rounded-cell bg-hb-50 px-4 py-2.5 text-sm hairline">
-                  <span className="text-xs text-ink-sub">총 구매금액</span>
-                  <span className="font-bold tabular-nums">
-                    ฿{total.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded-cell bg-white/70 px-4 py-2.5 text-sm hairline">
-                  <span className="text-xs text-ink-sub">이용 건수</span>
-                  <span className="font-semibold tabular-nums">{count}건</span>
-                </div>
-              </div>
-
-              {noticeFor === u.id && (
-                <div className="animate-rise mt-3 space-y-2 rounded-cell bg-white/70 p-3 hairline">
-                  <input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="공지 제목"
-                    className={inputClass}
-                  />
-                  <textarea
-                    value={body}
-                    onChange={(e) => setBody(e.target.value)}
-                    rows={2}
-                    placeholder="공지 내용"
-                    className={`${inputClass} resize-none`}
-                  />
-                  <InkButton arrow={false} onClick={() => sendNotice(u.id)}>
-                    보내기
-                  </InkButton>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                </Td>
+              </Tr>
+            ))}
+          </tbody>
+        </Table>
+      </TableOnly>
     </GlassCard>
   );
 }
@@ -621,8 +1145,6 @@ function ClinicSection() {
     const branches = db.branches.filter((b) => b.clinicId === clinic.id);
     return (
       <div className="space-y-4">
-        <GhostButton onClick={() => setClinicId(null)}>← 목록으로</GhostButton>
-
         <GlassCard className="p-6">
           <SectionTitle
             title={`${clinic.name} 정보 수정`}
@@ -674,20 +1196,35 @@ function ClinicSection() {
         </GlassCard>
 
         <GlassCard soft className="p-6">
-          <SectionTitle title="지점 목록" />
-          <div className="space-y-2">
-            {branches.map((b) => (
-              <div
-                key={b.id}
-                className="rounded-cell bg-white/70 p-4 text-sm hairline"
-              >
-                <div className="font-semibold">{b.name}</div>
-                <div className="mt-1 text-xs text-ink-sub">
-                  {b.address} · {b.phone}
-                </div>
-              </div>
-            ))}
-          </div>
+          <SectionTitle title="지점 목록" sub={`총 ${branches.length}곳`} />
+          {branches.length === 0 ? (
+            <p className="text-sm text-ink-sub">등록된 지점이 없습니다.</p>
+          ) : (
+            <TableOnly>
+              <Table minW="min-w-[30rem]">
+                <Thead>
+                  <Th stick>지점명</Th>
+                  <Th>주소</Th>
+                  <Th>전화</Th>
+                </Thead>
+                <tbody>
+                  {branches.map((b) => (
+                    <Tr key={b.id}>
+                      <Td stick className="font-medium">
+                        {b.name}
+                      </Td>
+                      <Td muted>{b.address}</Td>
+                      <Td muted nums>
+                        {b.phone}
+                      </Td>
+                    </Tr>
+                  ))}
+                </tbody>
+              </Table>
+            </TableOnly>
+          )}
+
+          <BackToList onClick={() => setClinicId(null)} label="클리닉 목록으로" />
         </GlassCard>
       </div>
     );
@@ -717,34 +1254,47 @@ function ClinicSection() {
         />
       )}
 
-      <div className="space-y-2">
-        {db.clinics.map((c) => {
-          const branchCount = db.branches.filter(
-            (b) => b.clinicId === c.id,
-          ).length;
-          return (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setClinicId(c.id)}
-              className="flex w-full flex-wrap items-center justify-between gap-2 rounded-cell bg-white/70 p-4 text-left transition hairline hover:bg-white"
-            >
-              <div className="min-w-0 text-sm">
-                <div className="truncate font-semibold">{c.name}</div>
-                <div className="truncate text-xs text-ink-sub">
-                  {c.district} · {c.phone}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge tone={c.hasBranches ? "pink" : "neutral"}>
-                  {c.hasBranches ? `지점 ${branchCount}` : "일반"}
-                </Badge>
-                <span className="text-sm font-semibold">★ {c.rating}</span>
-              </div>
-            </button>
-          );
-        })}
-      </div>
+      <TableOnly>
+        <Table minW="min-w-[42rem]">
+          <Thead>
+            <Th stick>클리닉</Th>
+            <Th>지역</Th>
+            <Th>전화</Th>
+            <Th>구분</Th>
+            <Th align="right">평점</Th>
+            <Th align="right">후기</Th>
+          </Thead>
+          <tbody>
+            {db.clinics.map((c) => {
+              const branchCount = db.branches.filter(
+                (b) => b.clinicId === c.id,
+              ).length;
+              return (
+                <Tr key={c.id} onClick={() => setClinicId(c.id)}>
+                  <Td stick className="font-medium">
+                    {c.name}
+                  </Td>
+                  <Td muted>{c.district}</Td>
+                  <Td muted nums>
+                    {c.phone}
+                  </Td>
+                  <Td>
+                    <Badge tone={c.hasBranches ? "pink" : "neutral"}>
+                      {c.hasBranches ? `지점 ${branchCount}` : "일반"}
+                    </Badge>
+                  </Td>
+                  <Td align="right" nums className="font-semibold">
+                    ★ {c.rating}
+                  </Td>
+                  <Td align="right" nums muted>
+                    {c.reviewCount}
+                  </Td>
+                </Tr>
+              );
+            })}
+          </tbody>
+        </Table>
+      </TableOnly>
     </GlassCard>
   );
 }
@@ -1220,45 +1770,56 @@ function AccountSection() {
         </GhostButton>
       </div>
 
-      <div className="max-h-[28rem] space-y-2 overflow-y-auto pr-1">
-        {rows.map((a) => (
-          <div key={a.id} className="rounded-cell bg-white/70 p-4 hairline">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0 text-sm">
-                <div className="truncate font-semibold">{a.label}</div>
-                <div className="text-xs text-ink-sub">{a.loginId}</div>
-              </div>
-              <input
-                type={reveal ? "text" : "password"}
-                value={a.password}
-                onChange={(e) => setPassword(a.id, e.target.value)}
-                className="w-40 rounded-cell bg-white px-3 py-2 text-sm outline-none hairline"
-              />
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="text-xs text-ink-sub">상태</span>
-              {STATUSES.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setStatus(a.id, s)}
-                  className={`rounded-pill px-3 py-1.5 text-xs font-medium transition ${
-                    a.status === s
-                      ? s === "차단"
-                        ? "bg-danger text-white"
-                        : s === "홀드"
-                          ? "bg-hb-400 text-white"
-                          : "bg-ink text-white"
-                      : "bg-white text-ink-sub hairline hover:bg-hb-50"
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
+      <TableOnly maxH="max-h-[30rem]">
+        <Table minW="min-w-[44rem]">
+          <Thead>
+            <Th stick>계정</Th>
+            <Th>로그인 ID</Th>
+            <Th>비밀번호</Th>
+            <Th>상태</Th>
+          </Thead>
+          <tbody>
+            {rows.map((a) => (
+              <Tr key={a.id} tone={a.status === "차단" ? "danger" : undefined}>
+                <Td stick className="font-medium">
+                  {a.label}
+                </Td>
+                <Td muted>{a.loginId}</Td>
+                <Td>
+                  <input
+                    type={reveal ? "text" : "password"}
+                    value={a.password}
+                    onChange={(e) => setPassword(a.id, e.target.value)}
+                    className="w-32 rounded-cell bg-white px-3 py-1.5 text-sm outline-none hairline"
+                  />
+                </Td>
+                <Td>
+                  <div className="flex items-center gap-1">
+                    {STATUSES.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setStatus(a.id, s)}
+                        className={`rounded-pill px-2.5 py-1 text-xs font-medium transition ${
+                          a.status === s
+                            ? s === "차단"
+                              ? "bg-danger text-white"
+                              : s === "홀드"
+                                ? "bg-hb-400 text-white"
+                                : "bg-ink text-white"
+                            : "bg-white text-ink-sub hairline hover:bg-hb-50"
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </Td>
+              </Tr>
+            ))}
+          </tbody>
+        </Table>
+      </TableOnly>
 
       <div className="mt-5">
         <InkButton onClick={() => toast("계정 정보를 저장했습니다")}>
@@ -1269,40 +1830,7 @@ function AccountSection() {
   );
 }
 
-function DemoReset() {
-  const { reset } = useDb();
-  const toast = useToast();
-  const [confirming, setConfirming] = useState(false);
-
-  return (
-    <GlassCard
-      soft
-      className="flex flex-wrap items-center justify-between gap-3 p-5"
-    >
-      <div className="text-sm">
-        <div className="font-semibold">데모 리셋</div>
-        <div className="text-xs text-ink-sub">
-          모든 수정 내역을 지우고 초기 데모 데이터로 되돌립니다
-        </div>
-      </div>
-      {confirming ? (
-        <div className="flex gap-2">
-          <GhostButton onClick={() => setConfirming(false)}>취소</GhostButton>
-          <button
-            type="button"
-            onClick={() => {
-              reset();
-              setConfirming(false);
-              toast("초기 데모 데이터로 되돌렸습니다");
-            }}
-            className="rounded-pill bg-danger px-4 py-2 text-sm font-medium text-white transition hover:brightness-95"
-          >
-            정말 리셋
-          </button>
-        </div>
-      ) : (
-        <GhostButton onClick={() => setConfirming(true)}>리셋하기</GhostButton>
-      )}
-    </GlassCard>
-  );
-}
+/*
+ * 데모 리셋은 여기 있었는데 `components/ui/DemoReset.tsx`로 옮겼다.
+ * 어드민 탭 맨 아래에 두면 시연 중에 화면에 잡혀서, 탭 줄 오른쪽 바깥으로 보냈다.
+ */

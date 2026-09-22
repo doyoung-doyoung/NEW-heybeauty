@@ -79,6 +79,26 @@ export function GhostButton({
   );
 }
 
+/**
+ * 상세 화면에서 목록으로 돌아가는 버튼.
+ *
+ * 카드 **위**가 아니라 **안쪽 오른쪽 아래**에 둔다. 상세를 다 읽고 나면 눈이 이미 아래쪽
+ * 오른편에 가 있어서, 위로 올라가 뒤로가기를 찾는 것보다 그 자리에 있는 게 빠르다.
+ */
+export function BackToList({
+  onClick,
+  label = "목록으로",
+}: {
+  onClick: () => void;
+  label?: string;
+}) {
+  return (
+    <div className="mt-5 flex justify-end">
+      <GhostButton onClick={onClick}>← {label}</GhostButton>
+    </div>
+  );
+}
+
 export function IconField({
   icon,
   children,

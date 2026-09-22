@@ -26,11 +26,12 @@ import type {
   StockLog,
   Treatment,
 } from "./types";
+import { COMMISSION_BASELINE } from "./commission";
 
 const BASE_DATE = new Date("2026-09-17T09:00:00+07:00");
 
 // 스키마가 바뀌면 올린다. 저장된 데모 데이터가 이 값과 다르면 새 시드로 갈아끼운다.
-export const SEED_VERSION = 5;
+export const SEED_VERSION = 7;
 
 function rng(seed: number) {
   let a = seed >>> 0;
@@ -131,6 +132,15 @@ const CUSTOMER_LAST = ["쁘라싯", "찬타윗", "분마", "시리완", "퐁사�
 const NATIONS = ["태국", "태국", "태국", "중국", "한국", "일본", "러시아"];
 const CHANNELS = ["LINE", "Meta", "App"] as const;
 const SUPPLIERS = ["RAON Thailand", "Bangkok Medi Supply", "Siam Aesthetic Dist.", "Global Derma Co."];
+
+// 앱 유저 총원. 유저 관리·계정 표를 실제 서비스처럼 채우려고 늘렸다.
+const APP_USER_COUNT = 99;
+const LINE_SLUGS = ["nari", "som", "kan", "anan", "prani", "wira", "suni", "tira", "mali", "chari", "fern", "bua", "noi", "kam", "sai"];
+
+// 입출고 기록 사유. 실제로 손으로 적는 말투를 흉내 냈다.
+const STOCK_USE_REASONS = ["시술 사용", "예약 시술 차감", "원내 시술 사용", "체험 시술 사용", "리터치 사용"];
+const STOCK_IN_REASONS = ["정기 발주 입고", "긴급 추가 입고", "본사 보충 입고", "프로모션 물량 입고", "반품 재입고"];
+const STOCK_FIX_REASONS = ["실사 차이 조정", "파손 폐기", "유효기간 경과 폐기", "타 지점 이관", "입력 오류 정정"];
 
 const SMS_TEXTS: Record<SmsLog["template"], (name: string) => string> = {
   생일: (name) =>
@@ -392,17 +402,50 @@ export function buildSeed(): DemoDb {
     });
   });
 
+  // 재고 한 칸마다 입출고 기록을 20건 안팎으로 쌓는다.
+  // 한 줄("초기 재고 등록")만 있으면 상세 화면이 텅 비어서, 재고가 실제로 돌아간 것처럼 안 보인다.
+  // 맨 아래가 최초 입고이고 위로 올라올수록 최근이다.
   inventory.forEach((item, i) => {
     stockLogs.push({
-      id: `SL-${i + 1}`,
+      id: `SL-${i + 1}-0`,
       inventoryItemId: item.id,
       type: "입고",
       qty: item.qty,
       reason: "초기 재고 등록",
-      at: shiftDays(-between(30, 200)),
+      at: shiftDays(-between(200, 320)),
       by: item.manager,
     });
+
+    const count = between(14, 22);
+    for (let n = 1; n <= count; n++) {
+      // 쓰는 일이 제일 잦고, 다시 채우는 입고가 그다음, 실사 조정은 가끔이다.
+      const roll = rand();
+      const type: StockLog["type"] =
+        roll < 0.62 ? "사용" : roll < 0.9 ? "입고" : "조정";
+      stockLogs.push({
+        id: `SL-${i + 1}-${n}`,
+        inventoryItemId: item.id,
+        type,
+        qty:
+          type === "사용"
+            ? between(1, 12)
+            : type === "입고"
+              ? between(20, 200)
+              : between(1, 5),
+        reason:
+          type === "사용"
+            ? pick(STOCK_USE_REASONS)
+            : type === "입고"
+              ? pick(STOCK_IN_REASONS)
+              : pick(STOCK_FIX_REASONS),
+        at: shiftDays(-between(1, 190)),
+        by: STAFF_NAMES[(i + n) % STAFF_NAMES.length],
+      });
+    }
   });
+
+  // 최신 기록이 위로 오게. 상세 화면은 이 순서를 그대로 쓴다.
+  stockLogs.sort((a, b) => (a.at < b.at ? 1 : -1));
 
   const users: AppUser[] = [
     { id: "U1", name: "도도", lineId: "dodo_line", phone: "0812345678", blocked: false },
@@ -410,6 +453,23 @@ export function buildSeed(): DemoDb {
     { id: "U3", name: "민지", lineId: "minji_k", phone: "0834567890", blocked: false },
     { id: "U4", name: "쏨차이 분마", lineId: "somchai_b", phone: "0845678901", blocked: true },
   ];
+
+  // 위 네 명은 시연에서 실제로 예약을 만드는 계정이고, 나머지는 목록을 채우는 사람들이다.
+  // 이쪽에는 가짜 예약을 만들지 않고 누적 실적 숫자만 들려 보낸다(`AppUser.seedSpentTHB` 주석 참고).
+  for (let u = users.length; u < APP_USER_COUNT; u++) {
+    const name = `${pick(CUSTOMER_FIRST)} ${pick(CUSTOMER_LAST)}`;
+    const visits = between(0, 14);
+    users.push({
+      id: `U${u + 1}`,
+      name,
+      lineId: `${pick(LINE_SLUGS)}_${between(100, 999)}`,
+      phone: `08${between(10000000, 99999999)}`,
+      // 100명 중 서넛쯤은 막혀 있어야 "차단" 상태가 표에서 죽은 기능처럼 안 보인다.
+      blocked: rand() < 0.04,
+      seedVisits: visits,
+      seedSpentTHB: visits === 0 ? 0 : visits * between(2800, 26000),
+    });
+  }
 
   users.forEach((u, i) => {
     accounts.push({
@@ -465,6 +525,18 @@ export function buildSeed(): DemoDb {
       issuedAt: shiftDays(-13),
       usedByBookingIds: ["BK2"],
     },
+    // 여기서부터는 과거 실적으로 깔아 둔 20개(`lib/commission.ts`).
+    // 예약과 엮여 있지 않아서 `bookingId`가 비어 있다 — 발행 목록에 보여주기만 하는 코드들이다.
+    ...COMMISSION_BASELINE.map((row, i) => ({
+      id: `RC-B${i + 1}`,
+      code: row.code,
+      ownerUserId: "",
+      ownerName: row.reviewer,
+      clinicId: row.clinicId,
+      bookingId: "",
+      issuedAt: shiftDays(-row.daysAgo),
+      usedByBookingIds: [],
+    })),
   ];
 
   const reviews: Review[] = [
