@@ -68,12 +68,15 @@ export function Th({
   children,
   align = "left",
   stick = false,
+  stickRight = false,
   className = "",
 }: {
   children?: ReactNode;
   align?: "left" | "right";
   /** 첫 칸 전용. 가로로 밀어도 왼쪽에 남는다 — 아래 `Td`의 `stick` 설명 참고. */
   stick?: boolean;
+  /** 마지막 버튼 칸 전용 — 아래 `Td`의 `stickRight` 설명 참고. */
+  stickRight?: boolean;
   /**
    * 칸 폭을 잡을 때 쓴다(`w-36` 같은 것).
    *
@@ -88,7 +91,9 @@ export function Th({
     <th
       className={`sticky top-0 z-10 whitespace-nowrap border-b border-ink/15 bg-hb-50 px-2 py-2 font-semibold ${
         align === "right" ? "text-right" : ""
-      } ${stick ? "left-0 z-20 border-r border-ink/10" : ""} ${className}`}
+      } ${stick ? "left-0 z-20 border-r border-ink/10" : ""} ${
+        stickRight ? "right-0 z-20 border-l border-ink/10" : ""
+      } ${className}`}
     >
       {children}
     </th>
@@ -135,6 +140,7 @@ export function Td({
   muted = false,
   nums = false,
   stick = false,
+  stickRight = false,
   wrap = false,
   className = "",
 }: {
@@ -156,6 +162,15 @@ export function Td({
    * "지금 보는 게 누구 줄이지?"를 알 수 없다.
    */
   stick?: boolean;
+  /**
+   * 삭제·수정 같은 **버튼 칸**에만 켠다. 가로로 밀어도 오른쪽에 남아 있는다.
+   *
+   * 왜 필요하냐면, 버튼은 보통 맨 끝 칸인데 그 자리는 폰에서 화면 밖 400px 너머다.
+   * 실제로 공지 표의 삭제 버튼이 오른쪽으로 435px 나가 있어서 "버튼이 없다"는
+   * 이야기가 나왔다. 있는데 닿을 수 없으면 없는 것과 같다.
+   * 첫 칸과 마찬가지로 배경이 불투명해야 해서 `--row-bg`를 받아 쓴다.
+   */
+  stickRight?: boolean;
   className?: string;
 }) {
   return (
@@ -167,6 +182,10 @@ export function Td({
       } ${nums ? "tabular-nums" : ""} ${
         stick
           ? "sticky left-0 z-[1] border-r border-ink/10 bg-[var(--row-bg)]"
+          : ""
+      } ${
+        stickRight
+          ? "sticky right-0 z-[1] border-l border-ink/10 bg-[var(--row-bg)]"
           : ""
       } ${className}`}
     >

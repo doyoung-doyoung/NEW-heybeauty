@@ -1733,7 +1733,10 @@ function NoticeSection() {
                 <Th>대상</Th>
                 <Th>내용</Th>
                 <Th>등록일</Th>
-                <Th align="right" />
+                {/* 버튼 칸은 오른쪽에 붙여 둔다. 안 그러면 폰에서 화면 밖 435px에 있다. */}
+                <Th stickRight align="right">
+                  지우기
+                </Th>
               </Thead>
               <tbody>
                 {db.notices.map((n) => (
@@ -1755,7 +1758,7 @@ function NoticeSection() {
                     <Td muted nums>
                       {n.at.slice(0, 10)}
                     </Td>
-                    <Td align="right">
+                    <Td stickRight align="right">
                       <GhostButton onClick={() => removeNotice(n.id)}>
                         삭제
                       </GhostButton>
