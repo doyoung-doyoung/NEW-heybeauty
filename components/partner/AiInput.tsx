@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDb } from "@/lib/db";
 import { useToast } from "@/components/ui/Toast";
+import { LinkedNote, useLinkedNote } from "@/components/ui/LinkedNote";
 import {
   Badge,
   GhostButton,
@@ -172,7 +173,7 @@ export default function AiInput({
   const [showHistory, setShowHistory] = useState(false);
   // 저장 한 번이 CRM 기록·고객 카드·재고를 동시에 건드린다. 토스트는 하나만 스쳐 지나가서
   // 시연 중에 그 연결이 안 보이므로, 무엇으로 연동됐는지 홈 화면에 남긴다.
-  const [linked, setLinked] = useState<string[] | null>(null);
+  const { note, show: showLinked, dismiss } = useLinkedNote();
 
   const [shot, setShot] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
@@ -576,7 +577,7 @@ Lot번호: ${fields?.Lot번호 ?? ""}
     });
     setDraft(null);
     setStep("home");
-    setLinked(links);
+    showLinked(links);
     toast(`저장되었습니다 · ${links.length}곳에 연동`);
   }
 
@@ -938,29 +939,13 @@ Lot번호: ${label.lot}
         sub="사진을 찍거나 말하면 AI가 텍스트로 정리합니다. 확인 후 수정하고 저장하세요."
       />
 
-      {linked && (
-        <div className="animate-rise mb-4 rounded-card bg-hb-400/15 p-4 hairline">
-          <div className="flex items-start justify-between gap-3">
-            <div className="text-sm font-bold">
-              입력 한 번으로 {linked.length}곳에 연동되었습니다
-            </div>
-            <button
-              type="button"
-              onClick={() => setLinked(null)}
-              className="shrink-0 rounded-pill px-2 py-0.5 text-xs text-ink-sub hairline"
-            >
-              닫기
-            </button>
-          </div>
-          <ul className="mt-2 space-y-1">
-            {linked.map((l) => (
-              <li key={l} className="flex items-center gap-2 text-sm text-ink/80">
-                <span className="text-hb-600">→</span>
-                <span className="min-w-0 truncate">{l}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+      {note && (
+        <LinkedNote
+          note={note}
+          title={`입력 한 번으로 ${note.rows.length}곳에 연동되었습니다`}
+          onClose={dismiss}
+          className="mb-4"
+        />
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">

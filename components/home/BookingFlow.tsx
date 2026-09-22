@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useDb } from "@/lib/db";
 import { useToast } from "@/components/ui/Toast";
+import { LinkedNote } from "@/components/ui/LinkedNote";
 import { useT } from "@/lib/i18n";
 import {
   Badge,
@@ -58,6 +59,10 @@ export default function BookingFlow({
   const [showSlipPicker, setShowSlipPicker] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [reviewCode, setReviewCode] = useState("");
+  const [linked, setLinked] = useState<{
+    newCustomer: boolean;
+    commissionTo: string | null;
+  } | null>(null);
 
   if (!db) return null;
 
@@ -99,10 +104,15 @@ export default function BookingFlow({
               text: `${t("confirmed")} · ${tf("codeOwnerEarns", t(codeOwner?.name ?? ""), commission.toLocaleString())}`,
             };
 
+  const me = db.users.find((u) => u.id === "U1");
+
   function confirmPayment() {
     const id = `BK-${Date.now()}`;
     const threadId = `CH-${Date.now()}`;
     const now = new Date().toISOString();
+    const isNewCustomer = !db!.customers.some(
+      (c) => c.branchId === activeBranchId && c.phone === me?.phone,
+    );
 
     update((draft) => {
       draft.bookings.unshift({
@@ -133,7 +143,6 @@ export default function BookingFlow({
         });
       }
 
-      const me = draft.users.find((u) => u.id === "U1");
       const memo = `Hey! Beauty 앱 예약 · ${date} ${time} ${treatment!.name}`;
       const existing = draft.customers.find(
         (c) => c.branchId === activeBranchId && c.phone === me?.phone,
@@ -206,6 +215,10 @@ export default function BookingFlow({
     });
 
     setBookingId(threadId);
+    setLinked({
+      newCustomer: isNewCustomer,
+      commissionTo: codeUsable ? (codeOwner?.name ?? "") : null,
+    });
     setStep("done");
     toast(
       codeUsable
@@ -213,6 +226,25 @@ export default function BookingFlow({
         : t("transferConfirmed"),
     );
   }
+
+  const linkedRows = !linked
+    ? []
+    : [
+        tf("crmLinkedBooking", date, time),
+        linked.newCustomer
+          ? tf("crmLinkedCustomerNew", t(me?.name ?? ""))
+          : tf("crmLinkedCustomerUpdate", t(me?.name ?? "")),
+        t("crmLinkedInbox"),
+        ...(linked.commissionTo
+          ? [
+              tf(
+                "crmLinkedCommission",
+                t(linked.commissionTo),
+                commission.toLocaleString(),
+              ),
+            ]
+          : []),
+      ];
 
   return (
     <div className="space-y-4">
@@ -447,6 +479,14 @@ export default function BookingFlow({
           <p className="mt-2 text-sm text-ink-sub">
             {t(clinic.name)} · {date} {time} · {t(treatment.name)}
           </p>
+
+          {/* 이 쪽지는 완료 화면의 본문이라 스스로 사라지면 안 된다. 닫기도 없다. */}
+          <LinkedNote
+            note={{ rows: linkedRows }}
+            title={tf("crmLinkedTitle", t(clinic.name))}
+            hint={tf("crmLinkedHint", String(linkedRows.length))}
+            className="mt-6"
+          />
 
           <div className="mt-6 flex flex-wrap justify-center gap-2">
             <InkButton onClick={() => bookingId && onOpenClinicChat(bookingId)}>

@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import { isLowStock, LOW_STOCK_QTY } from "@/lib/stock";
 import { TREATMENT_POOL } from "@/lib/seed";
 import { PhotoPicker } from "@/components/ui/PhotoPicker";
+import { LinkedNote, useLinkedNote } from "@/components/ui/LinkedNote";
 import type { AccountStatus, Hours, NoticeTarget } from "@/lib/types";
 import {
   Badge,
@@ -230,6 +231,8 @@ function InventorySection() {
 function ReviewSection() {
   const { db, update } = useDb();
   const toast = useToast();
+  // 승인 버튼 하나가 고객 앱 클리닉 상세의 후기 목록과 평점 줄을 같이 바꾼다.
+  const { note, show: showLinked, dismiss } = useLinkedNote();
   if (!db) return null;
 
   function approve(reviewId: string) {
@@ -239,6 +242,16 @@ function ReviewSection() {
       review.approved = true;
       review.blocked = false;
     });
+    const review = db!.reviews.find((r) => r.id === reviewId);
+    const clinicName =
+      db!.clinics.find((c) => c.id === review?.clinicId)?.name ?? "클리닉";
+    showLinked(
+      [
+        `고객 앱 · ${clinicName} 상세 후기 목록에 노출`,
+        `내 후기 · 작성자 화면에서 "승인됨"으로 표시`,
+      ],
+      reviewId,
+    );
     toast("후기를 승인했습니다");
   }
 
@@ -249,6 +262,16 @@ function ReviewSection() {
       review.blocked = true;
       review.approved = false;
     });
+    const review = db!.reviews.find((r) => r.id === reviewId);
+    const clinicName =
+      db!.clinics.find((c) => c.id === review?.clinicId)?.name ?? "클리닉";
+    showLinked(
+      [
+        `고객 앱 · ${clinicName} 상세 후기 목록에서 숨김`,
+        `내 후기 · 작성자 화면에서 "차단됨"으로 표시`,
+      ],
+      reviewId,
+    );
     toast("후기를 차단했습니다");
   }
 
@@ -274,6 +297,15 @@ function ReviewSection() {
         usedByBookingIds: [],
       });
     });
+    const user = db?.users.find((u) => u.id === booking.userId);
+    showLinked(
+      [
+        `내 예약 · ${user?.name ?? "고객"}님 ${booking.id} 카드에 ${code} 배지 표시`,
+        `후기 작성 · 이 코드로 후기를 쓸 수 있게 열림`,
+        `커미션 정산 · 이 코드로 들어온 예약부터 집계 시작`,
+      ],
+      bookingId,
+    );
     toast(`후기코드 ${code} 발행 완료`);
   }
 
@@ -318,6 +350,15 @@ function ReviewSection() {
                   <GhostButton onClick={() => approve(r.id)}>승인</GhostButton>
                   <GhostButton onClick={() => block(r.id)}>차단</GhostButton>
                 </div>
+
+                {note?.key === r.id && (
+                  <LinkedNote
+                    note={note}
+                    title="고객 앱 쪽 후기 노출이 함께 바뀌었습니다"
+                    onClose={dismiss}
+                    className="mt-3"
+                  />
+                )}
               </div>
             );
           })}
@@ -337,22 +378,30 @@ function ReviewSection() {
             const clinic = db.clinics.find((c) => c.id === b.clinicId);
             const issued = db.reviewCodes.find((rc) => rc.bookingId === b.id);
             return (
-              <div
-                key={b.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-cell bg-white/70 p-4 hairline"
-              >
-                <div className="text-sm">
-                  <div className="font-semibold">{clinic?.name}</div>
-                  <div className="text-xs text-ink-sub">
-                    {b.date} {b.time} · {b.id}
+              <div key={b.id} className="rounded-cell bg-white/70 p-4 hairline">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-sm">
+                    <div className="font-semibold">{clinic?.name}</div>
+                    <div className="text-xs text-ink-sub">
+                      {b.date} {b.time} · {b.id}
+                    </div>
                   </div>
+                  {issued ? (
+                    <Badge tone="pink">발행됨 {issued.code}</Badge>
+                  ) : (
+                    <GhostButton onClick={() => issueCode(b.id)}>
+                      후기코드 발행
+                    </GhostButton>
+                  )}
                 </div>
-                {issued ? (
-                  <Badge tone="pink">발행됨 {issued.code}</Badge>
-                ) : (
-                  <GhostButton onClick={() => issueCode(b.id)}>
-                    후기코드 발행
-                  </GhostButton>
+
+                {note?.key === b.id && (
+                  <LinkedNote
+                    note={note}
+                    title="후기코드가 고객 화면으로 넘어갔습니다"
+                    onClose={dismiss}
+                    className="mt-3"
+                  />
                 )}
               </div>
             );
@@ -544,6 +593,7 @@ function ClinicSection() {
   const toast = useToast();
   const [clinicId, setClinicId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const { note, show: showLinked, dismiss } = useLinkedNote();
   if (!db) return null;
 
   const clinic = clinicId ? db.clinics.find((c) => c.id === clinicId) : null;
@@ -558,7 +608,10 @@ function ClinicSection() {
   if (adding) {
     return (
       <ClinicRegister
-        onDone={() => setAdding(false)}
+        onDone={(rows) => {
+          setAdding(false);
+          showLinked(rows);
+        }}
         onCancel={() => setAdding(false)}
       />
     );
@@ -654,6 +707,16 @@ function ClinicSection() {
         <InkButton onClick={() => setAdding(true)}>클리닉 등록하기</InkButton>
       </div>
 
+      {note && (
+        <LinkedNote
+          note={note}
+          title="등록 한 번으로 여러 곳이 함께 만들어졌습니다"
+          hint={`${note.rows.length}곳이 동시에 채워졌습니다`}
+          onClose={dismiss}
+          className="mb-4"
+        />
+      )}
+
       <div className="space-y-2">
         {db.clinics.map((c) => {
           const branchCount = db.branches.filter(
@@ -690,7 +753,7 @@ function ClinicRegister({
   onDone,
   onCancel,
 }: {
-  onDone: () => void;
+  onDone: (linkedRows: string[]) => void;
   onCancel: () => void;
 }) {
   const { db, update } = useDb();
@@ -774,7 +837,15 @@ function ClinicRegister({
     });
 
     toast(`${form.name.trim()} 등록 완료 · 계정도 함께 생성되었습니다`);
-    onDone();
+    // 이 화면은 저장하자마자 목록으로 돌아가므로, 무엇이 생겼는지는 목록 쪽에서 보여준다.
+    onDone([
+      `홈 탭 클리닉 목록 · ${form.name.trim()} 카드 추가 (${form.district.trim()})`,
+      hasBranches
+        ? `지점 · ${count}개 지점 생성 (1호점 ~ ${count}호점)`
+        : `지점 · 단일 지점 생성`,
+      `시술 · 기본 ${TREATMENT_POOL.length}개 등록, 최저가가 카드에 표시됨`,
+      `파트너 계정 · 아이디 ${clinicId.toLowerCase()} 로 로그인 가능`,
+    ]);
   }
 
   return (
@@ -871,6 +942,7 @@ function NoticeSection() {
   const [asPopup, setAsPopup] = useState(false);
   const [target, setTarget] = useState<NoticeTarget>("전체");
   const [images, setImages] = useState<string[]>([]);
+  const { note, show: showLinked, dismiss } = useLinkedNote();
   if (!db) return null;
 
   function submit() {
@@ -900,6 +972,23 @@ function NoticeSection() {
         at: new Date().toISOString(),
       });
     });
+    const hadActivePopup = db!.popups.some((p) => p.active);
+    showLinked(
+      asPopup
+        ? [
+            `홈 탭 · 접속하면 "${title.trim()}" 팝업이 맨 위에 뜸`,
+            ...(hadActivePopup
+              ? ["기존 팝업 · 한 번에 하나만 뜨므로 자동으로 내려감"]
+              : []),
+            images[0] ? "팝업 이미지 · 등록한 사진으로 표시" : "팝업 이미지 · 없음 (글자만 표시)",
+          ]
+        : [
+            target === "클리닉"
+              ? "파트너 공지 · 클리닉 담당자에게만 전달"
+              : `홈 탭 공지 · "${title.trim()}" 목록 맨 위에 추가`,
+            `전달 대상 · ${target}`,
+          ],
+    );
     setTitle("");
     setBody("");
     setImages([]);
@@ -1012,6 +1101,14 @@ function NoticeSection() {
           )}
 
           <InkButton onClick={submit}>등록</InkButton>
+
+          {note && (
+            <LinkedNote
+              note={note}
+              title="고객 화면에 바로 반영됐습니다"
+              onClose={dismiss}
+            />
+          )}
         </div>
       </GlassCard>
 

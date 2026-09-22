@@ -132,6 +132,9 @@ export interface Customer {
 
 export interface OpdChart {
   id: string;
+  // 예약을 방문완료로 바꿀 때 자동 생성된 차트에만 붙는다.
+  // 같은 예약으로 차트가 두 번 만들어지는 걸 막는 열쇠라서 시드 차트에는 없다.
+  bookingId?: string;
   customerId: string;
   clinicId: string;
   branchId: string;

@@ -5,6 +5,7 @@ import { useDb } from "@/lib/db";
 import { useT } from "@/lib/i18n";
 import { useToast } from "@/components/ui/Toast";
 import { Badge, GhostButton, GlassCard, InkButton } from "@/components/ui/primitives";
+import { LinkedNote, useLinkedNote } from "@/components/ui/LinkedNote";
 import { PhotoPicker } from "@/components/ui/PhotoPicker";
 
 export function MyBookings() {
@@ -55,13 +56,15 @@ export function MyBookings() {
 }
 
 export function WriteReview() {
-  const { t } = useT();
+  const { t, tf } = useT();
   const { db, update } = useDb();
   const toast = useToast();
   const [code, setCode] = useState("");
   const [rating, setRating] = useState(5);
   const [text, setText] = useState("");
   const [images, setImages] = useState<string[]>([]);
+  // 후기를 쓰면 어드민 승인 대기열로 넘어가는데, 여기서는 그게 안 보인다.
+  const { note, show: showLinked, dismiss } = useLinkedNote();
 
   if (!db) return null;
 
@@ -93,6 +96,14 @@ export function WriteReview() {
         createdAt: new Date().toISOString(),
       });
     });
+    const clinicName = t(
+      db!.clinics.find((c) => c.id === matched!.clinicId)?.name ?? "",
+    );
+    showLinked([
+      t("reviewLinkedAdmin"),
+      tf("reviewLinkedClinic", clinicName),
+      tf("reviewLinkedCode", matched!.code),
+    ]);
     setText("");
     setCode("");
     setImages([]);
@@ -162,6 +173,16 @@ export function WriteReview() {
           />
 
           <InkButton onClick={submit}>{t("submitReview")}</InkButton>
+
+          {note && (
+            <LinkedNote
+              note={note}
+              title={t("reviewLinkedTitle")}
+              hint={t("reviewLinkedHint")}
+              closeLabel={t("close")}
+              onClose={dismiss}
+            />
+          )}
         </div>
       </GlassCard>
 

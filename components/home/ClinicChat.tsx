@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useDb } from "@/lib/db";
 import { useT } from "@/lib/i18n";
 import { GhostButton, GlassCard, InkButton } from "@/components/ui/primitives";
+import { LinkedNote, useLinkedNote } from "@/components/ui/LinkedNote";
 import { DEMO_SLIPS, SlipImage } from "./DemoAssets";
 
 const AUTO_REPLIES = [
@@ -22,11 +23,15 @@ export default function ClinicChat({
   onBack: () => void;
   onEnd: () => void;
 }) {
-  const { t } = useT();
+  const { t, tf } = useT();
   const { db, update } = useDb();
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  // 여기서 보낸 말이 파트너 통합 인박스에도 들어간다는 건 화면만 봐서는 알 수 없다.
+  // 다만 채팅은 계속 주고받는 곳이라 보낼 때마다 뜨면 잔소리가 된다. 한 번만 알려준다.
+  const { note, show: showLinked, dismiss } = useLinkedNote();
+  const toldOnce = useRef(false);
 
   const thread = db?.chats.find((c) => c.id === threadId);
 
@@ -63,6 +68,15 @@ export default function ClinicChat({
         inboxThread.updatedAt = now;
       }
     });
+
+    const landedInInbox = db!.inbox.some(
+      (i) => i.clinicId === thread!.clinicId && i.channel === "App",
+    );
+    if (landedInInbox && !toldOnce.current) {
+      toldOnce.current = true;
+      const clinicName = clinic ? t(clinic.name) : t("clinicFallback");
+      showLinked([tf("chatLinkedInbox", clinicName)]);
+    }
 
     setTyping(true);
     setTimeout(() => {
@@ -148,6 +162,17 @@ export default function ClinicChat({
           )}
           <div ref={bottomRef} />
         </div>
+
+        {note && (
+          <LinkedNote
+            note={note}
+            title={t("chatLinkedTitle")}
+            hint={t("chatLinkedHint")}
+            closeLabel={t("close")}
+            onClose={dismiss}
+            className="mt-2"
+          />
+        )}
 
         <form
           className="flex items-center gap-2 pt-1"

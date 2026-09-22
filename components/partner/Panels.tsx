@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useDb } from "@/lib/db";
 import { useToast } from "@/components/ui/Toast";
-import { isLowStock } from "@/lib/stock";
+import { LinkedNote, useLinkedNote } from "@/components/ui/LinkedNote";
+import { categoriesForTreatment, isLowStock, LOW_STOCK_QTY } from "@/lib/stock";
 import {
   Badge,
   GhostButton,
@@ -54,11 +55,138 @@ function ChannelTag({ channel }: { channel: Channel }) {
   );
 }
 
+// CRM을 열면 제일 먼저 뜨는 화면. 지금 손대야 할 일이 숫자로 먼저 보여야
+// "쓰는 시스템"처럼 보인다. 숫자는 전부 진짜 데이터에서 센 것이고, 누르면 해당 화면으로 간다.
+export function TodayPanel({
+  branchId,
+  onGo,
+}: {
+  branchId: string;
+  onGo: (section: string) => void;
+}) {
+  const { db } = useDb();
+  if (!db) return null;
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const bookings = db.bookings.filter((b) => b.branchId === branchId);
+  const waiting = bookings
+    .filter((b) => b.status === "예약확정")
+    .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
+  const unread = db.inbox.filter((t) => t.branchId === branchId && t.unread);
+  const lowStock = db.inventory.filter(
+    (i) => i.branchId === branchId && isLowStock(i),
+  );
+  // 지점에 따라 이번 달 차트가 한 건도 없을 수 있어서 누적으로 센다.
+  // 방문완료를 누르면 차트가 쌓이므로 이 숫자도 그 자리에서 올라간다.
+  const branchCharts = db.charts.filter((c) => c.branchId === branchId);
+  const revenue = branchCharts.reduce((s, c) => s + c.paidAmount, 0);
+
+  const cards = [
+    { label: "시술 대기", value: `${waiting.length}건`, go: "bookings" },
+    { label: "안 읽은 문의", value: `${unread.length}건`, go: "inbox" },
+    { label: "재고 경고", value: `${lowStock.length}개`, go: "inventory" },
+    {
+      label: `누적 매출 · 차트 ${branchCharts.length}건`,
+      value: `฿${revenue.toLocaleString()}`,
+      go: "stats",
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <GlassCard className="p-6">
+        <SectionTitle
+          title="오늘 현황"
+          sub={`${today} 기준 · 숫자를 누르면 해당 화면으로 이동합니다`}
+        />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {cards.map((c) => (
+            <button
+              key={c.label}
+              type="button"
+              onClick={() => onGo(c.go)}
+              className="lift rounded-cell bg-white/75 p-4 text-left hairline"
+            >
+              <div className="text-xs text-ink-sub">{c.label}</div>
+              <div className="mt-1 truncate text-xl font-bold tabular-nums">
+                {c.value}
+              </div>
+            </button>
+          ))}
+        </div>
+      </GlassCard>
+
+      <GlassCard soft className="p-6">
+        <SectionTitle
+          title="다가오는 예약"
+          sub="예약 확인에서 방문완료를 누르면 전자차트와 재고가 자동으로 처리됩니다"
+        />
+        <div className="space-y-2">
+          {waiting.length === 0 && (
+            <p className="text-sm text-ink-sub">대기 중인 예약이 없습니다.</p>
+          )}
+          {waiting.slice(0, 4).map((b) => {
+            const treatment = db.treatments.find((t) => t.id === b.treatmentId);
+            const user = db.users.find((u) => u.id === b.userId);
+            return (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => onGo("bookings")}
+                className="w-full rounded-cell bg-white/70 p-4 text-left transition hairline hover:bg-white"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold">{user?.name ?? b.userId}</span>
+                  <Badge tone="pink">{b.date}</Badge>
+                </div>
+                <div className="mt-1 truncate text-xs text-ink-sub">
+                  {treatment?.name} · {b.time}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </GlassCard>
+
+      <GlassCard soft className="p-6">
+        <SectionTitle title="발주가 필요한 재고" sub={`${lowStock.length}개 품목`} />
+        <div className="space-y-2">
+          {lowStock.length === 0 && (
+            <p className="text-sm text-ink-sub">부족한 재고가 없습니다.</p>
+          )}
+          {lowStock.slice(0, 4).map((i) => {
+            const product = db.products.find((p) => p.id === i.productId);
+            return (
+              <button
+                key={i.id}
+                type="button"
+                onClick={() => onGo("inventory")}
+                className="flex w-full items-center justify-between gap-3 rounded-cell bg-danger/10 p-4 text-left transition hairline hover:bg-danger/15"
+              >
+                <span className="min-w-0 truncate font-semibold">
+                  {product?.name}
+                </span>
+                <span className="shrink-0 text-sm font-bold tabular-nums text-danger">
+                  잔여 {i.qty}개
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </GlassCard>
+    </div>
+  );
+}
+
 export function InboxPanel({ branchId }: { branchId: string }) {
   const { db, update } = useDb();
   const [filter, setFilter] = useState<Channel | "전체">("전체");
   const [openId, setOpenId] = useState<string | null>(null);
   const [reply, setReply] = useState("");
+  // 헤이뷰티 채널 답장은 고객 앱 채팅창에도 그대로 꽂힌다. 그 반대 방향은 이미
+  // 고객 화면에서 알려주고 있으니, 여기서도 한 번은 보여줘야 짝이 맞는다.
+  const { note, show: showLinked, dismiss } = useLinkedNote();
   if (!db) return null;
 
   const threads = db.inbox
@@ -103,6 +231,22 @@ export function InboxPanel({ branchId }: { branchId: string }) {
         chat.updatedAt = at;
       }
     });
+
+    // 채널이 LINE·Meta면 외부 메신저로 나가는 척만 한다. 거짓말하지 않도록 문구를 나눈다.
+    const ch = open!.channel;
+    const customer = open!.customerName;
+    showLinked(
+      ch === "App"
+        ? [
+            `고객 앱 채팅 · ${customer}님 화면에 답장 도착`,
+            `통합 인박스 · 안 읽음 해제, 최근 대화 맨 위로`,
+          ]
+        : [
+            `${CHANNEL_LABEL[ch]} · ${customer}님에게 발송 (데모)`,
+            `통합 인박스 · 안 읽음 해제, 최근 대화 맨 위로`,
+          ],
+      open!.id,
+    );
   }
 
   return (
@@ -183,6 +327,15 @@ export function InboxPanel({ branchId }: { branchId: string }) {
                 </div>
               ))}
             </div>
+            {note?.key === open.id && (
+              <LinkedNote
+                note={note}
+                title="답장이 고객 쪽으로 전달됐습니다"
+                onClose={dismiss}
+                className="mt-2"
+              />
+            )}
+
             <form
               className="flex items-center gap-2 pt-1"
               onSubmit={(e) => {
@@ -444,17 +597,154 @@ export function BookingPanel({ branchId }: { branchId: string }) {
   const toast = useToast();
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ date: "", time: "", doctorId: "" });
+  const { note, show: showLinked, dismiss } = useLinkedNote();
   if (!db) return null;
 
   const bookings = db.bookings.filter((b) => b.branchId === branchId);
   const doctors = db.doctors.filter((d) => d.branchId === branchId);
 
   function setStatus(id: string, status: "예약확정" | "방문완료" | "취소") {
+    if (status === "방문완료") {
+      completeVisit(id);
+      return;
+    }
     update((draft) => {
       const b = draft.bookings.find((x) => x.id === id);
       if (b) b.status = status;
     });
     toast(`예약 상태를 ${status}(으)로 변경했습니다`);
+  }
+
+  // 방문완료 = 실제 클리닉에서 시술이 끝났다는 뜻이다.
+  // 그래서 상태만 바꾸지 않고 전자차트를 만들고, 그 차트에 적힌 제품만큼 재고를 깎고,
+  // 고객 카드까지 이어 붙인다. 무엇이 움직였는지는 아래 연동 패널로 그대로 보여준다.
+  function completeVisit(id: string) {
+    const booking = db!.bookings.find((x) => x.id === id);
+    if (!booking) return;
+
+    const already = db!.charts.find((c) => c.bookingId === id);
+    if (already) {
+      update((draft) => {
+        const b = draft.bookings.find((x) => x.id === id);
+        if (b) b.status = "방문완료";
+      });
+      toast(`이미 전자차트 ${already.id}이(가) 만들어진 예약입니다`);
+      return;
+    }
+
+    const treatment = db!.treatments.find((t) => t.id === booking.treatmentId);
+    const user = db!.users.find((u) => u.id === booking.userId);
+    const name = user?.name ?? "앱 고객";
+    const phone = user?.phone ?? "";
+    const paidAmount = treatment?.price ?? booking.depositTHB;
+    const chartId = `OPD-${Date.now()}`;
+    const now = new Date().toISOString();
+
+    // 홈에서 예약했으면 고객 카드가 이미 있다. 지점이 직접 만든 예약이면 여기서 생긴다.
+    const customer = db!.customers.find(
+      (c) => c.branchId === branchId && (c.phone === phone || c.name === name),
+    );
+    const visitCount =
+      db!.charts.filter((c) => c.customerId === customer?.id).length + 1;
+    const customerId = customer?.id ?? `CU-${Date.now()}`;
+
+    // 지점이 실제로 가진 제품에서만 깎는다. 없으면 차트에도 안 적는다.
+    const wanted = treatment
+      ? categoriesForTreatment(treatment.name, treatment.category)
+      : [];
+    const branchItems = db!.inventory.filter(
+      (i) => i.branchId === branchId && i.qty > 0,
+    );
+    const hit = wanted
+      .map((cat) =>
+        branchItems.find(
+          (i) =>
+            db!.products.find((p) => p.id === i.productId)?.category === cat,
+        ),
+      )
+      .find(Boolean);
+    const deducted = hit
+      ? [
+          {
+            itemId: hit.id,
+            productId: hit.productId,
+            take: 1,
+            remain: hit.qty - 1,
+            name:
+              db!.products.find((x) => x.id === hit.productId)?.name ??
+              hit.productId,
+          },
+        ]
+      : [];
+
+    update((draft) => {
+      if (!customer) {
+        draft.customers.unshift({
+          id: customerId,
+          clinicId: booking.clinicId,
+          branchId,
+          name,
+          phone,
+          birthday: "",
+          gender: "미입력",
+          nationality: "한국",
+          channel: "App",
+          interests: treatment ? [treatment.category] : [],
+          doctorId: booking.doctorId,
+          memo: `방문완료 · ${booking.date} ${treatment?.name ?? ""}`,
+          createdAt: now,
+        });
+      }
+
+      deducted.forEach((d) => {
+        const item = draft.inventory.find((i) => i.id === d.itemId);
+        if (item) item.qty = Math.max(0, item.qty - d.take);
+        draft.stockLogs.unshift({
+          id: `SL-${Date.now()}-${d.productId}`,
+          inventoryItemId: d.itemId,
+          type: "사용",
+          qty: d.take,
+          reason: `시술 사용 · ${treatment?.name ?? ""}`,
+          at: now,
+          by: `전자차트 ${chartId}`,
+        });
+      });
+
+      draft.charts.unshift({
+        id: chartId,
+        bookingId: id,
+        customerId,
+        clinicId: booking.clinicId,
+        branchId,
+        visitDate: booking.date,
+        doctorId: booking.doctorId,
+        staffId: draft.staff.find((s) => s.branchId === branchId)?.id ?? "",
+        treatmentNames: treatment ? [treatment.name] : [],
+        usedProducts: deducted.map((d) => ({
+          productId: d.productId,
+          qty: d.take,
+        })),
+        comment: `${booking.date} ${booking.time} 예약 건 시술 완료. 특이사항 없음.`,
+        paidAmount,
+      });
+
+      const b = draft.bookings.find((x) => x.id === id);
+      if (b) b.status = "방문완료";
+    });
+
+    showLinked([
+      `전자차트 · ${chartId} 자동 생성`,
+      customer
+        ? `고객 관리 · ${name}님 방문 ${visitCount}회차 기록`
+        : `고객 관리 · ${name}님 고객 카드 생성`,
+      ...(deducted.length
+        ? deducted.map(
+            (d) => `재고 차감 · ${d.name} ${d.take}개 (잔여 ${d.remain}개)`,
+          )
+        : ["재고 차감 · 이 시술에 쓰는 재고가 지점에 없습니다"]),
+      `누적 결제 · ฿${paidAmount.toLocaleString()} 반영`,
+    ], id);
+    toast(`방문완료 · 전자차트 ${chartId} 생성`);
   }
 
   function startEdit(id: string) {
@@ -519,6 +809,16 @@ export function BookingPanel({ branchId }: { branchId: string }) {
                   수정
                 </GhostButton>
               </div>
+
+              {note?.key === b.id && (
+                <LinkedNote
+                  note={note}
+                  title="전자차트가 자동으로 만들어졌습니다"
+                  hint={`방문완료 한 번으로 ${note.rows.length}곳이 처리되었습니다`}
+                  onClose={dismiss}
+                  className="mt-3"
+                />
+              )}
 
               {editId === b.id && (
                 <div className="animate-rise mt-3 grid gap-2 rounded-cell bg-white/70 p-3 hairline sm:grid-cols-3">
@@ -729,6 +1029,7 @@ export function InventoryPanel({ branchId }: { branchId: string }) {
   const { db, update } = useDb();
   const toast = useToast();
   const [buyingId, setBuyingId] = useState<string | null>(null);
+  const { note, show: showLinked, dismiss } = useLinkedNote();
   if (!db) return null;
 
   const items = db.inventory.filter((i) => i.branchId === branchId);
@@ -753,6 +1054,37 @@ export function InventoryPanel({ branchId }: { branchId: string }) {
         by: "지점 담당자",
       });
     });
+
+    // -1을 누를 때마다 쪽지가 뜨면 잔소리다. 다른 화면이 실제로 바뀌는 순간,
+    // 즉 부족 기준선(50개)을 넘나드는 그 한 번만 알려준다.
+    const before = items.find((i) => i.id === id);
+    if (before) {
+      const after = Math.max(0, before.qty + delta);
+      const wasLow = before.qty <= LOW_STOCK_QTY;
+      const isLow = after <= LOW_STOCK_QTY;
+      const name =
+        db!.products.find((p) => p.id === before.productId)?.name ?? "제품";
+      if (!wasLow && isLow) {
+        showLinked(
+          [
+            `입출고 기록 · ${type} ${Math.abs(delta)}개 남김`,
+            `오늘 현황판 · "${name}" 구매 알림 표시`,
+            `재고 목록 · 잔여 ${after}개, 빨간색으로 전환`,
+          ],
+          id,
+        );
+      } else if (wasLow && !isLow) {
+        showLinked(
+          [
+            `입출고 기록 · ${type} ${Math.abs(delta)}개 남김`,
+            `오늘 현황판 · "${name}" 구매 알림 해제`,
+            `재고 목록 · 잔여 ${after}개, 정상으로 전환`,
+          ],
+          id,
+        );
+      }
+    }
+
     toast(type === "입고" ? "입고 처리" : "1개 사용 처리");
   }
 
@@ -817,6 +1149,14 @@ export function InventoryPanel({ branchId }: { branchId: string }) {
                     설정 재고율 {item.warnPct}% 도달 · 공급처 {item.supplier}{" "}
                     프로모션 진행 중입니다. 지금 구매하면 유리합니다.
                   </p>
+                )}
+                {note?.key === item.id && (
+                  <LinkedNote
+                    note={note}
+                    title="재고 기준선을 넘어 다른 화면도 함께 바뀌었습니다"
+                    onClose={dismiss}
+                    className="mt-3"
+                  />
                 )}
               </div>
             );
@@ -901,12 +1241,17 @@ function PurchaseView({
   initialProductId: string;
   onBack: () => void;
 }) {
-  const { db } = useDb();
+  const { db, update } = useDb();
   const [productId, setProductId] = useState(initialProductId);
   const [qty, setQty] = useState(10);
-  const [done, setDone] = useState<{ name: string; qty: number; total: number } | null>(
-    null,
-  );
+  const [done, setDone] = useState<{
+    name: string;
+    qty: number;
+    total: number;
+    orderNo: string;
+    stockAfter: number;
+    isNew: boolean;
+  } | null>(null);
   if (!db) return null;
 
   const product = db.products.find((p) => p.id === productId) ?? db.products[0];
@@ -918,6 +1263,68 @@ function PurchaseView({
     .slice(0, 6);
   const total = product.unitPriceTHB * Math.max(1, qty);
 
+  // 주문만 하고 재고가 그대로면 화면이 거짓말을 하는 셈이다.
+  // 그래서 주문 즉시 입고 처리까지 하고, 지점에 없던 제품이면 재고 행을 새로 만든다.
+  function buy() {
+    const amount = Math.max(1, qty);
+    const orderNo = `PO-${Date.now().toString().slice(-8)}`;
+    const now = new Date().toISOString();
+    const existing = db!.inventory.find(
+      (i) => i.branchId === branchId && i.productId === product.id,
+    );
+    const newItemId = `IV-${Date.now()}`;
+
+    update((draft) => {
+      let itemId = existing?.id ?? newItemId;
+      if (existing) {
+        const item = draft.inventory.find((i) => i.id === existing.id);
+        if (item) item.qty += amount;
+      } else {
+        const clinicId =
+          draft.branches.find((b) => b.id === branchId)?.clinicId ?? "";
+        const expiry = new Date();
+        expiry.setFullYear(expiry.getFullYear() + 2);
+        draft.inventory.unshift({
+          id: newItemId,
+          clinicId,
+          branchId,
+          productId: product.id,
+          qty: amount,
+          distribution: "정식",
+          volume: product.unit,
+          expiry: expiry.toISOString().slice(0, 10),
+          supplier: "Hey! Beauty 본사",
+          manager: "지점 담당자",
+          purchaseDate: now.slice(0, 10),
+          purchasePrice: product.unitPriceTHB,
+          salePrice: Math.round(product.unitPriceTHB * 1.6),
+          lotNo: orderNo,
+          warnPct: 20,
+        });
+        itemId = newItemId;
+      }
+
+      draft.stockLogs.unshift({
+        id: `SL-${Date.now()}`,
+        inventoryItemId: itemId,
+        type: "입고",
+        qty: amount,
+        reason: `본사 발주 · 주문 ${orderNo}`,
+        at: now,
+        by: "지점 담당자",
+      });
+    });
+
+    setDone({
+      name: product.name,
+      qty: amount,
+      total: product.unitPriceTHB * amount,
+      orderNo,
+      stockAfter: (existing?.qty ?? 0) + amount,
+      isNew: !existing,
+    });
+  }
+
   if (done) {
     return (
       <div className="space-y-4">
@@ -926,14 +1333,21 @@ function PurchaseView({
             <CheckIcon />
           </span>
           <h2 className="mt-4 text-2xl font-bold">주문이 완료되었습니다</h2>
-          <p className="mt-2 text-sm text-ink-sub">이메일을 확인해주세요.</p>
+          <p className="mt-2 text-sm text-ink-sub">
+            지점 재고와 입출고 기록에 바로 반영했습니다 · 확인 메일이
+            발송되었습니다.
+          </p>
 
           <div className="mx-auto mt-6 max-w-sm space-y-2 text-left">
             {[
               { label: "제품", value: done.name },
               { label: "수량", value: `${done.qty}개` },
               { label: "결제 예정 금액", value: `฿${done.total.toLocaleString()}` },
-              { label: "주문번호", value: `PO-${Date.now().toString().slice(-8)}` },
+              { label: "주문번호", value: done.orderNo },
+              {
+                label: done.isNew ? "재고 신규 등록" : "입고 후 지점 재고",
+                value: `${done.stockAfter}개`,
+              },
             ].map((r) => (
               <div
                 key={r.label}
@@ -1028,13 +1442,7 @@ function PurchaseView({
               ฿{total.toLocaleString()}
             </div>
           </div>
-          <InkButton
-            onClick={() =>
-              setDone({ name: product.name, qty, total })
-            }
-          >
-            구매하기
-          </InkButton>
+          <InkButton onClick={buy}>구매하기</InkButton>
         </div>
       </GlassCard>
 
@@ -1215,6 +1623,7 @@ export function SmsPanel({
   const [template, setTemplate] =
     useState<keyof typeof SMS_TEMPLATES>("프로모션");
   const [customerId, setCustomerId] = useState("");
+  const { note, show: showLinked, dismiss } = useLinkedNote();
   if (!db) return null;
 
   const customers = db.customers.filter((c) => c.branchId === branchId);
@@ -1236,6 +1645,10 @@ export function SmsPanel({
         at: new Date().toISOString(),
       });
     });
+    showLinked([
+      `발송 기록 · ${selected.name}님 "${template}" 문자 1건 추가`,
+      `고객 관리 · ${selected.phone} 번호로 발송 (실제 전송은 안 됩니다)`,
+    ]);
     toast("SMS를 발송했습니다 (데모)");
   }
 
@@ -1272,6 +1685,14 @@ export function SmsPanel({
             {preview}
           </div>
           <InkButton onClick={send}>전송</InkButton>
+
+          {note && (
+            <LinkedNote
+              note={note}
+              title="문자가 발송 기록에 남았습니다"
+              onClose={dismiss}
+            />
+          )}
         </div>
       </GlassCard>
 
@@ -1325,6 +1746,7 @@ export function PromoPanel({ clinicId }: { clinicId: string }) {
   const [index, setIndex] = useState(0);
   // 한 장씩 넘겨 보는 카드형과, 세 개를 한눈에 비교하는 목록형을 오갈 수 있게 한다.
   const [mode, setMode] = useState<"card" | "list">("card");
+  const { note, show: showLinked, dismiss } = useLinkedNote();
   if (!db) return null;
 
   const idea = PROMO_IDEAS[index];
@@ -1342,6 +1764,12 @@ export function PromoPanel({ clinicId }: { clinicId: string }) {
         period: "2026-09-17 ~ 2026-12-31",
       });
     });
+    const clinicName = db!.clinics.find((c) => c.id === clinicId)?.name ?? "";
+    showLinked([
+      `고객 앱 클리닉 목록 · ${clinicName} 카드에 ${target.discount}% 배지 노출`,
+      `클리닉 상세 · "${target.title}" 프로모션 추가`,
+      `진행 중 프로모션 · 2026-09-17 ~ 2026-12-31 기간 등록`,
+    ]);
     toast("프로모션을 등록했습니다");
   }
 
@@ -1423,6 +1851,15 @@ export function PromoPanel({ clinicId }: { clinicId: string }) {
               );
             })}
           </div>
+        )}
+
+        {note && (
+          <LinkedNote
+            note={note}
+            title="등록한 프로모션이 고객 앱에 바로 떴습니다"
+            onClose={dismiss}
+            className="mt-4"
+          />
         )}
       </GlassCard>
 

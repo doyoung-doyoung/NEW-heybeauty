@@ -113,6 +113,24 @@ const DICT: Record<string, Entry> = {
   transferDone: { ko: "송금 확인 완료", en: "Transfer verified", th: "ตรวจสอบการโอนเรียบร้อย", zh: "转账核对完成", ru: "Перевод подтверждён" },
   chatWithClinic: { ko: "클리닉과 채팅하기", en: "Chat with the clinic", th: "แชทกับคลินิก", zh: "与诊所聊天", ru: "Чат с клиникой" },
 
+  crmLinkedTitle: { ko: "{0} 파트너 CRM에 자동 연동되었습니다", en: "Automatically synced to {0}'s partner CRM", th: "เชื่อมต่อกับ CRM ของ {0} อัตโนมัติแล้ว", zh: "已自动同步至{0}的合作伙伴 CRM", ru: "Автоматически передано в партнёрскую CRM {0}" },
+  crmLinkedBooking: { ko: "예약 관리 · {0} {1} 예약 확정", en: "Bookings · {0} {1} confirmed", th: "การจอง · ยืนยัน {0} {1}", zh: "预约管理 · {0} {1} 已确认", ru: "Записи · {0} {1} подтверждено" },
+  crmLinkedCustomerNew: { ko: "고객 관리 · {0}님 고객 카드 생성", en: "Customers · new card created for {0}", th: "ลูกค้า · สร้างข้อมูลลูกค้าของคุณ{0}", zh: "客户管理 · 已为{0}创建客户卡", ru: "Клиенты · создана карточка для {0}" },
+  crmLinkedCustomerUpdate: { ko: "고객 관리 · {0}님 고객 카드 갱신", en: "Customers · card updated for {0}", th: "ลูกค้า · อัปเดตข้อมูลลูกค้าของคุณ{0}", zh: "客户管理 · 已更新{0}的客户卡", ru: "Клиенты · карточка {0} обновлена" },
+  crmLinkedInbox: { ko: "통합 인박스 · 새 문의 스레드 생성", en: "Unified inbox · new conversation created", th: "กล่องข้อความรวม · สร้างแชทใหม่แล้ว", zh: "统一收件箱 · 已创建新会话", ru: "Общий инбокс · создан новый диалог" },
+  crmLinkedCommission: { ko: "커미션 정산 · {0}님에게 ฿{1} 적립", en: "Commissions · {0} earns ฿{1}", th: "ค่าคอมมิชชัน · {0} ได้รับ ฿{1}", zh: "佣金结算 · {0} 获得 ฿{1}", ru: "Комиссии · {0} получает ฿{1}" },
+  crmLinkedHint: { ko: "예약 한 번으로 {0}곳이 동시에 채워졌습니다", en: "One booking filled {0} places at once", th: "จองครั้งเดียว อัปเดต {0} จุดพร้อมกัน", zh: "一次预约，同时更新 {0} 处", ru: "Одна запись обновила сразу {0} раздела" },
+
+  chatLinkedTitle: { ko: "보낸 메시지가 클리닉에 바로 전달됐습니다", en: "Your message went straight to the clinic", th: "ข้อความของคุณถูกส่งถึงคลินิกแล้ว", zh: "您的消息已直接送达诊所", ru: "Ваше сообщение сразу ушло в клинику" },
+  chatLinkedInbox: { ko: "통합 인박스 · {0} 스레드에 안 읽음 표시", en: "Unified inbox · marked unread in {0}'s thread", th: "กล่องข้อความรวม · ทำเครื่องหมายยังไม่อ่านในแชทของ{0}", zh: "统一收件箱 · 已在{0}的会话中标记未读", ru: "Общий инбокс · отмечено непрочитанным в диалоге {0}" },
+  chatLinkedHint: { ko: "클리닉 담당자가 파트너 화면에서 같은 내용을 보고 있습니다", en: "The clinic's staff sees the same message on their partner screen", th: "พนักงานคลินิกเห็นข้อความเดียวกันบนหน้าจอพาร์ทเนอร์", zh: "诊所工作人员在合作伙伴界面看到同样的内容", ru: "Сотрудник клиники видит то же сообщение в партнёрском экране" },
+
+  reviewLinkedTitle: { ko: "후기가 승인 대기열로 넘어갔습니다", en: "Your review moved to the approval queue", th: "รีวิวของคุณเข้าสู่คิวอนุมัติแล้ว", zh: "您的评价已进入审核队列", ru: "Отзыв отправлен в очередь на модерацию" },
+  reviewLinkedAdmin: { ko: "어드민 후기 관리 · 승인 대기 1건 추가", en: "Admin reviews · 1 item added to pending", th: "จัดการรีวิว (แอดมิน) · เพิ่มรายการรออนุมัติ 1 รายการ", zh: "管理后台评价 · 新增 1 条待审核", ru: "Отзывы в админке · добавлен 1 на модерацию" },
+  reviewLinkedClinic: { ko: "{0} · 승인되면 클리닉 상세에 노출", en: "{0} · will appear on the clinic page once approved", th: "{0} · จะแสดงบนหน้าคลินิกเมื่อได้รับอนุมัติ", zh: "{0} · 审核通过后将显示在诊所页面", ru: "{0} · появится на странице клиники после одобрения" },
+  reviewLinkedCode: { ko: "후기코드 {0} · 방문 확인 완료", en: "Review code {0} · visit verified", th: "โค้ดรีวิว {0} · ยืนยันการเข้ารับบริการแล้ว", zh: "评价码 {0} · 到店已核实", ru: "Код отзыва {0} · визит подтверждён" },
+  reviewLinkedHint: { ko: "내 후기 목록에서 승인 상태를 확인할 수 있습니다", en: "You can track the approval status in My reviews", th: "ติดตามสถานะการอนุมัติได้ที่รีวิวของฉัน", zh: "可在“我的评价”中查看审核状态", ru: "Статус можно отследить в разделе «Мои отзывы»" },
+
   noBookings: { ko: "아직 예약이 없습니다.", en: "No bookings yet.", th: "ยังไม่มีการจอง", zh: "暂无预约。", ru: "Записей пока нет." },
   depositPaid: { ko: "예약금 ฿{0} 결제완료", en: "฿{0} deposit paid", th: "ชำระมัดจำ ฿{0} แล้ว", zh: "已支付 ฿{0} 定金", ru: "Депозит ฿{0} оплачен" },
 

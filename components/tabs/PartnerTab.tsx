@@ -19,9 +19,11 @@ import {
   PromoPanel,
   SmsPanel,
   StatsPanel,
+  TodayPanel,
 } from "@/components/partner/Panels";
 
 type Section =
+  | "today"
   | "ai"
   | "inbox"
   | "customers"
@@ -33,6 +35,7 @@ type Section =
   | "promo";
 
 const SECTIONS: { id: Section; label: string }[] = [
+  { id: "today", label: "오늘 현황" },
   { id: "ai", label: "AI 입력" },
   { id: "inbox", label: "통합 인박스" },
   { id: "customers", label: "고객 관리" },
@@ -56,7 +59,7 @@ const inputClass =
 export default function PartnerTab() {
   const { db } = useDb();
   const [session, setSession] = useState<Session | null>(null);
-  const [section, setSection] = useState<Section>("ai");
+  const [section, setSection] = useState<Section>("today");
 
   if (!db) return null;
 
@@ -110,6 +113,12 @@ export default function PartnerTab() {
       </div>
 
       <div key={section} className="animate-rise">
+        {section === "today" && (
+          <TodayPanel
+            branchId={session.branchId}
+            onGo={(s) => setSection(s as Section)}
+          />
+        )}
         {section === "ai" && (
           <AiInput clinicId={session.clinicId} branchId={session.branchId} />
         )}
