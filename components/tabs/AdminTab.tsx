@@ -1781,8 +1781,17 @@ function AccountSection() {
           <tbody>
             {rows.map((a) => (
               <Tr key={a.id} tone={a.status === "차단" ? "danger" : undefined}>
+                {/*
+                 * "○○ 마스터 계정"에서 뒤쪽 두 글자를 떼고 이름만 보여준다.
+                 * 줄마다 똑같이 붙는 말이라 읽을 게 없는데, 첫 칸은 폰에서 왼쪽에
+                 * 고정되기 때문에 그 폭만큼 화면을 계속 먹는다. 실제로 293px짜리
+                 * 스크롤 창에서 237px을 가져가 비밀번호 칸까지 밀어 버렸다.
+                 * 클리닉/유저 구분은 위 필터 버튼이 이미 말해 주고 있다.
+                 */}
                 <Td stick className="font-medium">
-                  {a.label}
+                  <span className="block max-w-[11rem] truncate" title={a.label}>
+                    {a.label.replace(/\s*(마스터|유저) 계정$/, "")}
+                  </span>
                 </Td>
                 <Td muted>{a.loginId}</Td>
                 <Td>
