@@ -18,6 +18,17 @@ export default function DemoReset() {
   const { reset } = useDb();
   const toast = useToast();
   const [open, setOpen] = useState(false);
+  // 닫히는 180ms 동안에도 다이얼로그를 남겨 둬야 뜬 경로 그대로 pop-out이 재생된다.
+  const [closing, setClosing] = useState(false);
+
+  function closeDialog(after?: () => void) {
+    setClosing(true);
+    after?.();
+    setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+    }, 180);
+  }
 
   return (
     <>
@@ -25,25 +36,34 @@ export default function DemoReset() {
         type="button"
         onClick={() => setOpen(true)}
         title="데모 리셋"
-        className="whitespace-nowrap rounded-pill px-3 py-2.5 text-[13px] font-medium text-ink-sub transition hover:bg-white/60 hover:text-danger sm:text-sm"
+        className="whitespace-nowrap rounded-pill px-3 py-2.5 text-[13px] font-medium text-ink-sub transition duration-100 hover:bg-white/60 hover:text-danger active:scale-[0.97] sm:text-sm"
       >
         데모 리셋
       </button>
 
-      {open && <ResetDialog onClose={() => setOpen(false)} onConfirm={() => {
-        reset();
-        setOpen(false);
-        toast("초기 데모 데이터로 되돌렸습니다");
-      }} />}
+      {(open || closing) && (
+        <ResetDialog
+          closing={closing}
+          onClose={() => closeDialog()}
+          onConfirm={() =>
+            closeDialog(() => {
+              reset();
+              toast("초기 데모 데이터로 되돌렸습니다");
+            })
+          }
+        />
+      )}
     </>
   );
 }
 
 /** 지워지는 것 / 돌아오는 것을 나란히 보여 주는 설명 창. */
 function ResetDialog({
+  closing,
   onClose,
   onConfirm,
 }: {
+  closing: boolean;
   onClose: () => void;
   onConfirm: () => void;
 }) {
@@ -53,15 +73,19 @@ function ResetDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4"
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4 ${
+        closing ? "animate-backdrop-out" : "animate-backdrop-in"
+      }`}
       onClick={onClose}
     >
       <div
-        className="animate-pop max-h-[88vh] w-full max-w-md overflow-y-auto rounded-card bg-white p-6"
+        className={`max-h-[88vh] w-full max-w-md overflow-y-auto rounded-card bg-white p-6 ${
+          closing ? "animate-pop-out" : "animate-pop"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="text-xs font-medium text-danger">되돌릴 수 없습니다</div>
-        <h2 className="mt-1 text-lg font-bold">데모 데이터를 처음으로</h2>
+        <h2 className="mt-1 text-lg font-bold tracking-tight">데모 데이터를 처음으로</h2>
         <p className="mt-2 text-sm text-ink-sub">
           이 브라우저에 저장된 데모 데이터를 지우고, 배포될 때와 똑같은 상태로
           다시 만듭니다. 서버에는 아무 영향이 없고 이 기기에서만 일어납니다.
@@ -94,14 +118,14 @@ function ResetDialog({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-pill px-4 py-2.5 text-sm text-ink-sub hairline"
+            className="rounded-pill px-4 py-2.5 text-sm text-ink-sub transition duration-100 hairline active:scale-[0.97]"
           >
             그만두기
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded-pill bg-danger px-5 py-2.5 text-sm font-medium text-white transition hover:brightness-95"
+            className="rounded-pill bg-danger px-5 py-2.5 text-sm font-medium text-white transition duration-100 hover:brightness-95 active:scale-[0.97]"
           >
             지우고 처음으로
           </button>

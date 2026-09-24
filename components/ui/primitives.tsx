@@ -38,7 +38,7 @@ export function InkButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`group inline-flex items-center gap-3 rounded-pill bg-ink py-2 pl-5 pr-2 text-sm font-medium text-white transition hover:bg-ink-deep disabled:opacity-40 ${className}`}
+      className={`group inline-flex items-center gap-3 rounded-pill bg-ink py-2 pl-5 pr-2 text-sm font-medium text-white transition duration-100 hover:bg-ink-deep active:scale-[0.97] disabled:opacity-40 disabled:active:scale-100 ${className}`}
     >
       <span>{children}</span>
       {arrow && (
@@ -68,7 +68,7 @@ export function GhostButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-pill px-4 py-2 text-sm transition disabled:opacity-40 ${
+      className={`rounded-pill px-4 py-2 text-sm transition duration-100 active:scale-[0.97] disabled:opacity-40 disabled:active:scale-100 ${
         active
           ? "bg-ink text-white"
           : "bg-white/70 text-ink hairline hover:bg-white"

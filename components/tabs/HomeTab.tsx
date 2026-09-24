@@ -32,22 +32,38 @@ export default function HomeTab() {
   // 이 값을 key로 써서 아예 새로 마운트시킨다.
   const [chatNonce, setChatNonce] = useState(0);
   const [popupOpen, setPopupOpen] = useState(false);
+  // 닫히는 180ms 동안에도 모달을 화면에 남겨 둬야 pop-out이 재생된다.
+  // 뜬 경로 그대로 되짚어 사라지게 하려고 popupOpen과 따로 둔다.
+  const [popupClosing, setPopupClosing] = useState(false);
 
   if (!db) return null;
 
   const popup = db.popups.find((p) => p.active);
+
+  // 닫는 동작을 전부 이 한 곳으로 모은다 — 배경 클릭·닫기 버튼·다른 화면으로 넘어가는 버튼
+  // 전부 같은 180ms 퇴장 애니메이션을 타야 뜰 때와 대칭이 된다. after는 애니메이션이
+  // 끝나길 기다리지 않고 바로 실행한다 — 화면 전환은 즉시, 모달만 그 위에서 사라진다.
+  function closePopupModal(after?: () => void) {
+    setPopupClosing(true);
+    after?.();
+    setTimeout(() => {
+      setPopupOpen(false);
+      setPopupClosing(false);
+    }, 180);
+  }
 
   // 공지 팝업에서 "예약하기"를 누르면 곧장 예약 화면으로 보낸다.
   // 팝업에 클리닉이 지정돼 있지는 않아서 첫 번째 클리닉의 첫 시술을 쓴다.
   function bookFromPopup() {
     const clinic = db?.clinics[0];
     const treatment = db?.treatments.find((tr) => tr.clinicId === clinic?.id);
-    setPopupOpen(false);
-    if (clinic && treatment) {
-      setView({ name: "booking", clinicId: clinic.id, treatmentId: treatment.id });
-    } else {
-      setView({ name: "clinics", category: "전체" });
-    }
+    closePopupModal(() => {
+      if (clinic && treatment) {
+        setView({ name: "booking", clinicId: clinic.id, treatmentId: treatment.id });
+      } else {
+        setView({ name: "clinics", category: "전체" });
+      }
+    });
   }
 
   // 작은 화면에서는 가로로 늘어선 칩이라 글자 너비만 차지해야 한다. w-full을 주면
@@ -57,7 +73,7 @@ export default function HomeTab() {
       key={key}
       type="button"
       onClick={onClick}
-      className={`w-auto shrink-0 rounded-cell px-3 py-2.5 text-left text-sm transition lg:w-full ${
+      className={`w-auto shrink-0 rounded-cell px-3 py-2.5 text-left text-sm transition duration-100 active:scale-[0.97] lg:w-full ${
         active ? "bg-ink text-white" : "hover:bg-white/70"
       }`}
     >
@@ -96,7 +112,7 @@ export default function HomeTab() {
             <button
               type="button"
               onClick={() => setPopupClosed(true)}
-              className="shrink-0 rounded-pill border border-white/25 px-3 py-1.5 text-xs"
+              className="shrink-0 rounded-pill border border-white/25 px-3 py-1.5 text-xs transition duration-100 active:scale-[0.97]"
             >
               {t("close")}
             </button>
@@ -106,13 +122,17 @@ export default function HomeTab() {
 
       {/* <main>에 animate-rise(transform)가 걸려 있어서, 그 안에서 fixed를 쓰면
           화면이 아니라 main 박스를 기준으로 붙는다. body로 빼내야 화면 전체를 덮는다. */}
-      {popup && popupOpen && createPortal(
+      {popup && (popupOpen || popupClosing) && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4"
-          onClick={() => setPopupOpen(false)}
+          className={`fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4 ${
+            popupClosing ? "animate-backdrop-out" : "animate-backdrop-in"
+          }`}
+          onClick={() => closePopupModal()}
         >
           <div
-            className="animate-pop max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-card bg-white"
+            className={`max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-card bg-white ${
+              popupClosing ? "animate-pop-out" : "animate-pop"
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
             {popup.image && (
@@ -125,15 +145,14 @@ export default function HomeTab() {
             )}
             <div className="p-5">
               <div className="text-xs text-ink-sub">{t("noticePopup")}</div>
-              <div className="mt-1 text-lg font-bold">{t(popup.title)}</div>
+              <div className="mt-1 text-lg font-bold tracking-tight">{t(popup.title)}</div>
               <p className="mt-2 text-sm text-ink/75">{t(popup.body)}</p>
               <div className="mt-5 flex flex-wrap gap-2">
                 <InkButton
                   arrow={false}
-                  onClick={() => {
-                    setPopupOpen(false);
-                    setView({ name: "clinics", category: "전체" });
-                  }}
+                  onClick={() =>
+                    closePopupModal(() => setView({ name: "clinics", category: "전체" }))
+                  }
                 >
                   {t("clinics")}
                 </InkButton>
@@ -142,8 +161,8 @@ export default function HomeTab() {
                 </InkButton>
                 <button
                   type="button"
-                  onClick={() => setPopupOpen(false)}
-                  className="rounded-pill px-4 py-2.5 text-sm text-ink-sub hairline"
+                  onClick={() => closePopupModal()}
+                  className="rounded-pill px-4 py-2.5 text-sm text-ink-sub hairline transition duration-100 active:scale-[0.97]"
                 >
                   {t("close")}
                 </button>
