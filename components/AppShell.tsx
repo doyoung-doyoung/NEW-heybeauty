@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { useDb } from "@/lib/db";
-import { useToast } from "@/components/ui/Toast";
-import { LANGS, LangProvider, type LangCode } from "@/lib/i18n";
+import { LangProvider, type LangCode } from "@/lib/i18n";
 import HomeTab from "@/components/tabs/HomeTab";
 import AdminTab from "@/components/tabs/AdminTab";
 import PartnerTab from "@/components/tabs/PartnerTab";
@@ -11,6 +10,7 @@ import CompanyTab from "@/components/tabs/CompanyTab";
 import NotePad from "@/components/ui/NotePad";
 import DemoReset from "@/components/ui/DemoReset";
 import IconTabBar from "@/components/ui/IconTabBar";
+import LangMenu from "@/components/ui/LangMenu";
 
 // 아이콘 그림은 public/tabs/ 에 넣는다 (IMAGE_TODO.md 참고).
 // `-on` 파일이 없으면 IconTabBar가 평소 그림을 흐리게/선명하게 바꿔 쓴다.
@@ -25,7 +25,6 @@ type TabId = (typeof TABS)[number]["id"];
 
 export default function AppShell() {
   const { db } = useDb();
-  const toast = useToast();
   const [tab, setTab] = useState<TabId>("home");
   const [lang, setLang] = useState<LangCode>("ko");
 
@@ -41,37 +40,14 @@ export default function AppShell() {
 
   return (
     <div className="mx-auto min-h-dvh w-full max-w-6xl px-4 pb-16 pt-5 sm:px-6">
-      <header className="animate-rise">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <header className="animate-rise relative z-30">
+        {/* 언어는 홈 화면에만 걸려 있어서, 지구 버튼도 홈 탭에서만 보인다. */}
+        <div className="flex items-center gap-3">
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-extrabold tracking-tight">Hey!</span>
             <span className="text-2xl font-light text-ink-sub">Beauty</span>
           </div>
-
-          {tab === "home" && (
-            <div className="flex flex-wrap items-center gap-1.5">
-              {LANGS.map((l) => (
-                <button
-                  key={l.code}
-                  type="button"
-                  onClick={() => {
-                    if (l.comingSoon) {
-                      toast("Coming soon");
-                      return;
-                    }
-                    setLang(l.code);
-                  }}
-                  className={`rounded-pill px-3 py-1.5 text-xs font-medium transition ${
-                    lang === l.code
-                      ? "bg-ink text-white"
-                      : "bg-white/60 text-ink-sub hairline hover:bg-white"
-                  }`}
-                >
-                  {l.label}
-                </button>
-              ))}
-            </div>
-          )}
+          {tab === "home" && <LangMenu lang={lang} onChange={setLang} />}
         </div>
 
         {/* 탭 네 개가 판을 꽉 채우고, 데모 리셋은 그 **오른쪽 바깥**에 선다.

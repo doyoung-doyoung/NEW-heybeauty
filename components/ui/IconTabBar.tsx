@@ -52,7 +52,7 @@ export default function IconTabBar<Id extends string>({
                   className={`whitespace-nowrap text-[12.5px] leading-none tracking-tight transition sm:text-sm ${
                     on
                       ? "font-bold text-tab-active"
-                      : "font-medium text-ink group-hover:text-ink-deep"
+                      : "font-medium text-[#8a9096] group-hover:text-ink-sub"
                   }`}
                 >
                   {t.label}

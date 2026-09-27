@@ -5,13 +5,14 @@ import { CONTENT, CONTENT_PATTERNS } from "./i18n-content";
 
 export type LangCode = "ko" | "en" | "th" | "zh" | "ru" | "ar";
 
-export const LANGS: { code: LangCode; label: string; comingSoon?: boolean }[] = [
-  { code: "ko", label: "KO" },
-  { code: "en", label: "EN" },
-  { code: "th", label: "TH" },
-  { code: "zh", label: "ZH" },
-  { code: "ru", label: "RU" },
-  { code: "ar", label: "AR", comingSoon: true },
+// name은 그 나라 사람이 읽는 이름 그대로 — 언어 메뉴에 이걸로 뜬다.
+export const LANGS: { code: LangCode; label: string; name: string; comingSoon?: boolean }[] = [
+  { code: "ko", label: "KO", name: "한국어" },
+  { code: "en", label: "EN", name: "English" },
+  { code: "th", label: "TH", name: "ไทย" },
+  { code: "zh", label: "ZH", name: "中文" },
+  { code: "ru", label: "RU", name: "Русский" },
+  { code: "ar", label: "AR", name: "العربية", comingSoon: true },
 ];
 
 export type Entry = Partial<Record<LangCode, string>>;
