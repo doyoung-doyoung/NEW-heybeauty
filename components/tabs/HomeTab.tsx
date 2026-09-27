@@ -11,11 +11,12 @@ import ClinicsView from "@/components/home/ClinicsView";
 import BookingFlow from "@/components/home/BookingFlow";
 import ClinicChat from "@/components/home/ClinicChat";
 import { MyBookings, WriteReview } from "@/components/home/UserPanels";
+import type { ChatThread } from "@/lib/types";
 
 type View =
   | { name: "chat"; threadId: string | null }
   | { name: "clinics"; category: string }
-  | { name: "booking"; clinicId: string; treatmentId: string }
+  | { name: "booking"; clinicId: string; treatmentId: string; promoId?: string }
   | { name: "clinicChat"; threadId: string }
   | { name: "mybookings" }
   | { name: "review" }
@@ -206,6 +207,19 @@ export default function HomeTab() {
               setView({ name: "notice" }),
             )}
           </div>
+
+          <ChatHistory
+            activeId={
+              view.name === "chat" || view.name === "clinicChat" ? view.threadId : null
+            }
+            onOpen={(c) =>
+              setView(
+                c.kind === "ai"
+                  ? { name: "chat", threadId: c.id }
+                  : { name: "clinicChat", threadId: c.id },
+              )
+            }
+          />
         </GlassCard>
 
         <div>
@@ -222,8 +236,8 @@ export default function HomeTab() {
           {view.name === "clinics" && (
             <ClinicsView
               initialCategory={view.category}
-              onBook={(clinicId, treatmentId) =>
-                setView({ name: "booking", clinicId, treatmentId })
+              onBook={(clinicId, treatmentId, promoId) =>
+                setView({ name: "booking", clinicId, treatmentId, promoId })
               }
             />
           )}
@@ -232,6 +246,7 @@ export default function HomeTab() {
             <BookingFlow
               clinicId={view.clinicId}
               treatmentId={view.treatmentId}
+              promoId={view.promoId}
               onBack={() => setView({ name: "clinics", category: "전체" })}
               onOpenClinicChat={(threadId) =>
                 setView({ name: "clinicChat", threadId })
@@ -285,5 +300,85 @@ function NoticeList() {
         ))}
       </div>
     </GlassCard>
+  );
+}
+
+/**
+ * 지난 대화 목록. AI 상담과 클리닉 채팅을 한 줄로 섞어 최근 것부터 보여 준다.
+ * 누르면 그 대화가 이어서 열린다 — AI 상담은 채팅 화면, 클리닉 채팅은 클리닉 대화 화면.
+ */
+function ChatHistory({
+  activeId,
+  onOpen,
+}: {
+  activeId: string | null;
+  onOpen: (c: ChatThread) => void;
+}) {
+  const { t, lang } = useT();
+  const { db } = useDb();
+  if (!db) return null;
+
+  const chats = [...db.chats].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const clinicName = (id: string | null) =>
+    db.clinics.find((c) => c.id === id)?.name ?? "";
+
+  return (
+    <div className="mt-4 border-t border-ink/10 pt-3">
+      <div className="mb-2 flex items-center justify-between px-1">
+        <span className="text-xs font-semibold text-ink-sub">{t("myChats")}</span>
+        <span className="text-[11px] text-ink-sub/70">{chats.length}</span>
+      </div>
+      {chats.length === 0 ? (
+        <p className="px-1 py-2 text-xs text-ink-sub">{t("noChats")}</p>
+      ) : (
+        <ul className="max-h-64 space-y-1 overflow-y-auto pr-0.5">
+          {chats.map((c) => {
+            const on = c.id === activeId;
+            const last = c.messages[c.messages.length - 1];
+            return (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  onClick={() => onOpen(c)}
+                  className={`w-full rounded-cell px-3 py-2 text-left transition ${
+                    on ? "bg-ink text-white" : "hover:bg-white/70"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`shrink-0 rounded-pill px-1.5 py-px text-[10px] font-semibold ${
+                        on
+                          ? "bg-white/15 text-white"
+                          : c.kind === "ai"
+                            ? "bg-hb-400/25 text-hb-600"
+                            : "bg-ink/8 text-ink-sub"
+                      }`}
+                    >
+                      {c.kind === "ai" ? t("aiTag") : t("clinicTag")}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                      {c.kind === "ai" ? t(c.title) : t(clinicName(c.clinicId))}
+                    </span>
+                  </div>
+                  <div
+                    className={`mt-0.5 flex items-center gap-2 text-[11px] ${
+                      on ? "text-white/60" : "text-ink-sub"
+                    }`}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{last ? t(last.text) : ""}</span>
+                    <span className="shrink-0">
+                      {new Date(c.updatedAt).toLocaleDateString(lang === "ko" ? "ko-KR" : lang, {
+                        month: "numeric",
+                        day: "numeric",
+                      })}
+                    </span>
+                  </div>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }
