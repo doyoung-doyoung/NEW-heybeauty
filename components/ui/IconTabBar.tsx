@@ -30,7 +30,7 @@ export default function IconTabBar<Id extends string>({
   trailing?: ReactNode;
 }) {
   return (
-    <div className="overflow-x-auto rounded-[28px] bg-white/90 p-1.5 shadow-float [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="overflow-x-auto tabbar rounded-[34px] px-2 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <div className="flex items-stretch">
         <div role="tablist" className="flex w-full shrink-0">
           {tabs.map((t) => {
@@ -42,17 +42,17 @@ export default function IconTabBar<Id extends string>({
                 role="tab"
                 aria-selected={on}
                 onClick={() => onChange(t.id)}
-                className="group flex flex-1 flex-col items-center gap-1.5 rounded-[22px] px-1 pb-2 pt-2.5 transition active:scale-95"
+                className="group flex flex-1 flex-col items-center gap-2 rounded-[26px] px-1 pb-2 pt-2.5 transition active:scale-95"
               >
                 <TabIcon
                   src={on ? (t.iconActive ?? t.icon) : t.icon}
                   dim={!on && !t.iconActive}
                 />
                 <span
-                  className={`whitespace-nowrap text-[12px] leading-none transition sm:text-[13px] ${
+                  className={`whitespace-nowrap text-[12.5px] leading-none tracking-tight transition sm:text-sm ${
                     on
                       ? "font-bold text-tab-active"
-                      : "font-medium text-ink-sub group-hover:text-ink"
+                      : "font-medium text-ink group-hover:text-ink-deep"
                   }`}
                 >
                   {t.label}
@@ -87,7 +87,7 @@ function TabIcon({ src, dim }: { src: string; dim: boolean }) {
     return (
       <span
         aria-hidden
-        className="h-7 w-7 rounded-lg border border-dashed border-ink-sub/40"
+        className="h-[30px] w-[30px] rounded-lg border border-dashed border-ink-sub/40"
       />
     );
   }
@@ -99,10 +99,10 @@ function TabIcon({ src, dim }: { src: string; dim: boolean }) {
       src={src}
       alt=""
       aria-hidden
-      width={28}
-      height={28}
+      width={45}
+      height={30}
       onError={() => setFailed(src)}
-      className={`h-7 w-7 object-contain transition ${
+      className={`h-[30px] w-[45px] object-contain transition ${
         dim ? "opacity-45 group-hover:opacity-70" : ""
       }`}
     />
