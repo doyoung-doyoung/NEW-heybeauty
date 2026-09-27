@@ -11,6 +11,8 @@
   --color-ink-sub: #495057;
   --color-surface: #f6f6f6;
   --color-danger: #e23d3d;
+  /* 고른 탭의 글자색. 아이콘 -on 그림과 같은 색으로 맞춘다. */
+  --color-tab-active: #353839;
 
   --radius-card: 30px;
   --radius-pill: 999px;
@@ -137,6 +139,20 @@ body {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.75);
   box-shadow: var(--shadow-float);
+}
+
+/* 탭 바 — 위는 하얗고 아래로 갈수록 살짝 회색이 도는 판.
+   바깥 그림자는 넓고 옅게 떨어뜨려 판이 떠 보이게 하고,
+   안쪽 위 가장자리에 흰 선을 둬 두께감을 준다. */
+@utility tabbar {
+  background: linear-gradient(180deg, #ffffff 0%, #fafafb 45%, #f0f0f3 100%);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 22px 44px -14px rgba(30, 32, 40, 0.22),
+    0 6px 14px -6px rgba(30, 32, 40, 0.1),
+    0 0 0 1px rgba(30, 32, 40, 0.03),
+    inset 0 1.5px 0 #ffffff,
+    inset 0 -3px 6px rgba(30, 32, 40, 0.035);
 }
 
 @utility hairline {
