@@ -31,7 +31,7 @@ import { COMMISSION_BASELINE } from "./commission";
 const BASE_DATE = new Date("2026-09-17T09:00:00+07:00");
 
 // 스키마가 바뀌면 올린다. 저장된 데모 데이터가 이 값과 다르면 새 시드로 갈아끼운다.
-export const SEED_VERSION = 8;
+export const SEED_VERSION = 9;
 
 function rng(seed: number) {
   let a = seed >>> 0;
@@ -687,6 +687,44 @@ export function buildSeed(): DemoDb {
       createdAt: shiftDays(-2),
     },
   ];
+
+  // 예약 확인 달력이 비어 보이지 않게, 손으로 쓴 10곳의 지점마다 예약을 깔아 둔다.
+  // 예약자는 그 지점 고객 카드(…-CU1~5)다. 기준일 20일 전부터 30일 뒤까지 흩어 놓고,
+  // 지난 예약은 대부분 방문완료(가끔 취소), 앞으로의 예약은 예약확정이다.
+  // 난수를 따로 굴려서 위쪽 시드(재고·차트 등)의 값이 이 블록 때문에 바뀌지 않게 한다.
+  {
+    const r = rng(20260927);
+    const TIMES = ["10:00", "11:30", "13:00", "14:30", "16:00", "17:30", "19:00"];
+    branches
+      .filter((b) => Number(b.clinicId.slice(1)) <= CLINIC_DEFS.length)
+      .forEach((b) => {
+        const pool = treatments.filter((t) => t.clinicId === b.clinicId);
+        const people = customers.filter((c) => c.branchId === b.id);
+        if (!pool.length || !people.length) return;
+        const n = 14 + Math.floor(r() * 8);
+        for (let k = 0; k < n; k++) {
+          const offset = -20 + Math.floor(r() * 51);
+          const who = people[Math.floor(r() * people.length)];
+          const past = offset < 0;
+          bookings.push({
+            id: `${b.id}-BK${k + 1}`,
+            userId: who.id,
+            clinicId: b.clinicId,
+            branchId: b.id,
+            treatmentId: pool[Math.floor(r() * pool.length)].id,
+            doctorId: `${b.id}-D${1 + Math.floor(r() * 2)}`,
+            date: dateOnly(offset),
+            time: TIMES[Math.floor(r() * TIMES.length)],
+            depositTHB: 1000,
+            slipImage: null,
+            status: past ? (r() < 0.12 ? "취소" : "방문완료") : "예약확정",
+            usedReviewCode: null,
+            createdAt: shiftDays(offset - 3 - Math.floor(r() * 10)),
+          });
+        }
+      });
+    bookings.sort((a, b) => (a.date + a.time < b.date + b.time ? 1 : -1));
+  }
 
   const reviewCodes: ReviewCode[] = [
     {

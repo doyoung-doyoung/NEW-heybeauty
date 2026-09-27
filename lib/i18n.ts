@@ -152,6 +152,14 @@ const DICT: Record<string, Entry> = {
   reviewPending: { ko: "승인 대기", en: "Pending", th: "รออนุมัติ", zh: "审核中", ru: "На рассмотрении" },
   checkCode: { ko: "후기코드를 확인해주세요", en: "Please check the review code", th: "กรุณาตรวจสอบโค้ดรีวิว", zh: "请检查评价码", ru: "Проверьте код отзыва" },
   writeSomething: { ko: "후기 내용을 입력해주세요", en: "Please write your review", th: "กรุณาเขียนเนื้อหารีวิว", zh: "请填写评价内容", ru: "Напишите текст отзыва" },
+  myChats: { ko: "내 채팅", en: "My Chats", th: "แชทของฉัน", zh: "我的聊天", ru: "Мои чаты" },
+  aiTag: { ko: "AI 상담", en: "AI", th: "AI", zh: "AI 咨询", ru: "AI" },
+  clinicTag: { ko: "클리닉", en: "Clinic", th: "คลินิก", zh: "诊所", ru: "Клиника" },
+  noChats: { ko: "아직 대화가 없어요", en: "No chats yet", th: "ยังไม่มีแชท", zh: "暂无对话", ru: "Чатов пока нет" },
+  promoSee: { ko: "자세히 · 예약", en: "Details · Book", th: "รายละเอียด · จอง", zh: "详情 · 预约", ru: "Подробнее" },
+  promoPeriod: { ko: "기간", en: "Period", th: "ระยะเวลา", zh: "期间", ru: "Срок" },
+  promoPick: { ko: "시술을 고르면 할인가로 예약돼요", en: "Pick a treatment to book at the promo price", th: "เลือกหัตถการเพื่อจองในราคาโปรโมชั่น", zh: "选择项目即可按优惠价预约", ru: "Выберите процедуру по акционной цене" },
+  promoApplied: { ko: "프로모션 적용", en: "Promo applied", th: "ใช้โปรโมชั่นแล้ว", zh: "已享优惠", ru: "Акция применена" },
   reviewSubmitted: { ko: "후기가 등록되었습니다 · 어드민 승인 후 노출됩니다", en: "Review submitted · it goes live after admin approval", th: "ส่งรีวิวแล้ว · จะแสดงหลังผู้ดูแลอนุมัติ", zh: "评价已提交 · 通过管理员审核后显示", ru: "Отзыв отправлен · появится после одобрения" },
 };
 

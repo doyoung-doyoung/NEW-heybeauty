@@ -12,6 +12,7 @@ import {
   InkButton,
 } from "@/components/ui/primitives";
 import { DEMO_SLIPS, PseudoQR, SlipImage } from "./DemoAssets";
+import { discounted } from "@/lib/promo";
 
 const TIMES = ["10:00", "11:30", "13:00", "14:30", "16:00", "17:30", "19:00"];
 const DEPOSIT = 1000;
@@ -37,11 +38,14 @@ type Step = "select" | "qr" | "slip" | "done";
 export default function BookingFlow({
   clinicId,
   treatmentId,
+  promoId,
   onBack,
   onOpenClinicChat,
 }: {
   clinicId: string;
   treatmentId: string;
+  /** 프로모션 카드에서 들어왔으면 그 프로모션. 윗단에 할인가가 뜨고 예약에도 적힌다. */
+  promoId?: string;
   onBack: () => void;
   onOpenClinicChat: (threadId: string) => void;
 }) {
@@ -69,6 +73,7 @@ export default function BookingFlow({
   const clinic = db.clinics.find((c) => c.id === clinicId);
   const treatment = db.treatments.find((t) => t.id === treatmentId);
   if (!clinic || !treatment) return null;
+  const promo = promoId ? db.promotions.find((p) => p.id === promoId) : undefined;
 
   const branches = db.branches.filter((b) => b.clinicId === clinicId);
   const activeBranchId = branchId || branches[0]?.id || "";
@@ -132,6 +137,7 @@ export default function BookingFlow({
         slipImage: slipId,
         status: "예약확정",
         usedReviewCode: codeUsable ? matchedCode!.code : null,
+        ...(promo ? { promoId: promo.id } : {}),
         createdAt: now,
       });
 
@@ -260,7 +266,24 @@ export default function BookingFlow({
             <div className="text-xs text-ink-sub">{t(clinic.name)}</div>
             <h2 className="text-xl font-bold">{t(treatment.name)}</h2>
           </div>
-          <div className="text-lg font-bold">฿{treatment.price.toLocaleString()}</div>
+          {promo ? (
+            <div className="text-right">
+              <div className="flex items-center justify-end gap-1.5">
+                <Badge tone="pink">
+                  {t("promoApplied")} -{promo.discountPct}%
+                </Badge>
+                <span className="text-xs text-ink-sub line-through">
+                  ฿{treatment.price.toLocaleString()}
+                </span>
+              </div>
+              <div className="text-lg font-bold text-hb-600">
+                ฿{discounted(treatment.price, promo.discountPct).toLocaleString()}
+              </div>
+              <div className="text-[11px] text-ink-sub">{t(promo.title)}</div>
+            </div>
+          ) : (
+            <div className="text-lg font-bold">฿{treatment.price.toLocaleString()}</div>
+          )}
         </div>
 
         <div className="mt-4 flex gap-1.5">

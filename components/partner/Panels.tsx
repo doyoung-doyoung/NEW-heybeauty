@@ -20,7 +20,7 @@ import {
   InkButton,
   SectionTitle,
 } from "@/components/ui/primitives";
-import type { Channel } from "@/lib/types";
+import type { Booking, Channel } from "@/lib/types";
 
 const inputClass =
   "w-full rounded-cell bg-white/75 px-3 py-2 text-sm outline-none hairline placeholder:text-ink-sub focus:bg-white";
@@ -374,9 +374,24 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
   const [gender, setGender] = useState<"전체" | "여" | "남">("전체");
   const [channel, setChannel] = useState<Channel | "전체">("전체");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [scope, setScope] = useState<"branch" | "clinic">("branch");
   if (!db) return null;
 
-  const all = db.customers.filter((c) => c.branchId === branchId);
+  // "전체 지점"은 같은 클리닉의 모든 지점 고객을 한 표로 모은다. 지점이 하나뿐이면 둘이 같다.
+  const clinicId = db.branches.find((b) => b.id === branchId)?.clinicId;
+  const clinicBranches = db.branches.filter((b) => b.clinicId === clinicId);
+  const all = db.customers.filter((c) =>
+    scope === "clinic" ? c.clinicId === clinicId : c.branchId === branchId,
+  );
+  // 방문 수 · 누적 결제 · 최근 방문은 차트에서 한 번에 모아 둔다 (줄마다 차트를 다시 훑지 않게).
+  const visitOf = new Map<string, { n: number; paid: number; last: string }>();
+  for (const x of db.charts) {
+    const v = visitOf.get(x.customerId) ?? { n: 0, paid: 0, last: "" };
+    v.n += 1;
+    v.paid += x.paidAmount;
+    if (x.visitDate > v.last) v.last = x.visitDate;
+    visitOf.set(x.customerId, v);
+  }
   const nations = ["전체", ...Array.from(new Set(all.map((c) => c.nationality)))];
 
   const customers = all
@@ -389,6 +404,8 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
     .filter((c) => nation === "전체" || c.nationality === nation)
     .filter((c) => gender === "전체" || c.gender === gender)
     .filter((c) => channel === "전체" || c.channel === channel);
+  const totalPaid = customers.reduce((sum, c) => sum + (visitOf.get(c.id)?.paid ?? 0), 0);
+  const totalVisits = customers.reduce((sum, c) => sum + (visitOf.get(c.id)?.n ?? 0), 0);
 
   const open = openId ? all.find((c) => c.id === openId) : null;
 
@@ -503,6 +520,28 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
         title="고객 관리"
         sub={`${all.length}명 중 ${customers.length}명 표시 · 고객을 누르면 상세 정보가 열립니다`}
       />
+      {clinicBranches.length > 1 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          <GhostButton active={scope === "branch"} onClick={() => setScope("branch")}>
+            이 지점
+          </GhostButton>
+          <GhostButton active={scope === "clinic"} onClick={() => setScope("clinic")}>
+            전체 지점 ({clinicBranches.length})
+          </GhostButton>
+        </div>
+      )}
+      <div className="mb-3 grid grid-cols-3 gap-2">
+        {[
+          { label: "고객", value: `${customers.length.toLocaleString()}명` },
+          { label: "총 방문", value: `${totalVisits.toLocaleString()}회` },
+          { label: "누적 결제", value: `฿${totalPaid.toLocaleString()}` },
+        ].map((k) => (
+          <div key={k.label} className="rounded-cell bg-white/70 px-3 py-2.5 hairline">
+            <div className="text-[11px] text-ink-sub">{k.label}</div>
+            <div className="truncate text-sm font-bold tabular-nums sm:text-base">{k.value}</div>
+          </div>
+        ))}
+      </div>
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -556,9 +595,10 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
 
       {/* 넓은 화면: 표. 이름 밑에 뭉쳐 있던 전화·생일·관심·담당을 각자 열로 흩어 놓는다. */}
       <TableOnly maxH="max-h-[30rem]">
-        <Table minW="min-w-[46rem]">
+        <Table minW="min-w-[64rem]">
           <Thead>
             <Th stick>이름</Th>
+            {scope === "clinic" && <Th>지점</Th>}
             <Th>연락처</Th>
             <Th>생일</Th>
             <Th>국가</Th>
@@ -566,15 +606,22 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
             <Th>경로</Th>
             <Th>관심 시술</Th>
             <Th>담당</Th>
+            <Th align="right">방문</Th>
+            <Th align="right">누적 결제</Th>
+            <Th>최근 방문</Th>
           </Thead>
           <tbody>
             {customers.map((c) => {
               const doctor = db.doctors.find((d) => d.id === c.doctorId);
+              const v = visitOf.get(c.id);
               return (
                 <Tr key={c.id} onClick={() => setOpenId(c.id)}>
                   <Td stick className="font-medium">
                     {c.name}
                   </Td>
+                  {scope === "clinic" && (
+                    <Td muted>{clinicBranches.find((b) => b.id === c.branchId)?.name}</Td>
+                  )}
                   <Td muted nums>
                     {c.phone}
                   </Td>
@@ -588,6 +635,15 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
                   </Td>
                   <Td muted>{c.interests.join(", ")}</Td>
                   <Td muted>{doctor?.name}</Td>
+                  <Td align="right" nums muted>
+                    {v?.n ?? 0}회
+                  </Td>
+                  <Td align="right" nums className="font-semibold">
+                    ฿{(v?.paid ?? 0).toLocaleString()}
+                  </Td>
+                  <Td muted nums>
+                    {v?.last || "-"}
+                  </Td>
                 </Tr>
               );
             })}
@@ -620,10 +676,15 @@ export function BookingPanel({ branchId }: { branchId: string }) {
   const toast = useToast();
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ date: "", time: "", doctorId: "" });
+  const [day, setDay] = useState<string | null>(null);
   const { note, show: showLinked, dismiss } = useLinkedNote();
   if (!db) return null;
 
-  const bookings = db.bookings.filter((b) => b.branchId === branchId);
+  // 날짜·시간 최근 순. 저장본과 새 시드가 합쳐지면 배열 순서가 섞이므로 여기서 한 번 정렬한다.
+  const branchBookings = db.bookings
+    .filter((b) => b.branchId === branchId)
+    .sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
+  const bookings = day ? branchBookings.filter((b) => b.date === day) : branchBookings;
   const doctors = db.doctors.filter((d) => d.branchId === branchId);
 
   function setStatus(id: string, status: "예약확정" | "방문완료" | "취소") {
@@ -657,8 +718,10 @@ export function BookingPanel({ branchId }: { branchId: string }) {
 
     const treatment = db!.treatments.find((t) => t.id === booking.treatmentId);
     const user = db!.users.find((u) => u.id === booking.userId);
-    const name = user?.name ?? "앱 고객";
-    const phone = user?.phone ?? "";
+    // 지점이 받은 예약은 앱 계정이 아니라 고객 카드 id로 걸려 있다.
+    const card = user ? null : db!.customers.find((c) => c.id === booking.userId);
+    const name = user?.name ?? card?.name ?? "앱 고객";
+    const phone = user?.phone ?? card?.phone ?? "";
     const paidAmount = treatment?.price ?? booking.depositTHB;
     const chartId = `OPD-${Date.now()}`;
     const now = new Date().toISOString();
@@ -792,19 +855,37 @@ export function BookingPanel({ branchId }: { branchId: string }) {
 
   return (
     <GlassCard className="p-6">
-      <SectionTitle title="예약 확인" sub={`총 ${bookings.length}건`} />
+      <SectionTitle title="예약 확인" sub={`총 ${branchBookings.length}건`} />
+      <BookingCalendar
+        bookings={branchBookings}
+        selected={day}
+        onSelect={(d) => setDay((cur) => (cur === d ? null : d))}
+      />
+      <div className="mb-3 mt-4 flex items-center justify-between gap-2">
+        <div className="text-sm font-semibold">
+          {day ? `${day} 예약 ${bookings.length}건` : `전체 예약 ${bookings.length}건`}
+        </div>
+        {day && (
+          <GhostButton onClick={() => setDay(null)} className="px-3 py-1.5 text-xs">
+            전체 보기
+          </GhostButton>
+        )}
+      </div>
       <div className="space-y-2">
         {bookings.length === 0 && (
-          <p className="text-sm text-ink-sub">이 지점의 예약이 없습니다.</p>
+          <p className="text-sm text-ink-sub">
+            {day ? "이 날은 예약이 없습니다." : "이 지점의 예약이 없습니다."}
+          </p>
         )}
         {bookings.map((b) => {
           const treatment = db.treatments.find((t) => t.id === b.treatmentId);
           const doctor = db.doctors.find((d) => d.id === b.doctorId);
           const user = db.users.find((u) => u.id === b.userId);
+          const card = user ? null : db.customers.find((c) => c.id === b.userId);
           return (
             <div key={b.id} className="rounded-cell bg-white/70 p-4 hairline">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="font-semibold">{user?.name ?? b.userId}</div>
+                <div className="font-semibold">{user?.name ?? card?.name ?? b.userId}</div>
                 <Badge tone={b.status === "취소" ? "danger" : "pink"}>
                   {b.status}
                 </Badge>
@@ -901,6 +982,116 @@ export function BookingPanel({ branchId }: { branchId: string }) {
         })}
       </div>
     </GlassCard>
+  );
+}
+
+/**
+ * 예약 확인 위의 달력. 날마다 예약 건수를 적고, 누르면 아래 목록이 그날로 좁혀진다.
+ * 같은 날을 다시 누르면 풀린다. 처음엔 오늘이 든 달을 보여 준다.
+ */
+function BookingCalendar({
+  bookings,
+  selected,
+  onSelect,
+}: {
+  bookings: Booking[];
+  selected: string | null;
+  onSelect: (date: string) => void;
+}) {
+  const today = new Date();
+  const [cursor, setCursor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
+  const y = cursor.getFullYear();
+  const m = cursor.getMonth();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const iso = (d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
+  const todayIso = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
+  const byDate = new Map<string, { total: number; done: number; cancel: number }>();
+  for (const b of bookings) {
+    const v = byDate.get(b.date) ?? { total: 0, done: 0, cancel: 0 };
+    v.total += 1;
+    if (b.status === "방문완료") v.done += 1;
+    if (b.status === "취소") v.cancel += 1;
+    byDate.set(b.date, v);
+  }
+  const monthCount = bookings.filter((b) => b.date.startsWith(`${y}-${pad(m + 1)}`)).length;
+
+  const lead = new Date(y, m, 1).getDay();
+  const days = new Date(y, m + 1, 0).getDate();
+  const cells: (number | null)[] = [
+    ...Array.from({ length: lead }, () => null),
+    ...Array.from({ length: days }, (_, i) => i + 1),
+  ];
+  while (cells.length % 7) cells.push(null);
+
+  return (
+    <div className="rounded-cell bg-white/70 p-3 hairline sm:p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <button
+          type="button"
+          aria-label="이전 달"
+          onClick={() => setCursor(new Date(y, m - 1, 1))}
+          className="rounded-pill px-3 py-1.5 text-sm hover:bg-black/5"
+        >
+          ‹
+        </button>
+        <div className="text-center">
+          <div className="text-sm font-bold">
+            {y}년 {m + 1}월
+          </div>
+          <div className="text-[11px] text-ink-sub">이달 예약 {monthCount}건</div>
+        </div>
+        <button
+          type="button"
+          aria-label="다음 달"
+          onClick={() => setCursor(new Date(y, m + 1, 1))}
+          className="rounded-pill px-3 py-1.5 text-sm hover:bg-black/5"
+        >
+          ›
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-ink-sub">
+        {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => (
+          <div key={d} className={i === 0 ? "text-danger/70" : ""}>
+            {d}
+          </div>
+        ))}
+      </div>
+      <div className="mt-1 grid grid-cols-7 gap-1">
+        {cells.map((d, i) => {
+          if (d === null) return <div key={`e${i}`} />;
+          const key = iso(d);
+          const v = byDate.get(key);
+          const on = selected === key;
+          const isToday = key === todayIso;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onSelect(key)}
+              className={`flex aspect-square min-h-10 flex-col items-center justify-start rounded-[10px] pt-1 text-xs transition sm:aspect-auto sm:h-16 ${
+                on
+                  ? "bg-ink text-white"
+                  : v
+                    ? "bg-hb-50 hover:bg-hb-200/40"
+                    : "hover:bg-black/5"
+              } ${isToday && !on ? "ring-1 ring-ink/40" : ""}`}
+            >
+              <span className={`tabular-nums ${isToday ? "font-bold" : ""}`}>{d}</span>
+              {v && (
+                <span
+                  className={`mt-auto mb-1 rounded-pill px-1.5 text-[10px] font-bold leading-4 tabular-nums ${
+                    on ? "bg-white/20 text-white" : "bg-hb-600 text-white"
+                  }`}
+                >
+                  {v.total}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -1052,10 +1243,27 @@ export function InventoryPanel({ branchId }: { branchId: string }) {
   const { db, update } = useDb();
   const toast = useToast();
   const [buyingId, setBuyingId] = useState<string | null>(null);
+  const [cat, setCat] = useState("전체");
   const { note, show: showLinked, dismiss } = useLinkedNote();
   if (!db) return null;
 
   const items = db.inventory.filter((i) => i.branchId === branchId);
+  const catOf = (productId: string) =>
+    db.products.find((p) => p.id === productId)?.category ?? "기타";
+  // 카테고리별 총 물량. 탭 이름 옆 숫자와 위 요약칸이 이 표 하나에서 나온다.
+  const byCat = new Map<string, { qty: number; n: number; low: number }>();
+  for (const i of items) {
+    const k = catOf(i.productId);
+    const v = byCat.get(k) ?? { qty: 0, n: 0, low: 0 };
+    v.qty += i.qty;
+    v.n += 1;
+    if (isLowStock(i)) v.low += 1;
+    byCat.set(k, v);
+  }
+  const cats = [...byCat.keys()].sort();
+  const totalQty = items.reduce((sum, i) => sum + i.qty, 0);
+  const lowTotal = items.filter(isLowStock).length;
+  const shown = cat === "전체" ? items : items.filter((i) => catOf(i.productId) === cat);
   const logs = db.stockLogs.filter((l) =>
     items.some((i) => i.id === l.inventoryItemId),
   );
@@ -1128,8 +1336,52 @@ export function InventoryPanel({ branchId }: { branchId: string }) {
           title="재고 관리"
           sub="잔여 50개 이하는 빨간색으로 표시되고 구매 알림이 뜹니다"
         />
+        <div className="mb-4 grid grid-cols-3 gap-2">
+          {[
+            { label: "총 물량", value: `${totalQty.toLocaleString()}개` },
+            { label: "품목", value: `${items.length}종 · ${cats.length}개 카테고리` },
+            { label: "부족", value: `${lowTotal}건`, danger: lowTotal > 0 },
+          ].map((k) => (
+            <div key={k.label} className="rounded-cell bg-white/70 px-3 py-2.5 hairline">
+              <div className="text-[11px] text-ink-sub">{k.label}</div>
+              <div
+                className={`truncate text-sm font-bold tabular-nums sm:text-base ${
+                  k.danger ? "text-danger" : ""
+                }`}
+              >
+                {k.value}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+          {["전체", ...cats].map((c) => {
+            const v = c === "전체" ? { qty: totalQty } : byCat.get(c)!;
+            return (
+              <GhostButton
+                key={c}
+                active={cat === c}
+                onClick={() => setCat(c)}
+                className="shrink-0 px-3 py-1.5 text-xs"
+              >
+                {c}{" "}
+                <span className={cat === c ? "text-white/70" : "text-ink-sub"}>
+                  {v.qty.toLocaleString()}개
+                </span>
+              </GhostButton>
+            );
+          })}
+        </div>
+        {cat !== "전체" && byCat.get(cat) && (
+          <p className="mb-3 text-xs text-ink-sub">
+            {cat} · {byCat.get(cat)!.n}종 · 총 {byCat.get(cat)!.qty.toLocaleString()}개
+            {byCat.get(cat)!.low > 0 && (
+              <span className="text-danger"> · 부족 {byCat.get(cat)!.low}건</span>
+            )}
+          </p>
+        )}
         <div className="space-y-2">
-          {items.map((item) => {
+          {shown.map((item) => {
             const product = db.products.find((p) => p.id === item.productId);
             const low = isLowStock(item);
             return (
@@ -1139,8 +1391,9 @@ export function InventoryPanel({ branchId }: { branchId: string }) {
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="truncate font-semibold">
-                      {product?.name}
+                    <div className="flex items-center gap-1.5">
+                      <Badge>{product?.category ?? "기타"}</Badge>
+                      <span className="truncate font-semibold">{product?.name}</span>
                     </div>
                     <div className="truncate text-xs text-ink-sub">
                       {item.volume} · {item.distribution} · LOT {item.lotNo} ·

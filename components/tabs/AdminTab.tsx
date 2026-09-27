@@ -164,6 +164,8 @@ function InventorySection() {
           <BackToList onClick={() => setOpenId(null)} label="재고 목록으로" />
         </GlassCard>
 
+        <ContactClinic key={open.id} itemId={open.id} />
+
         <GlassCard soft className="p-6">
           {/* 기록 하나를 고르면 같은 카드 안에서 표가 상세로 바뀐다. 화면을 갈아엎지 않으니
               "어느 제품 얘기였지"를 다시 찾을 필요가 없다. */}
@@ -342,6 +344,131 @@ function InventorySection() {
   );
 }
 
+/**
+ * 재고 상세에서 그 지점에 바로 연락한다. 전화는 tel: 링크로 걸고,
+ * 메시지는 그 지점 파트너 CRM의 통합 인박스(LINE)로 들어간다 — 클리닉 쪽 화면에서
+ * "본사에서 온 메시지"로 보이고 거기서 답장할 수 있다.
+ */
+function ContactClinic({ itemId }: { itemId: string }) {
+  const { db, update } = useDb();
+  const toast = useToast();
+  const { note, show, dismiss } = useLinkedNote();
+  const [composing, setComposing] = useState(false);
+  const [text, setText] = useState("");
+  if (!db) return null;
+
+  const item = db.inventory.find((i) => i.id === itemId);
+  if (!item) return null;
+  const product = db.products.find((p) => p.id === item.productId);
+  const clinic = db.clinics.find((c) => c.id === item.clinicId);
+  const branch = db.branches.find((b) => b.id === item.branchId);
+  const phone = branch?.phone || clinic?.phone || "";
+  const low = isLowStock(item);
+
+  // 부족이면 발주 확인, 아니면 재고 확인 — 제일 흔한 두 용건을 미리 적어 둔다.
+  const draft = low
+    ? `안녕하세요, Hey! Beauty 본사입니다. ${branch?.name ?? ""} ${product?.name ?? ""} 재고가 ${item.qty}개 남아 경고 기준(${LOW_STOCK_QTY}개) 이하입니다. 추가 발주가 필요하시면 수량을 회신 부탁드립니다.`
+    : `안녕하세요, Hey! Beauty 본사입니다. ${branch?.name ?? ""} ${product?.name ?? ""} 재고(현재 ${item.qty}개, LOT ${item.lotNo}) 관련해 확인 부탁드립니다.`;
+
+  function startCompose() {
+    setText(draft);
+    setComposing(true);
+    dismiss();
+  }
+
+  function send() {
+    const body = text.trim();
+    if (!body || !clinic || !branch) return;
+    const at = new Date().toISOString();
+    update((d) => {
+      const HQ = "Hey! Beauty 본사";
+      let t = d.inbox.find((x) => x.branchId === branch.id && x.customerName === HQ);
+      if (!t) {
+        t = {
+          id: `IB-HQ-${branch.id}`,
+          clinicId: clinic.id,
+          branchId: branch.id,
+          channel: "LINE",
+          customerName: HQ,
+          unread: true,
+          messages: [],
+          updatedAt: at,
+        };
+        d.inbox.unshift(t);
+      }
+      t.messages.push({ id: `${t.id}-M${t.messages.length + 1}`, role: "user", text: body, at });
+      t.unread = true;
+      t.updatedAt = at;
+    });
+    setComposing(false);
+    toast("메시지를 보냈습니다");
+    show([
+      `파트너 CRM · ${clinic.name} ${branch.name} 통합 인박스에 도착 (LINE)`,
+      "클리닉 화면에 안 읽음으로 뜨고, 거기서 바로 답장할 수 있습니다",
+    ]);
+  }
+
+  return (
+    <GlassCard soft className="p-6">
+      <SectionTitle title="클리닉에 연락" sub={`${clinic?.name} · ${branch?.name}`} />
+      <div className="grid gap-2 sm:grid-cols-3">
+        {[
+          { label: "지점 전화", value: phone || "-" },
+          { label: "재고 담당", value: item.manager },
+          { label: "LINE", value: clinic?.lineId || "-" },
+        ].map((r) => (
+          <div
+            key={r.label}
+            className="flex items-center justify-between gap-3 rounded-cell bg-white/70 px-4 py-3 text-sm hairline"
+          >
+            <span className="text-xs text-ink-sub">{r.label}</span>
+            <span className="truncate font-medium">{r.value}</span>
+          </div>
+        ))}
+      </div>
+
+      {composing ? (
+        <div className="mt-4 space-y-2">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={4}
+            className="w-full resize-none rounded-cell bg-white/80 p-3 text-sm outline-none hairline focus:ring-2 focus:ring-ink/20"
+          />
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setComposing(false)}
+              className="rounded-pill px-4 py-2.5 text-sm text-ink-sub hairline"
+            >
+              취소
+            </button>
+            <InkButton arrow={false} onClick={send} disabled={!text.trim()}>
+              보내기
+            </InkButton>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <a
+            href={phone ? `tel:${phone.replace(/[^0-9+]/g, "")}` : undefined}
+            className="inline-flex items-center gap-1.5 rounded-pill bg-white px-4 py-2.5 text-sm font-medium hairline transition hover:bg-white/70"
+          >
+            전화하기
+          </a>
+          <InkButton arrow={false} onClick={startCompose}>
+            메시지 보내기
+          </InkButton>
+        </div>
+      )}
+
+      {note && (
+        <LinkedNote note={note} title="이렇게 연결됐어요" onClose={dismiss} className="mt-4" />
+      )}
+    </GlassCard>
+  );
+}
+
 /** 후기 한 건이 지금까지 만들어 낸 돈. 과거 실적 한 줄 + 이번 데모에서 더해진 금액. */
 type Settlement = {
   code: string;
@@ -369,7 +496,7 @@ function monthsAgoOf(iso: string): number {
 
 /**
  * 과거 실적(`lib/commission.ts`)을 깔고, 그 위에 `db.commissions`를 **더한다.**
- * 같은 후기코드로 새 예약이 들어오면 그 줄의 클릭 수와 금액이 올라가고,
+ * 같은 후기코드로 새 예약이 들어오면 그 줄의 예약 건수와 금액이 올라가고,
  * 기초에 없던 코드(데모 중에 발행한 것)는 새 줄로 맨 앞에 붙는다.
  */
 function buildSettlements(db: NonNullable<ReturnType<typeof useDb>["db"]>) {
@@ -637,7 +764,7 @@ function ReviewSection() {
                   클리닉
                 </Th>
                 <Th align="right">후기코드</Th>
-                <Th align="right">클릭</Th>
+                <Th align="right">예약 건수</Th>
                 <Th align="right">정산액</Th>
                 <Th align="right">신규</Th>
               </Thead>
@@ -721,7 +848,7 @@ function ReviewSection() {
                       <Td align="right" nums muted>
                         {s.clicks.toLocaleString()}건
                       </Td>
-                      {/* 안 쓰인 코드는 클릭이 0이라 나누면 NaN이 된다. 그럴 땐 줄표. */}
+                      {/* 안 쓰인 코드는 예약이 0건이라 나누면 NaN이 된다. 그럴 땐 줄표. */}
                       <Td align="right" nums muted>
                         {s.clicks > 0
                           ? `฿${Math.round(s.amountTHB / s.clicks).toLocaleString()}`
@@ -750,7 +877,7 @@ function ReviewSection() {
 }
 
 /**
- * 월별 발생액 기둥 차트. 기둥을 누르면 그 달의 금액과 클릭 수가 위에 뜬다.
+ * 월별 발생액 기둥 차트. 기둥을 누르면 그 달의 금액과 예약 건수가 위에 뜬다.
  * 폰에서는 기둥 폭이 45px밖에 안 돼서 금액을 항상 띄울 수가 없다 — 그래서 눌러서 보는 방식이다.
  */
 function MonthChart({
@@ -771,7 +898,7 @@ function MonthChart({
         <span className="text-sm font-semibold">월별 발생액</span>
         <span className="text-xs text-ink-sub tabular-nums">
           {picked
-            ? `${picked.label} · 클릭 ${picked.clicks.toLocaleString()}건 · ฿${picked.amount.toLocaleString()}`
+            ? `${picked.label} · 예약 ${picked.clicks.toLocaleString()}건 · ฿${picked.amount.toLocaleString()}`
             : "기둥을 누르면 그 달 금액이 보입니다"}
         </span>
       </div>
@@ -841,7 +968,7 @@ function CodeTable() {
           <Th>클리닉</Th>
           <Th>발행 고객</Th>
           <Th>발행일</Th>
-          <Th align="right">클릭</Th>
+          <Th align="right">예약 건수</Th>
           <Th align="right">발생 커미션</Th>
         </Thead>
         <tbody>

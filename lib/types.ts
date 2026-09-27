@@ -177,6 +177,8 @@ export interface Booking {
   slipImage: string | null;
   status: BookingStatus;
   usedReviewCode: string | null;
+  /** 프로모션 카드에서 예약했으면 그 프로모션 id. */
+  promoId?: string;
   createdAt: string;
 }
 
