@@ -11,6 +11,8 @@
   --color-ink-sub: #495057;
   --color-surface: #f6f6f6;
   --color-danger: #e23d3d;
+  /* 고른 탭의 글자색. 아이콘 -on 그림과 같은 색으로 맞춘다. */
+  --color-tab-active: #4b32c3;
 
   --radius-card: 30px;
   --radius-pill: 999px;

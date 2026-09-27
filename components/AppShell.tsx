@@ -10,12 +10,15 @@ import PartnerTab from "@/components/tabs/PartnerTab";
 import CompanyTab from "@/components/tabs/CompanyTab";
 import NotePad from "@/components/ui/NotePad";
 import DemoReset from "@/components/ui/DemoReset";
+import IconTabBar from "@/components/ui/IconTabBar";
 
+// 아이콘 그림은 public/tabs/ 에 넣는다 (IMAGE_TODO.md 참고).
+// `-on` 파일이 없으면 IconTabBar가 평소 그림을 흐리게/선명하게 바꿔 쓴다.
 const TABS = [
-  { id: "home", label: "홈" },
-  { id: "admin", label: "어드민" },
-  { id: "partner", label: "파트너 CRM" },
-  { id: "company", label: "회사소개" },
+  { id: "home", label: "홈", icon: "/tabs/home.png", iconActive: "/tabs/home-on.png" },
+  { id: "admin", label: "어드민", icon: "/tabs/admin.png", iconActive: "/tabs/admin-on.png" },
+  { id: "partner", label: "파트너 CRM", icon: "/tabs/partner.png", iconActive: "/tabs/partner-on.png" },
+  { id: "company", label: "회사소개", icon: "/tabs/company.png", iconActive: "/tabs/company-on.png" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -71,34 +74,15 @@ export default function AppShell() {
           )}
         </div>
 
-        {/* 탭 네 개가 줄을 꽉 채우고, 데모 리셋은 그 **오른쪽 바깥**에 선다.
-            안쪽 줄을 `w-full shrink-0`으로 묶어 뒀기 때문에 화면이 넓든 좁든
-            리셋은 항상 한 뼘 밀려 있다 — 시연 중엔 안 보이고, 필요하면
-            가로로 슬쩍 밀어서 꺼낸다. 스크롤바는 숨겨서 티가 안 나게 했다. */}
+        {/* 탭 네 개가 판을 꽉 채우고, 데모 리셋은 그 **오른쪽 바깥**에 선다.
+            시연 중엔 안 보이고, 필요하면 가로로 슬쩍 밀어서 꺼낸다. */}
         <nav className="mt-4">
-          <div className="glass overflow-x-auto rounded-pill p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="flex gap-1">
-              <div className="flex w-full shrink-0 gap-1">
-                {TABS.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setTab(t.id)}
-                    className={`relative flex-1 whitespace-nowrap rounded-pill px-2 py-2.5 text-[13px] font-medium transition sm:px-3 sm:text-sm ${
-                      tab === t.id
-                        ? "bg-ink text-white"
-                        : "text-ink hover:bg-white/60"
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-              <div className="shrink-0 pl-1 pr-1.5">
-                <DemoReset />
-              </div>
-            </div>
-          </div>
+          <IconTabBar
+            tabs={TABS}
+            active={tab}
+            onChange={setTab}
+            trailing={<DemoReset />}
+          />
         </nav>
       </header>
 
