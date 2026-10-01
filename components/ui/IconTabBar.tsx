@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 /**
- * 아이콘 위 · 글자 아래로 서는 탭 줄. 하얀 알약 판 위에 칸이 똑같이 나뉜다.
+ * 탭 줄. 2026-10-01에 세로 길이를 절반으로 줄였다 — 넓은 화면은 아이콘·글자를 한 줄로,
+ * 폰은 폭이 모자라 위·아래 그대로 두되 아이콘과 여백을 줄였다. 하얀 알약 판 위에 칸이 똑같이 나뉜다.
  *
  * 아이콘은 그림 파일을 그대로 쓴다 — `icon`(평소)과 `iconActive`(골랐을 때).
  * `iconActive`가 없으면 같은 그림을 쓰고, 안 고른 칸만 흐리게 눌러 둔다.
@@ -30,7 +31,7 @@ export default function IconTabBar<Id extends string>({
   trailing?: ReactNode;
 }) {
   return (
-    <div className="overflow-x-auto tabbar rounded-[34px] px-2 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="overflow-x-auto tabbar rounded-[26px] px-1.5 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <div className="flex items-stretch">
         <div role="tablist" className="flex w-full shrink-0">
           {tabs.map((t) => {
@@ -42,14 +43,14 @@ export default function IconTabBar<Id extends string>({
                 role="tab"
                 aria-selected={on}
                 onClick={() => onChange(t.id)}
-                className="group flex flex-1 flex-col items-center gap-2 rounded-[26px] px-1 pb-2 pt-2.5 transition active:scale-95"
+                className="group flex flex-1 flex-col items-center justify-center gap-1 rounded-[20px] px-0.5 py-1 transition active:scale-95 sm:flex-row sm:gap-1.5 sm:py-1.5"
               >
                 <TabIcon
                   src={on ? (t.iconActive ?? t.icon) : t.icon}
                   dim={!on && !t.iconActive}
                 />
                 <span
-                  className={`whitespace-nowrap text-[12.5px] leading-none tracking-tight transition sm:text-sm ${
+                  className={`whitespace-nowrap text-[11px] leading-none tracking-tight transition sm:text-sm ${
                     on
                       ? "font-bold text-tab-active"
                       : "font-medium text-[#8a9096] group-hover:text-ink-sub"
@@ -87,7 +88,7 @@ function TabIcon({ src, dim }: { src: string; dim: boolean }) {
     return (
       <span
         aria-hidden
-        className="h-[30px] w-[30px] rounded-lg border border-dashed border-ink-sub/40"
+        className="h-[18px] w-[18px] rounded-md border border-dashed border-ink-sub/40 sm:h-[22px] sm:w-[22px]"
       />
     );
   }
@@ -99,10 +100,10 @@ function TabIcon({ src, dim }: { src: string; dim: boolean }) {
       src={src}
       alt=""
       aria-hidden
-      width={45}
-      height={30}
+      width={33}
+      height={22}
       onError={() => setFailed(src)}
-      className={`h-[30px] w-[45px] object-contain transition ${
+      className={`h-[18px] w-[27px] shrink-0 object-contain transition sm:h-[22px] sm:w-[33px] ${
         dim ? "opacity-45 group-hover:opacity-70" : ""
       }`}
     />

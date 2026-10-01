@@ -206,7 +206,7 @@ function InventorySection() {
                 title="입출고 기록"
                 sub={`총 ${logs.length}건 · 줄을 누르면 상세가 열립니다`}
               />
-              <TableOnly maxH="max-h-[24rem]">
+              <TableOnly maxH="sm:max-h-[24rem]">
                 <Table minW="min-w-[34rem]">
                   <Thead>
                     <Th stick>일자</Th>
@@ -269,7 +269,7 @@ function InventorySection() {
       </div>
 
       {/* 넓은 화면: 표. 64건을 위아래로 훑으며 지점끼리 비교할 수 있어야 한다. */}
-      <TableOnly maxH="max-h-[32rem]">
+      <TableOnly maxH="sm:max-h-[32rem]">
         <Table minW="min-w-[56rem]">
           <Thead>
             <Th stick>제품</Th>
@@ -396,7 +396,7 @@ function DistributorTable() {
         ))}
       </div>
 
-      <TableOnly maxH="max-h-[32rem]">
+      <TableOnly maxH="sm:max-h-[32rem]">
         <Table minW="min-w-[54rem]">
           <Thead>
             <Th stick>제품</Th>
@@ -866,7 +866,7 @@ function ReviewSection() {
               {byClinic.length}개 클리닉
             </span>
           </div>
-          <TableOnly maxH="max-h-[26rem]">
+          <TableOnly maxH="sm:max-h-[26rem]">
             <Table minW="min-w-[34rem]">
               <Thead>
                 <Th stick className="w-28 sm:w-40">
@@ -930,7 +930,7 @@ function ReviewSection() {
               sub={`후기 ${detail.length}건 · 고객 후기 한 건이 얼마를 만들었는지`}
             />
             {/* 후기 본문만 `wrap`을 켠다. 한 줄로 두면 표가 화면 몇 개 폭으로 늘어난다. */}
-            <TableOnly maxH="max-h-[32rem]">
+            <TableOnly maxH="sm:max-h-[32rem]">
               <Table minW="min-w-[52rem]">
                 <Thead>
                   <Th stick>후기자</Th>
@@ -1042,8 +1042,11 @@ function MonthChart({
 }
 
 /** 발행된 후기코드 전체 목록. 과거 실적으로 깔아 둔 20건과 데모 중 발행한 것이 함께 나온다. */
+const CODE_PREVIEW = 5;
+
 function CodeTable() {
   const { db } = useDb();
+  const [showAll, setShowAll] = useState(false);
   if (!db) return null;
 
   const baseline = new Map(COMMISSION_BASELINE.map((r) => [r.code, r]));
@@ -1069,8 +1072,22 @@ function CodeTable() {
    * 딱 맞게 자르면 999건이 여섯 건처럼 보여서, 7번째 줄이 아래에 살짝 걸치도록 9px을 더 줬다.
    * 그 잘린 줄 하나가 "더 있다, 밀어라"를 말해 준다.
    */
+  // 처음엔 최근 5건만 보이고, "모두 보기"를 눌러야 전체 목록(스크롤)이 펼쳐진다.
+  const shown = showAll ? rows : rows.slice(0, CODE_PREVIEW);
+
   return (
-    <TableOnly maxH="max-h-[18rem]">
+    <div>
+    <div className="mb-2 flex items-center justify-between gap-2">
+      <span className="text-xs text-ink-sub">
+        {showAll ? `전체 ${rows.length}건` : `최근 ${shown.length}건 / 전체 ${rows.length}건`}
+      </span>
+      {rows.length > CODE_PREVIEW && (
+        <GhostButton active={showAll} onClick={() => setShowAll((v) => !v)}>
+          {showAll ? "접기" : `모두 보기 (${rows.length})`}
+        </GhostButton>
+      )}
+    </div>
+    <TableOnly maxH={showAll ? "sm:max-h-[24rem]" : undefined}>
       <Table minW="min-w-[40rem]">
         <Thead>
           <Th stick>코드</Th>
@@ -1081,7 +1098,7 @@ function CodeTable() {
           <Th align="right">발생 커미션</Th>
         </Thead>
         <tbody>
-          {rows.map((r) => (
+          {shown.map((r) => (
             <Tr key={r.code}>
               <Td stick className="font-medium">
                 {r.code}
@@ -1106,6 +1123,7 @@ function CodeTable() {
         </tbody>
       </Table>
     </TableOnly>
+    </div>
   );
 }
 
@@ -1260,7 +1278,7 @@ function UserSection() {
         title="유저 관리"
         sub={`총 ${db.users.length}명 · 줄을 누르면 상세와 공지 보내기가 열립니다`}
       />
-      <TableOnly maxH="max-h-[34rem]">
+      <TableOnly maxH="sm:max-h-[34rem]">
         <Table minW="min-w-[40rem]">
           <Thead>
             <Th stick>이름</Th>
@@ -1469,7 +1487,7 @@ function ClinicSection() {
 
       {/* 99줄을 그냥 펼치면 카드가 4,000px짜리가 되어 아래 있는 것들이 스크롤 저편으로 밀린다.
           유저 관리 표와 같은 높이(34rem)로 잘라 두고 안에서 스크롤하게 한다. */}
-      <TableOnly maxH="max-h-[34rem]">
+      <TableOnly maxH="sm:max-h-[34rem]">
         <Table minW="min-w-[42rem]">
           <Thead>
             {/*
@@ -1970,7 +1988,7 @@ function NoticeSection() {
         {db.notices.length === 0 ? (
           <p className="text-sm text-ink-sub">등록된 공지가 없습니다.</p>
         ) : (
-          <TableOnly maxH="max-h-[26rem]">
+          <TableOnly maxH="sm:max-h-[26rem]">
             <Table minW="min-w-[46rem]">
               <Thead>
                 <Th stick className="w-28 sm:w-40">
@@ -2109,7 +2127,7 @@ function AccountSection() {
         )}
       </div>
 
-      <TableOnly maxH="max-h-[30rem]">
+      <TableOnly maxH="sm:max-h-[30rem]">
         <Table minW="min-w-[44rem]">
           <Thead>
             <Th stick className="w-32 sm:w-44">
