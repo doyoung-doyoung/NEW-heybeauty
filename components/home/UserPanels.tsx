@@ -65,6 +65,8 @@ export function WriteReview() {
   const [images, setImages] = useState<string[]>([]);
   // 후기를 쓰면 어드민 승인 대기열로 넘어가는데, 여기서는 그게 안 보인다.
   const { note, show: showLinked, dismiss } = useLinkedNote();
+  // 내가 쓴 후기 목록은 눌러야 클리닉·발행코드 같은 상세정보가 펼쳐진다.
+  const [expandedReviewId, setExpandedReviewId] = useState<string | null>(null);
 
   if (!db) return null;
 
@@ -93,6 +95,7 @@ export function WriteReview() {
         images,
         approved: false,
         blocked: false,
+        pinned: false,
         createdAt: new Date().toISOString(),
       });
     });
@@ -189,36 +192,73 @@ export function WriteReview() {
       <GlassCard soft className="p-6">
         <h3 className="font-bold">{t("myReviews")}</h3>
         <div className="mt-3 space-y-2">
-          {myReviews.map((r) => (
-            <div key={r.id} className="rounded-cell bg-white/70 p-3 hairline">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">{"★".repeat(r.rating)}</span>
-                <Badge tone={r.approved ? "pink" : "neutral"}>
-                  {t(
-                    r.blocked
-                      ? "reviewBlocked"
-                      : r.approved
-                        ? "reviewApproved"
-                        : "reviewPending",
-                  )}
-                </Badge>
-              </div>
-              <p className="mt-2 text-sm text-ink/80">{t(r.text)}</p>
-              {r.images.length > 0 && (
-                <div className="mt-2 grid grid-cols-3 gap-1.5">
-                  {r.images.map((src, i) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={`${r.id}-${i}`}
-                      src={src}
-                      alt=""
-                      className="h-20 w-full rounded-cell object-cover"
-                    />
-                  ))}
+          {myReviews.map((r) => {
+            const clinic = db.clinics.find((c) => c.id === r.clinicId);
+            const expanded = expandedReviewId === r.id;
+            return (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() =>
+                  setExpandedReviewId((cur) => (cur === r.id ? null : r.id))
+                }
+                className="block w-full rounded-cell bg-white/70 p-3 text-left transition duration-100 hairline hover:bg-white active:scale-[0.99]"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate text-sm font-semibold">
+                    {clinic ? t(clinic.name) : t("clinicFallback")}
+                  </span>
+                  <Badge tone={r.approved ? "pink" : "neutral"}>
+                    {t(
+                      r.blocked
+                        ? "reviewBlocked"
+                        : r.approved
+                          ? "reviewApproved"
+                          : "reviewPending",
+                    )}
+                  </Badge>
                 </div>
-              )}
-            </div>
-          ))}
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <span className="text-sm">{"★".repeat(r.rating)}</span>
+                  {r.code && (
+                    <Badge tone="pink">
+                      {t("reviewCode")} {r.code}
+                    </Badge>
+                  )}
+                </div>
+                <p
+                  className={`mt-2 text-sm text-ink/80 ${expanded ? "" : "line-clamp-2"}`}
+                >
+                  {t(r.text)}
+                </p>
+
+                {expanded && (
+                  <div className="animate-pop mt-2 space-y-2">
+                    <div className="text-[11px] text-ink-sub">
+                      {r.createdAt.slice(0, 10)}
+                    </div>
+                    {r.images.length > 0 && (
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {r.images.map((src, i) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={`${r.id}-${i}`}
+                            src={src}
+                            alt=""
+                            className="h-20 w-full rounded-cell object-cover"
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <span className="mt-2 inline-block text-xs text-hb-600 underline">
+                  {expanded ? t("close") : t("detail")}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </GlassCard>
     </div>

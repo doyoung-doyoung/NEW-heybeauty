@@ -34,7 +34,7 @@ import { asset } from "./assets";
 const BASE_DATE = new Date("2026-09-17T09:00:00+07:00");
 
 // 스키마가 바뀌면 올린다. 저장된 데모 데이터가 이 값과 다르면 새 시드로 갈아끼운다.
-export const SEED_VERSION = 10;
+export const SEED_VERSION = 11;
 
 function rng(seed: number) {
   let a = seed >>> 0;
@@ -60,6 +60,20 @@ function shiftDays(days: number) {
 
 function dateOnly(days: number) {
   return shiftDays(days).slice(0, 10);
+}
+
+// 투자자 데모 지점(C01-B1)의 예약·차트만 여기서 재는 "오늘"을 기준으로 날짜를 잡는다.
+// 나머지는 BASE_DATE에 고정해 둬야 재현 가능한데, 이 지점만은 시간이 지나도 항상
+// "이번 주" 처럼 보여야 해서 실제 현재 시각을 앵커로 쓴다. migrate.ts가 매번 이 지점의
+// 예약·차트를 새로 그려 넣어야 이 값이 뜻이 있다.
+function shiftFromToday(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+}
+
+function todayOnly(days: number) {
+  return shiftFromToday(days).slice(0, 10);
 }
 
 const PRODUCTS: Product[] = [
@@ -706,6 +720,7 @@ export function buildSeed(): DemoDb {
   // 예약자는 그 지점 고객 카드(…-CU1~5)다. 기준일 20일 전부터 30일 뒤까지 흩어 놓고,
   // 지난 예약은 대부분 방문완료(가끔 취소), 앞으로의 예약은 예약확정이다.
   // 난수를 따로 굴려서 위쪽 시드(재고·차트 등)의 값이 이 블록 때문에 바뀌지 않게 한다.
+  // 투자자 데모 지점(C01-B1)만은 "오늘" 기준으로 날짜를 잡는다(migrate.ts가 매번 새로 그려 넣음).
   {
     const r = rng(20260927);
     const TIMES = ["10:00", "11:30", "13:00", "14:30", "16:00", "17:30", "19:00"];
@@ -720,6 +735,7 @@ export function buildSeed(): DemoDb {
           const offset = -20 + Math.floor(r() * 51);
           const who = people[Math.floor(r() * people.length)];
           const past = offset < 0;
+          const evergreen = b.id === "C01-B1";
           bookings.push({
             id: `${b.id}-BK${k + 1}`,
             userId: who.id,
@@ -727,18 +743,97 @@ export function buildSeed(): DemoDb {
             branchId: b.id,
             treatmentId: pool[Math.floor(r() * pool.length)].id,
             doctorId: `${b.id}-D${1 + Math.floor(r() * 2)}`,
-            date: dateOnly(offset),
+            date: evergreen ? todayOnly(offset) : dateOnly(offset),
             time: TIMES[Math.floor(r() * TIMES.length)],
             depositTHB: 1000,
             slipImage: null,
             status: past ? (r() < 0.12 ? "취소" : "방문완료") : "예약확정",
             usedReviewCode: null,
-            createdAt: shiftDays(offset - 3 - Math.floor(r() * 10)),
+            createdAt: (evergreen ? shiftFromToday : shiftDays)(
+              offset - 3 - Math.floor(r() * 10),
+            ),
           });
         }
       });
     bookings.sort((a, b) => (a.date + a.time < b.date + b.time ? 1 : -1));
   }
+
+  // 투자자 데모 지점(C01-B1)의 전자차트를 9건으로 채운다. 위 고객 루프(cu<2)가 이미 2건을
+  // 만들어 뒀으니 7건만 더한다. 방문일은 오늘 기준 최근 한 달 안쪽이라 "최근 1개월 매출"이
+  // 항상 뜻이 있는 값을 보여준다.
+  const c01B1Customers = customers.filter((c) => c.branchId === "C01-B1");
+  const c01B1Doctors = doctors.filter((d) => d.branchId === "C01-B1");
+  const c01B1Staff = staff.filter((s) => s.branchId === "C01-B1");
+  const c01B1Treatments = treatments.filter((t) => t.clinicId === "C01");
+  const evergreenChartComments = [
+    "시술 부위 홍조 경미, 2주 후 경과 관찰 예정",
+    "통증 호소 없음, 마취크림 20분 적용",
+    "다운타임 안내 완료, 재방문 4주 후 권장",
+    "부기 거의 없음, 냉찜질 안내",
+    "다음 시술까지 4주 간격 권장",
+  ];
+  for (let n = 1; n <= 7; n++) {
+    charts.push({
+      id: `C01-B1-EVG${n}`,
+      customerId: pick(c01B1Customers).id,
+      clinicId: "C01",
+      branchId: "C01-B1",
+      visitDate: todayOnly(-between(1, 28)),
+      doctorId: pick(c01B1Doctors).id,
+      staffId: pick(c01B1Staff).id,
+      treatmentNames: [pick(c01B1Treatments).name],
+      usedProducts: [{ productId: pick(PRODUCTS).id, qty: between(1, 3) }],
+      comment: pick(evergreenChartComments),
+      paidAmount: between(3000, 45000),
+    });
+  }
+
+  // 투자자 데모 지점(C01-B1)의 통합 인박스를 11개로 채운다. 위 루프가 이미 LINE·Meta·App
+  // 한 개씩(IN1~3)을 만들어 뒀으니, 헤이뷰티(App) 위주로 8개를 더해 총 11개·App 5개를 맞춘다.
+  const evergreenInboxPlan: { channel: InboxThread["channel"]; count: number }[] = [
+    { channel: "LINE", count: 2 },
+    { channel: "Meta", count: 2 },
+    { channel: "App", count: 4 },
+  ];
+  const evergreenInboxQuestions = [
+    "안녕하세요, 레이저 토닝 가격 문의드려요",
+    "이번 주 토요일 예약 가능한가요?",
+    "보톡스 프로모션 아직 하나요?",
+    "리쥬란 몇 회 받아야 효과 있나요?",
+    "필러 유지 기간이 얼마나 되나요?",
+    "주차 가능한가요?",
+    "상담만 먼저 받아볼 수 있을까요?",
+    "다음 방문 시 할인 받을 수 있나요?",
+  ];
+  let evergreenInboxSeq = 4;
+  evergreenInboxPlan.forEach(({ channel, count }) => {
+    for (let n = 0; n < count; n++) {
+      const id = `C01-B1-IN${evergreenInboxSeq++}`;
+      inbox.push({
+        id,
+        clinicId: "C01",
+        branchId: "C01-B1",
+        channel,
+        customerName: `${pick(CUSTOMER_FIRST)} ${pick(CUSTOMER_LAST)}`,
+        unread: rand() < 0.3,
+        updatedAt: shiftFromToday(-between(0, 6)),
+        messages: [
+          {
+            id: `${id}-M1`,
+            role: "user",
+            text: pick(evergreenInboxQuestions),
+            at: shiftFromToday(-between(1, 6)),
+          },
+          {
+            id: `${id}-M2`,
+            role: "clinic",
+            text: "문의 감사합니다! 담당 상담사가 곧 안내드리겠습니다.",
+            at: shiftFromToday(-between(0, 1)),
+          },
+        ],
+      });
+    }
+  });
 
   const reviewCodes: ReviewCode[] = [
     {
@@ -775,6 +870,7 @@ export function buildSeed(): DemoDb {
       images: ["/reviews/RV1-1.jpg", "/reviews/RV1-2.jpg"],
       approved: true,
       blocked: false,
+      pinned: false,
       createdAt: shiftDays(-12),
     },
     {
@@ -787,6 +883,7 @@ export function buildSeed(): DemoDb {
       images: ["/reviews/RV2-1.jpg", "/reviews/RV2-2.jpg"],
       approved: false,
       blocked: false,
+      pinned: false,
       createdAt: shiftDays(-4),
     },
   ];

@@ -13,24 +13,44 @@ type Row = { id: string };
 export function migrate(saved: DemoDb | null): DemoDb {
   const fresh = buildSeed();
   if (!saved || typeof saved.version !== "number") return fresh;
-  if (saved.version === SEED_VERSION) return saved;
 
-  const merged: Record<string, unknown> = { ...fresh, version: SEED_VERSION };
+  let result: DemoDb;
+  if (saved.version === SEED_VERSION) {
+    result = saved;
+  } else {
+    const merged: Record<string, unknown> = { ...fresh, version: SEED_VERSION };
 
-  for (const [key, freshRows] of Object.entries(fresh)) {
-    const savedRows = (saved as unknown as Record<string, unknown>)[key];
-    if (!Array.isArray(freshRows) || !Array.isArray(savedRows)) continue;
+    for (const [key, freshRows] of Object.entries(fresh)) {
+      const savedRows = (saved as unknown as Record<string, unknown>)[key];
+      if (!Array.isArray(freshRows) || !Array.isArray(savedRows)) continue;
 
-    const savedIds = new Set((savedRows as Row[]).map((r) => r.id));
-    merged[key] = [
-      ...(savedRows as Row[]),
-      ...(freshRows as Row[]).filter((r) => !savedIds.has(r.id)),
-    ];
+      const savedIds = new Set((savedRows as Row[]).map((r) => r.id));
+      merged[key] = [
+        ...(savedRows as Row[]),
+        ...(freshRows as Row[]).filter((r) => !savedIds.has(r.id)),
+      ];
+    }
+
+    result = merged as unknown as DemoDb;
   }
 
-  const out = merged as unknown as DemoDb;
-  if (saved.version < 10) refreshV10(out, fresh);
-  return out;
+  if (saved.version < 10) refreshV10(result, fresh);
+
+  // 투자자 데모 지점(사얌 본점 · C01-B1)의 예약·차트는 "오늘" 기준으로 만들어지므로,
+  // 저장본에 그대로 얼려 두면 날마다 과거로 밀려난다. 그래서 이 지점만은 매번 새로
+  // 그린 값으로 갈아 끼운다 — 그날 클릭해 바꾼 상태(방문완료 등)는 새로고침하면
+  // 초기화되지만, 그 대신 언제 열어도 "이번 주" 예약처럼 보인다.
+  return {
+    ...result,
+    bookings: [
+      ...result.bookings.filter((b) => b.branchId !== "C01-B1"),
+      ...fresh.bookings.filter((b) => b.branchId === "C01-B1"),
+    ],
+    charts: [
+      ...result.charts.filter((c) => c.branchId !== "C01-B1"),
+      ...fresh.charts.filter((c) => c.branchId === "C01-B1"),
+    ],
+  };
 }
 
 /**

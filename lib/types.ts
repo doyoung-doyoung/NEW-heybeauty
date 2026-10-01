@@ -192,6 +192,8 @@ export interface Review {
   images: string[];
   approved: boolean;
   blocked: boolean;
+  /** 어드민이 상단 고정한 후기. 관리용 표에서만 쓰인다. */
+  pinned: boolean;
   createdAt: string;
 }
 

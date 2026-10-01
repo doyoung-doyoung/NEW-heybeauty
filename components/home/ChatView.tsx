@@ -142,9 +142,12 @@ export default function ChatView({
 
   const empty = bubbles.length === 0;
 
+  // 대화 전에는 예시질문 카드가 두 장뿐이라, 채팅창 높이를 꽉 채우는 레이아웃을 그대로
+  // 쓰면 카드 밑에 화면 절반이 빈 채로 남고 입력창은 저 아래로 떠밀려 나간다. 대화가
+  // 없는 동안은 높이를 내용만큼만 쓰게 해서 예시질문 바로 아래에 입력창이 붙게 한다.
   return (
-    <div className="flex h-[calc(100dvh-14rem)] min-h-[28rem] flex-col">
-      <div className="flex-1 space-y-4 overflow-y-auto pr-1">
+    <div className={empty ? "flex flex-col" : "flex h-[calc(100dvh-14rem)] min-h-[28rem] flex-col"}>
+      <div className={empty ? "" : "flex-1 space-y-4 overflow-y-auto pr-1"}>
         {empty && (
           <div className="animate-rise pt-6">
             <h2 className="text-2xl font-bold leading-snug">
@@ -177,7 +180,7 @@ export default function ChatView({
           </div>
         )}
 
-        {bubbles.map((b) => (
+        {!empty && bubbles.map((b) => (
           <div key={b.id} className="animate-pop">
             <div
               className={

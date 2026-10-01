@@ -42,7 +42,18 @@ export default function ClinicsView({
     isAll ||
     db.treatments.some((x) => x.clinicId === clinicId && x.category === category);
 
-  const clinics = db.clinics.filter((c) => matches(c.id));
+  // 지금 보이는 카테고리 안에서 제일 싼 시술 가격. 시술이 없으면 정렬 맨 뒤로 밀려나게 무한대.
+  const cheapestPrice = (clinicId: string) => {
+    const pool = db.treatments.filter(
+      (x) => x.clinicId === clinicId && (isAll || x.category === category),
+    );
+    return pool.length ? Math.min(...pool.map((x) => x.price)) : Infinity;
+  };
+  // 리스트 맨 위 카드에 "최저가" 배지를 붙이는데, 그 배지가 거짓말이 되면 안 되니까
+  // 진짜로 제일 싼 클리닉이 맨 위로 오게 정렬한다.
+  const clinics = db.clinics
+    .filter((c) => matches(c.id))
+    .sort((a, b) => cheapestPrice(a.id) - cheapestPrice(b.id));
   const open = openId ? db.clinics.find((c) => c.id === openId) : null;
 
   if (open) {
@@ -147,7 +158,7 @@ export default function ClinicsView({
                   key={p.id}
                   type="button"
                   onClick={() => setPromoId(p.id)}
-                  className="lift group rounded-cell bg-hb-50 p-4 text-left hairline"
+                  className="lift group rounded-cell bg-hb-50 p-4 text-left transition duration-100 hairline active:scale-[0.97]"
                 >
                   <Badge tone="pink">{p.discountPct}%</Badge>
                   <div className="mt-2 text-sm font-semibold">{t(p.title)}</div>
@@ -273,12 +284,15 @@ export default function ClinicsView({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+      {/* 칩이 줄바꿈되면 두 번째 줄이 화면 아래로 밀려 안 보인다. 한 줄로 고정하고
+          다 안 들어가면 옆으로 넘기게 한다 — HomeTab 사이드 탭과 같은 패턴. */}
+      <div className="flex gap-2 overflow-x-auto pb-1">
         {CATEGORIES.map((c) => (
           <GhostButton
             key={c}
             active={c === category}
             onClick={() => setCategory(c)}
+            className="shrink-0 whitespace-nowrap"
           >
             {t(`cat${CATEGORY_KEY[c] ?? c}`)}
           </GhostButton>
@@ -314,7 +328,7 @@ export default function ClinicsView({
 
       {!isMap && (
       <div className="grid gap-4 sm:grid-cols-2">
-        {clinics.map((c) => {
+        {clinics.map((c, idx) => {
           const pool = db.treatments.filter((x) => x.clinicId === c.id);
           const scoped = isAll
             ? pool
@@ -356,13 +370,18 @@ export default function ClinicsView({
                   </div>
                 </div>
 
-                {promo && (
-                  <div className="mt-3">
-                    <Badge tone="pink">
-                      {t(promo.title)} {promo.discountPct}%
-                    </Badge>
+                {(idx === 0 && best) || promo ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {idx === 0 && best && (
+                      <Badge tone="pink">{t("fromPrice")}</Badge>
+                    )}
+                    {promo && (
+                      <Badge tone="pink">
+                        {t(promo.title)} {promo.discountPct}%
+                      </Badge>
+                    )}
                   </div>
-                )}
+                ) : null}
 
                 <div className="mt-3 flex items-end justify-between gap-2 border-t border-ink/10 pt-3">
                   <div className="min-w-0">
