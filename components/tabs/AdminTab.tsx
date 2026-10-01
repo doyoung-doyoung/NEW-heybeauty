@@ -5,6 +5,8 @@ import { useDb } from "@/lib/db";
 import { useToast } from "@/components/ui/Toast";
 import { isLowStock, LOW_STOCK_QTY } from "@/lib/stock";
 import { TREATMENT_POOL } from "@/lib/seed";
+import { asset } from "@/lib/assets";
+import { DIST_ROWS, type DistCheck } from "@/lib/distributors";
 import {
   BASELINE_TOTAL,
   COMMISSION_BASELINE,
@@ -250,6 +252,7 @@ function InventorySection() {
   }
 
   return (
+    <div className="space-y-4">
     <GlassCard className="p-6">
       <SectionTitle
         title="전체 재고 현황"
@@ -340,6 +343,112 @@ function InventorySection() {
         </Table>
       </TableOnly>
 
+    </GlassCard>
+
+    <DistributorTable />
+    </div>
+  );
+}
+
+const DIST_FILTERS: { id: string; label: string; match: (cat: string) => boolean }[] = [
+  { id: "all", label: "전체", match: () => true },
+  { id: "toxin", label: "톡신", match: (c) => c === "톡신" },
+  { id: "filler", label: "필러", match: (c) => c === "필러" || c === "바이오스티뮬레이터" },
+  { id: "booster", label: "스킨부스터 · 메조", match: (c) => c === "스킨부스터" || c === "메조" },
+  { id: "device", label: "장비", match: (c) => c.startsWith("장비") },
+  { id: "supply", label: "소모품", match: (c) => c === "소모품" },
+];
+
+const CHECK_TONE: Record<DistCheck, "neutral" | "pink" | "danger" | "ink"> = {
+  확인: "ink",
+  제공: "ink",
+  추정: "neutral",
+  미확인: "danger",
+};
+
+/**
+ * 어떤 유통업체가 어떤 제품을 얼마에 공급하는지. RAON이 클리닉 주문을 받아
+ * 넘기는 상대가 이 업체들이다. 데이터는 lib/distributors.ts.
+ */
+function DistributorTable() {
+  const { db } = useDb();
+  const [filter, setFilter] = useState("all");
+  if (!db) return null;
+
+  const f = DIST_FILTERS.find((x) => x.id === filter) ?? DIST_FILTERS[0];
+  const rows = DIST_ROWS.filter((r) => f.match(r.category));
+  const companies = new Set(DIST_ROWS.filter((r) => r.check !== "미확인").map((r) => r.distributor));
+  const imageOf = (r: (typeof DIST_ROWS)[number]) =>
+    r.image ?? db.products.find((p) => p.id === r.productId)?.image ?? "";
+
+  return (
+    <GlassCard className="p-6">
+      <SectionTitle
+        title="유통업체 · 유통 제품"
+        sub={`유통업체 ${companies.size}곳 · 제품 ${DIST_ROWS.length}종 · 가격은 공급 참고가(฿)`}
+      />
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        {DIST_FILTERS.map((x) => (
+          <GhostButton key={x.id} active={filter === x.id} onClick={() => setFilter(x.id)}>
+            {x.label} ({DIST_ROWS.filter((r) => x.match(r.category)).length})
+          </GhostButton>
+        ))}
+      </div>
+
+      <TableOnly maxH="max-h-[32rem]">
+        <Table minW="min-w-[54rem]">
+          <Thead>
+            <Th stick>제품</Th>
+            <Th>카테고리</Th>
+            <Th>규격</Th>
+            <Th>유통업체</Th>
+            <Th>유통 구분</Th>
+            <Th align="right">공급가</Th>
+            <Th>정보</Th>
+          </Thead>
+          <tbody>
+            {rows.map((r) => {
+              const img = imageOf(r);
+              return (
+                <Tr key={r.id}>
+                  <Td stick className="max-w-[12rem] lg:max-w-none">
+                    <div className="flex items-center gap-2.5">
+                      {img ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={img} alt="" className="h-10 w-10 shrink-0 rounded-cell bg-white object-contain hairline" />
+                      ) : (
+                        <span className="h-10 w-10 shrink-0 rounded-cell bg-white hairline" />
+                      )}
+                      <span className="truncate font-medium">{r.product}</span>
+                    </div>
+                  </Td>
+                  <Td muted>{r.category}</Td>
+                  <Td muted>{r.spec}</Td>
+                  <Td wrap>
+                    <div className={r.check === "미확인" ? "text-ink-sub" : "font-medium"}>{r.distributor}</div>
+                    {r.distributorTh && <div className="text-[11px] text-ink-sub">{r.distributorTh}</div>}
+                  </Td>
+                  <Td>
+                    <Badge tone={r.route === "정식" ? "neutral" : "pink"}>{r.route}</Badge>
+                  </Td>
+                  <Td align="right" nums>
+                    <span className="font-bold">฿{r.priceTHB.toLocaleString()}</span>
+                  </Td>
+                  <Td wrap>
+                    <Badge tone={CHECK_TONE[r.check]}>{r.check}</Badge>
+                    {r.note && <div className="mt-1 text-[11px] text-ink-sub">{r.note}</div>}
+                  </Td>
+                </Tr>
+              );
+            })}
+          </tbody>
+        </Table>
+      </TableOnly>
+
+      <p className="mt-3 text-[11px] leading-relaxed text-ink-sub">
+        확인 = 기사·클리닉 안내에서 태국 수입사로 확인 · 추정 = 브랜드 본사의 태국 법인 · 제공 = 도도 제공 정보 · 미확인 = 공식 수입사 확인 필요
+      </p>
     </GlassCard>
   );
 }
@@ -1603,9 +1712,13 @@ function ClinicRegister({
 
 const NOTICE_TARGETS: NoticeTarget[] = ["전체", "유저", "클리닉"];
 
+// 광고 이미지(PA1~3)는 2026-10-01에 만든 실제 홍보용 배너다. 날짜를 넣지 않았다.
 const POPUP_PRESETS = [
-  { src: "/popups/PP2.jpg", label: "시술" },
-  { src: "/popups/PP1.jpg", label: "화장품" },
+  { src: asset("popups/PA1_whitening.jpg"), label: "화이트닝 페스티벌", title: "화이트닝 페스티벌", body: "전국 제휴 클리닉 화이트닝 시술 최대 20% 할인" },
+  { src: asset("popups/PA2_lifting.jpg"), label: "V라인 리프팅 위크", title: "V라인 리프팅 위크", body: "RF 리프팅 · 하이푸 · V라인 보톡스 최대 25% 할인" },
+  { src: asset("popups/PA3_skinbooster.jpg"), label: "스킨부스터 스페셜", title: "스킨부스터 스페셜", body: "리쥬란 · 엑소좀 스킨부스터 최대 15% 할인" },
+  { src: "/popups/PP2.jpg", label: "시술 사진", title: "", body: "" },
+  { src: "/popups/PP1.jpg", label: "화장품", title: "", body: "" },
 ];
 
 function NoticeSection() {
@@ -1744,9 +1857,15 @@ function NoticeSection() {
                     <button
                       key={preset.src}
                       type="button"
-                      onClick={() =>
-                        setImages(images[0] === preset.src ? [] : [preset.src])
-                      }
+                      onClick={() => {
+                        const picking = images[0] !== preset.src;
+                        setImages(picking ? [preset.src] : []);
+                        // 광고 배너를 고르면 비어 있는 제목·본문을 그 광고 문구로 채워 준다.
+                        if (picking && preset.title) {
+                          if (!title.trim()) setTitle(preset.title);
+                          if (!body.trim()) setBody(preset.body);
+                        }
+                      }}
                       className={`overflow-hidden rounded-cell text-left transition hairline ${
                         images[0] === preset.src
                           ? "ring-2 ring-ink"
@@ -1757,7 +1876,7 @@ function NoticeSection() {
                       <img
                         src={preset.src}
                         alt={preset.label}
-                        className="h-16 w-full object-cover"
+                        className="aspect-[12/5] w-full object-cover"
                       />
                       <span className="block px-2 py-1 text-[11px] font-semibold">
                         {preset.label}
