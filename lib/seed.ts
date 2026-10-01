@@ -2,7 +2,6 @@ import type {
   Account,
   AppUser,
   Booking,
-  BookingStatus,
   Branch,
   ChatThread,
   Clinic,
@@ -28,11 +27,14 @@ import type {
   Treatment,
 } from "./types";
 import { COMMISSION_BASELINE } from "./commission";
+import { CONSUMABLE_PRODUCTS, supplierOf } from "./distributors";
+import { PROVINCES } from "./geo";
+import { asset } from "./assets";
 
 const BASE_DATE = new Date("2026-09-17T09:00:00+07:00");
 
 // 스키마가 바뀌면 올린다. 저장된 데모 데이터가 이 값과 다르면 새 시드로 갈아끼운다.
-export const SEED_VERSION = 10;
+export const SEED_VERSION = 11;
 
 function rng(seed: number) {
   let a = seed >>> 0;
@@ -188,7 +190,7 @@ const SMS_TEXTS: Record<SmsLog["template"], (name: string) => string> = {
   재방문: (name) =>
     `${name}님, 지난 시술 후 4주가 지났습니다. 다음 회차 예약을 도와드릴까요?`,
   프로모션: (name) =>
-    `${name}님, 9월 화이트닝 페스티벌 진행 중입니다. 레이저 토닝 3회 패키지 20% 할인!`,
+    `${name}님, 화이트닝 페스티벌 진행 중입니다. 레이저 토닝 3회 패키지 20% 할인!`,
 };
 
 function makeHours(offset: number): Hours[] {
@@ -295,7 +297,7 @@ export function buildSeed(): DemoDb {
           distribution: (rand() > 0.72 ? "병행수입" : "정식") as Distribution,
           volume: pick(["1ml", "2ml", "100U", "500U", "5ml", "10 vial"]),
           expiry: dateOnly(between(90, 720)),
-          supplier: pick(SUPPLIERS),
+          supplier: supplierOf(product.id, pick(SUPPLIERS)),
           manager: STAFF_NAMES[(ci + bi + iv) % STAFF_NAMES.length],
           purchaseDate: dateOnly(-between(20, 300)),
           purchasePrice: between(900, 9000),
@@ -442,10 +444,6 @@ export function buildSeed(): DemoDb {
     });
   });
 
-  // 손으로 쓴 열 곳의 지점만 담아 둔다. 채움용 클리닉(C11~C99)의 지점은 예약을 안 만든다 —
-  // 아래 예약 채움 루프가 이 스냅샷을 쓰므로, 뒤이어 오는 채움용 지점은 여기 안 잡힌다.
-  const demoBranches = branches.slice();
-
   // 재고 한 칸마다 입출고 기록을 20건 안팎으로 쌓는다.
   // 한 줄("초기 재고 등록")만 있으면 상세 화면이 텅 비어서, 재고가 실제로 돌아간 것처럼 안 보인다.
   // 맨 아래가 최초 입고이고 위로 올라올수록 최근이다.
@@ -538,7 +536,13 @@ export function buildSeed(): DemoDb {
    */
   for (let ci = CLINIC_DEFS.length; ci < CLINIC_COUNT; ci++) {
     const clinicId = `C${String(ci + 1).padStart(2, "0")}`;
-    const district = FILLER_DISTRICTS[(ci * 7) % FILLER_DISTRICTS.length];
+    // 세 곳 중 한 곳은 지방 도시(치앙마이·푸켓·파타야…)에 둔다. 방콕 69곳 + 지방 30곳.
+    // 지점 있는 클리닉(ci % 3 === 0)과 겹치지 않게 ci % 3 === 2만 지방으로 보낸다.
+    const province = ci % 3 === 2 ? PROVINCES[(ci * 5) % PROVINCES.length] : null;
+    const district = province ? province.name : FILLER_DISTRICTS[(ci * 7) % FILLER_DISTRICTS.length];
+    const city = province ? province.name : "방콕";
+    const areaCode = province ? province.area : "02";
+    const slug = province ? province.slug : DISTRICT_SLUG[district];
     const brand = FILLER_BRANDS[(ci * 3) % FILLER_BRANDS.length];
     const name = `${district} ${brand} ${FILLER_SUFFIXES[ci % FILLER_SUFFIXES.length]}`;
     const hasBranches = ci % 3 === 0;
@@ -549,9 +553,12 @@ export function buildSeed(): DemoDb {
       name,
       hasBranches,
       district,
-      address: `${district} 로드 ${between(10, 240)}, 방콕`,
-      phone: `02-${between(200, 999)}-${between(1000, 9999)}`,
-      lineId: `@${DISTRICT_SLUG[district]}${ci + 1}`,
+      // 지방은 동네 = 도시라서 "푸켓 로드, 푸켓"처럼 겹친다. 번지 + 메인 로드로 적는다.
+      address: province
+        ? `${between(10, 240)} 메인 로드, ${city}`
+        : `${district} 로드 ${between(10, 240)}, ${city}`,
+      phone: `${areaCode}-${between(200, 999)}-${between(1000, 9999)}`,
+      lineId: `@${slug}${ci + 1}`,
       parking: pick(["발렛 가능", "건물 주차장 2시간 무료", "인근 유료 주차", "주차 불가 (BTS 도보 3분)"]),
       hours: makeHours(ci),
       rating: Number((4.0 + rand() * 0.9).toFixed(1)),
@@ -579,8 +586,10 @@ export function buildSeed(): DemoDb {
         id: branchId,
         clinicId,
         name: hasBranches ? FILLER_BRANCH_AREAS[(ci + bi) % FILLER_BRANCH_AREAS.length] : "본점",
-        address: `${district} 소이 ${between(1, 60)}, 방콕`,
-        phone: `02-${between(200, 999)}-${between(1000, 9999)}`,
+        address: province
+          ? `소이 ${between(1, 60)}, ${city}`
+          : `${district} 소이 ${between(1, 60)}, ${city}`,
+        phone: `${areaCode}-${between(200, 999)}-${between(1000, 9999)}`,
         parking: pick(["발렛 가능", "건물 주차장 2시간 무료", "인근 유료 주차"]),
         hours: makeHours(ci + bi),
       });
@@ -611,7 +620,7 @@ export function buildSeed(): DemoDb {
         distribution: (rand() > 0.72 ? "병행수입" : "정식") as Distribution,
         volume: pick(["1ml", "2ml", "100U", "500U", "5ml", "10 vial"]),
         expiry: dateOnly(between(90, 720)),
-        supplier: pick(SUPPLIERS),
+        supplier: supplierOf(product.id, pick(SUPPLIERS)),
         manager: STAFF_NAMES[(ci + iv) % STAFF_NAMES.length],
         purchaseDate: dateOnly(-between(20, 300)),
         purchasePrice: between(900, 9000),
@@ -707,65 +716,47 @@ export function buildSeed(): DemoDb {
     },
   ];
 
-  // A-3: "예약 확인"이 표(→ 시간×의사 그리드)로 볼 만한 규모가 되도록 지점마다 채운다.
-  // 위 BK1·BK2는 후기코드·커미션 데모와 엮여 있어 그대로 둔다.
-  // 홈 탭 "내 예약"은 U1·U2만 걸러서 보여주므로(UserPanels.tsx MyBookings) 그 화면이
-  // 엉뚱한 지점들로 흔들리지 않게, 채움용 예약은 U3·U4만 쓴다.
-  // 이 블록은 파일에서 rand()를 쓰는 마지막 코드라 — 채움용 클리닉(C11~C99)을 포함해
-  // 이 앞의 모든 시드 값에는 영향이 없다.
-  const BOOKING_TIMES = [
-    "09:30", "10:30", "11:00", "13:00", "13:30",
-    "14:30", "15:30", "16:00", "17:00", "17:30",
-  ];
-  let bookingSeq = 3;
-  demoBranches.forEach((branch) => {
-    const branchTreatments = treatments.filter((t) => t.clinicId === branch.clinicId);
-    const branchDoctors = doctors.filter((d) => d.branchId === branch.id);
-    // 파트너 데모 기본 로그인 지점(C01-B1)만 조금 더 채워서 그리드가 휑해 보이지 않게 한다.
-    const isEvergreen = branch.id === "C01-B1";
-    const dayCount = isEvergreen ? 6 : between(3, 4);
-    const usedOffsets = new Set<number>();
-
-    for (let d = 0; d < dayCount; d++) {
-      let offset = between(-18, 16);
-      while (usedOffsets.has(offset)) offset = between(-18, 16);
-      usedOffsets.add(offset);
-
-      // 같은 날 두 의사 다 채우는 날도 섞는다 — 그래야 그리드 열이 둘 다 보인다.
-      const doctorsToday =
-        isEvergreen && rand() < 0.5 ? branchDoctors : [pick(branchDoctors)];
-      const usedTimes = new Set<string>();
-
-      doctorsToday.forEach((doctor) => {
-        let time = pick(BOOKING_TIMES);
-        while (usedTimes.has(time)) time = pick(BOOKING_TIMES);
-        usedTimes.add(time);
-
-        const status: BookingStatus =
-          offset < 0
-            ? rand() < 0.85 ? "방문완료" : "취소"
-            : rand() < 0.85 ? "예약확정" : "취소";
-
-        bookings.push({
-          id: `BK${bookingSeq++}`,
-          userId: rand() < 0.5 ? "U3" : "U4",
-          clinicId: branch.clinicId,
-          branchId: branch.id,
-          treatmentId: pick(branchTreatments).id,
-          doctorId: doctor.id,
-          date: isEvergreen ? todayOnly(offset) : dateOnly(offset),
-          time,
-          depositTHB: 1000,
-          slipImage: null,
-          status,
-          usedReviewCode: null,
-          createdAt: isEvergreen
-            ? shiftFromToday(offset - between(1, 5))
-            : shiftDays(offset - between(1, 5)),
-        });
+  // 예약 확인 달력이 비어 보이지 않게, 손으로 쓴 10곳의 지점마다 예약을 깔아 둔다.
+  // 예약자는 그 지점 고객 카드(…-CU1~5)다. 기준일 20일 전부터 30일 뒤까지 흩어 놓고,
+  // 지난 예약은 대부분 방문완료(가끔 취소), 앞으로의 예약은 예약확정이다.
+  // 난수를 따로 굴려서 위쪽 시드(재고·차트 등)의 값이 이 블록 때문에 바뀌지 않게 한다.
+  // 투자자 데모 지점(C01-B1)만은 "오늘" 기준으로 날짜를 잡는다(migrate.ts가 매번 새로 그려 넣음).
+  {
+    const r = rng(20260927);
+    const TIMES = ["10:00", "11:30", "13:00", "14:30", "16:00", "17:30", "19:00"];
+    branches
+      .filter((b) => Number(b.clinicId.slice(1)) <= CLINIC_DEFS.length)
+      .forEach((b) => {
+        const pool = treatments.filter((t) => t.clinicId === b.clinicId);
+        const people = customers.filter((c) => c.branchId === b.id);
+        if (!pool.length || !people.length) return;
+        const n = 14 + Math.floor(r() * 8);
+        for (let k = 0; k < n; k++) {
+          const offset = -20 + Math.floor(r() * 51);
+          const who = people[Math.floor(r() * people.length)];
+          const past = offset < 0;
+          const evergreen = b.id === "C01-B1";
+          bookings.push({
+            id: `${b.id}-BK${k + 1}`,
+            userId: who.id,
+            clinicId: b.clinicId,
+            branchId: b.id,
+            treatmentId: pool[Math.floor(r() * pool.length)].id,
+            doctorId: `${b.id}-D${1 + Math.floor(r() * 2)}`,
+            date: evergreen ? todayOnly(offset) : dateOnly(offset),
+            time: TIMES[Math.floor(r() * TIMES.length)],
+            depositTHB: 1000,
+            slipImage: null,
+            status: past ? (r() < 0.12 ? "취소" : "방문완료") : "예약확정",
+            usedReviewCode: null,
+            createdAt: (evergreen ? shiftFromToday : shiftDays)(
+              offset - 3 - Math.floor(r() * 10),
+            ),
+          });
+        }
       });
-    }
-  });
+    bookings.sort((a, b) => (a.date + a.time < b.date + b.time ? 1 : -1));
+  }
 
   // 투자자 데모 지점(C01-B1)의 전자차트를 9건으로 채운다. 위 고객 루프(cu<2)가 이미 2건을
   // 만들어 뒀으니 7건만 더한다. 방문일은 오늘 기준 최근 한 달 안쪽이라 "최근 1개월 매출"이
@@ -968,7 +959,8 @@ export function buildSeed(): DemoDb {
   ];
 
   const popups: Popup[] = [
-    { id: "PP1", title: "9월 화이트닝 페스티벌", body: "전국 제휴 클리닉 화이트닝 시술 최대 20% 할인", image: "/popups/PP2.jpg", active: true },
+    // 날짜·월을 넣지 않는다. "9월 ○○"로 두면 10월이 되는 순간 다시 만들어야 한다.
+    { id: "PP1", title: "화이트닝 페스티벌", body: "전국 제휴 클리닉 화이트닝 시술 최대 20% 할인", image: asset("popups/PA1_whitening.jpg"), active: true },
   ];
 
   return {
@@ -979,7 +971,8 @@ export function buildSeed(): DemoDb {
     staff,
     treatments,
     promotions,
-    products: PRODUCTS,
+    // 소모품은 뒤에 따로 붙인다. PRODUCTS 길이가 바뀌면 재고 시드가 고르는 제품이 전부 밀린다.
+    products: [...PRODUCTS, ...CONSUMABLE_PRODUCTS],
     inventory,
     stockLogs,
     customers,

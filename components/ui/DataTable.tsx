@@ -25,8 +25,14 @@ export function TableOnly({
   // `rounded-cell`이 그냥 모양내기가 아니다. 둥근 모서리가 없으면 스크롤된 행이
   // 컨테이너 위쪽으로 비쳐 나와 헤더 위에 유령처럼 겹쳐 보인다(실제로 겪음).
   // 모서리를 굴리면 브라우저가 제대로 된 잘라내기 층을 만들어서 그 현상이 사라진다.
+  // 폰(sm 미만)에서는 모든 표를 화면 높이의 60%로 묶는다. 표가 화면보다 길면 페이지를 내리는
+  // 순간 헤더가 화면 밖으로 사라져서 "틀 고정"이 의미가 없어진다. 상자가 화면 안에 다 들어와야
+  // 그 안에서 위 줄(헤더)과 앞 칸(첫 열)이 고정된 채로 행만 움직인다.
+  // 넓은 화면 높이는 부르는 쪽이 `sm:max-h-[…]`로 정한다.
   return (
-    <div className={`overflow-auto rounded-cell ${maxH ?? ""}`}>{children}</div>
+    <div className={`max-h-[60svh] overflow-auto overscroll-contain rounded-cell ${maxH ?? ""}`}>
+      {children}
+    </div>
   );
 }
 
