@@ -1,5 +1,6 @@
 import type { DemoDb } from "./types";
 import { buildSeed, SEED_VERSION } from "./seed";
+import { LEGACY_SUPPLIERS, supplierOf } from "./distributors";
 
 type Row = { id: string };
 
@@ -27,5 +28,55 @@ export function migrate(saved: DemoDb | null): DemoDb {
     ];
   }
 
-  return merged as unknown as DemoDb;
+  const out = merged as unknown as DemoDb;
+  if (saved.version < 10) refreshV10(out, fresh);
+  return out;
+}
+
+/**
+ * v10(2026-10-01): 채움용 클리닉 30곳을 지방 도시로 옮기고, 팝업·SMS 문구에서 "9월"을 뺐다.
+ * 위의 합치기는 저장본을 우선하니 그대로 두면 예전 이름·주소가 남는다.
+ * 손으로 쓴 10곳(C01~C10)은 사용자가 고쳤을 수 있으니 건드리지 않고,
+ * 채움용(C11~)의 이름·동네·주소·연락처만 새 시드 값으로 덮어쓴다.
+ */
+function refreshV10(db: DemoDb, fresh: DemoDb) {
+  const isFiller = (clinicId: string) => Number(clinicId.slice(1)) > 10;
+
+  const freshClinic = new Map(fresh.clinics.map((c) => [c.id, c]));
+  db.clinics = db.clinics.map((c) => {
+    const f = freshClinic.get(c.id);
+    if (!f || !isFiller(c.id)) return c;
+    return { ...c, name: f.name, district: f.district, address: f.address, phone: f.phone, lineId: f.lineId, intro: f.intro };
+  });
+
+  const freshBranch = new Map(fresh.branches.map((b) => [b.id, b]));
+  db.branches = db.branches.map((b) => {
+    const f = freshBranch.get(b.id);
+    if (!f || !isFiller(b.clinicId)) return b;
+    return { ...b, name: f.name, address: f.address, phone: f.phone };
+  });
+
+  const freshAccount = new Map(fresh.accounts.map((a) => [a.id, a]));
+  db.accounts = db.accounts.map((a) => {
+    const f = freshAccount.get(a.id);
+    return f && a.kind === "clinic" && a.label !== f.label ? { ...a, label: f.label } : a;
+  });
+
+  // 시드가 만든 팝업만 새 광고 이미지·제목으로 바꾼다. 어드민에서 만든 팝업은 그대로.
+  const freshPopup = fresh.popups.find((p) => p.id === "PP1");
+  db.popups = db.popups.map((p) =>
+    p.id === "PP1" && freshPopup ? { ...p, title: freshPopup.title, body: freshPopup.body, image: freshPopup.image } : p,
+  );
+
+  db.smsLogs = db.smsLogs.map((m) =>
+    m.text.includes("9월 화이트닝") ? { ...m, text: m.text.replace("9월 화이트닝", "화이트닝") } : m,
+  );
+
+  db.inventory = db.inventory.map((i) =>
+    LEGACY_SUPPLIERS.includes(i.supplier) ? { ...i, supplier: supplierOf(i.productId) } : i,
+  );
+
+  // 제품 목록은 시드가 정답이다(소모품 5종 추가). 어드민에서 추가한 제품은 뒤에 남긴다.
+  const freshIds = new Set(fresh.products.map((p) => p.id));
+  db.products = [...fresh.products, ...db.products.filter((p) => !freshIds.has(p.id))];
 }

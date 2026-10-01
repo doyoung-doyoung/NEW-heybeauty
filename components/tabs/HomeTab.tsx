@@ -70,15 +70,16 @@ export default function HomeTab() {
     <div className="space-y-4">
       {popup && !popupClosed && (
         <div className="animate-rise overflow-hidden rounded-card bg-ink text-white">
-          {/* 배너에서는 이미지가 위아래로 잘린다. 눌러서 전체 이미지를 볼 수 있게 한다. */}
+          {/* 배너를 눌러도 크게 볼 수 있게 한다. */}
           <button
             type="button"
             onClick={() => setPopupOpen(true)}
             className="block w-full text-left"
           >
             {popup.image && (
+              // 광고 이미지에 글씨가 들어 있어서 위아래를 자르면 안 된다. 비율(12:5) 그대로 보여 준다.
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={popup.image} alt={popup.title} className="h-40 w-full object-cover" />
+              <img src={popup.image} alt={popup.title} className="aspect-[12/5] w-full object-cover" />
             )}
           </button>
           <div className="flex items-start justify-between gap-4 p-5">

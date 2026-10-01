@@ -7,12 +7,14 @@ import type { Promotion } from "@/lib/types";
 import { useDb } from "@/lib/db";
 import { useT } from "@/lib/i18n";
 import { ClinicPhoto } from "@/components/home/DemoAssets";
+import ClinicMap from "@/components/home/ClinicMap";
 import { Badge, GlassCard, InkButton, GhostButton } from "@/components/ui/primitives";
 
-const CATEGORIES = ["전체", "화이트닝", "V라인", "리프팅", "스킨부스터", "필러"];
+const MAP = "지도로 보기";
+const CATEGORIES = ["전체", MAP, "화이트닝", "V라인", "리프팅", "스킨부스터", "필러"];
 
-// 사전 키는 영문이라 "전체"만 갈아끼우면 나머지는 한국어 그대로 붙여 쓴다.
-const CATEGORY_KEY: Record<string, string> = { 전체: "All" };
+// 사전 키는 영문이라 "전체"·"지도로 보기"만 갈아끼우면 나머지는 한국어 그대로 붙여 쓴다.
+const CATEGORY_KEY: Record<string, string> = { 전체: "All", [MAP]: "Map" };
 
 export default function ClinicsView({
   initialCategory = "전체",
@@ -29,7 +31,9 @@ export default function ClinicsView({
 
   if (!db) return null;
 
-  const isAll = category === "전체";
+  // 지도로 보기는 시술 분류가 아니라 보는 방식이다. 거르는 기준은 "전체"와 같다.
+  const isMap = category === MAP;
+  const isAll = category === "전체" || isMap;
   const suffix = CATEGORY_KEY[category] ?? category;
   const categoryLabel = t(`cat${suffix}`);
   const categoryDesc = t(`catDesc${suffix}`);
@@ -149,7 +153,7 @@ export default function ClinicsView({
                   <div className="mt-2 text-sm font-semibold">{t(p.title)}</div>
                   <p className="mt-1 text-xs text-ink-sub">{t(p.description)}</p>
                   <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-ink-sub">
-                    <span>{p.period}</span>
+                    <span>{t("promoOngoing")}</span>
                     <span className="font-semibold text-ink group-hover:underline">
                       {t("promoSee")} →
                     </span>
@@ -288,7 +292,7 @@ export default function ClinicsView({
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <div className="text-xs font-semibold tracking-widest text-hb-600">
-              {isAll ? "ALL" : categoryLabel.toUpperCase()}
+              {isMap ? "MAP" : isAll ? "ALL" : categoryLabel.toUpperCase()}
             </div>
             <h2 className="mt-1 text-2xl font-bold">{categoryLabel}</h2>
             <p className="mt-1.5 max-w-xl text-sm text-ink/70">{categoryDesc}</p>
@@ -300,12 +304,15 @@ export default function ClinicsView({
         </div>
       </GlassCard>
 
-      {clinics.length === 0 && (
+      {isMap && <ClinicMap onOpen={(id) => setOpenId(id)} />}
+
+      {!isMap && clinics.length === 0 && (
         <GlassCard soft className="p-8 text-center text-sm text-ink-sub">
           {t("noClinicInCategory")}
         </GlassCard>
       )}
 
+      {!isMap && (
       <div className="grid gap-4 sm:grid-cols-2">
         {clinics.map((c) => {
           const pool = db.treatments.filter((x) => x.clinicId === c.id);
@@ -379,6 +386,7 @@ export default function ClinicsView({
           );
         })}
       </div>
+      )}
     </div>
   );
 }
@@ -426,7 +434,7 @@ function PromoSheet({
         </div>
         <p className="mt-2 text-sm text-ink/75">{t(promo.description)}</p>
         <div className="mt-3 rounded-cell bg-hb-50 px-3 py-2 text-xs text-ink-sub">
-          {t("promoPeriod")} · {promo.period}
+          {t("promoOngoing")}
         </div>
 
         <div className="mt-5 text-sm font-semibold">{t("promoPick")}</div>

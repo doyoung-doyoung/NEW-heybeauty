@@ -16,6 +16,46 @@ export const CONTENT: Record<string, Entry> = {
   에까마이: { en: "Ekkamai", th: "เอกมัย", zh: "艾卡迈", ru: "Эккамай" },
   라차다: { en: "Ratchada", th: "รัชดา", zh: "拉差达", ru: "Ратчада" },
   차이나타운: { en: "Chinatown", th: "เยาวราช", zh: "唐人街", ru: "Чайнатаун" },
+  사톤: { en: "Sathorn", th: "สาทร", zh: "沙吞", ru: "Сатхон" },
+  짜뚜짝: { en: "Chatuchak", th: "จตุจักร", zh: "乍都乍", ru: "Чатучак" },
+  방나: { en: "Bang Na", th: "บางนา", zh: "邦纳", ru: "Банг На" },
+  랏프라오: { en: "Lat Phrao", th: "ลาดพร้าว", zh: "拉抛", ru: "Лат Прао" },
+  프라카농: { en: "Phra Khanong", th: "พระโขนง", zh: "帕卡农", ru: "Пхра Кханонг" },
+  후아이꽝: { en: "Huai Khwang", th: "ห้วยขวาง", zh: "辉煌", ru: "Хуай Кхуанг" },
+  온눗: { en: "On Nut", th: "อ่อนนุช", zh: "安努", ru: "Он Нут" },
+  빅토리: { en: "Victory Monument", th: "อนุสาวรีย์ชัยฯ", zh: "胜利纪念碑", ru: "Монумент Победы" },
+  방콕: { en: "Bangkok", th: "กรุงเทพฯ", zh: "曼谷", ru: "Бангкок" },
+
+  // 지방 도시
+  치앙마이: { en: "Chiang Mai", th: "เชียงใหม่", zh: "清迈", ru: "Чиангмай" },
+  치앙라이: { en: "Chiang Rai", th: "เชียงราย", zh: "清莱", ru: "Чианграй" },
+  핏사눌록: { en: "Phitsanulok", th: "พิษณุโลก", zh: "彭世洛", ru: "Пхитсанулок" },
+  우돈타니: { en: "Udon Thani", th: "อุดรธานี", zh: "乌隆他尼", ru: "Удонтхани" },
+  콘깬: { en: "Khon Kaen", th: "ขอนแก่น", zh: "孔敬", ru: "Кхонкэн" },
+  코랏: { en: "Korat", th: "โคราช", zh: "呵叻", ru: "Корат" },
+  우본랏차타니: { en: "Ubon Ratchathani", th: "อุบลราชธานี", zh: "乌汶", ru: "Убонратчатхани" },
+  파타야: { en: "Pattaya", th: "พัทยา", zh: "芭提雅", ru: "Паттайя" },
+  후아힌: { en: "Hua Hin", th: "หัวหิน", zh: "华欣", ru: "Хуахин" },
+  꼬사무이: { en: "Koh Samui", th: "เกาะสมุย", zh: "苏梅岛", ru: "Самуи" },
+  푸켓: { en: "Phuket", th: "ภูเก็ต", zh: "普吉", ru: "Пхукет" },
+  끄라비: { en: "Krabi", th: "กระบี่", zh: "甲米", ru: "Краби" },
+  핫야이: { en: "Hat Yai", th: "หาดใหญ่", zh: "合艾", ru: "Хатъяй" },
+
+  // 채움용 클리닉 이름 조각 ("{동네} {브랜드} {꼬리}")
+  글로우: { en: "Glow", th: "โกลว์", zh: "焕颜", ru: "Глоу" },
+  루체: { en: "Luce", th: "ลูเช่", zh: "璐采", ru: "Луче" },
+  노블: { en: "Noble", th: "โนเบิล", zh: "贵雅", ru: "Нобл" },
+  세레나: { en: "Serena", th: "เซเรน่า", zh: "赛琳娜", ru: "Серена" },
+  오로라: { en: "Aurora", th: "ออโรร่า", zh: "极光", ru: "Аврора" },
+  엘리시아: { en: "Elysia", th: "เอลิเซีย", zh: "艾丽西亚", ru: "Элизия" },
+  프리마: { en: "Prima", th: "พรีม่า", zh: "普丽玛", ru: "Прима" },
+  미라클: { en: "Miracle", th: "มิราเคิล", zh: "奇迹", ru: "Миракл" },
+  클리닉: { en: "Clinic", th: "คลินิก", zh: "诊所", ru: "Клиник" },
+  의원: { en: "Medical Clinic", th: "เวชกรรม", zh: "医院", ru: "Медцентр" },
+  스킨랩: { en: "Skin Lab", th: "สกินแล็บ", zh: "肌肤实验室", ru: "Скин Лаб" },
+  뷰티하우스: { en: "Beauty House", th: "บิวตี้เฮาส์", zh: "美容之家", ru: "Бьюти Хаус" },
+  더마클리닉: { en: "Derma Clinic", th: "เดอร์มาคลินิก", zh: "皮肤诊所", ru: "Дерма Клиник" },
+  "2호점": { en: "2nd Branch", th: "สาขา 2", zh: "二号店", ru: "Филиал 2" },
 
   // 클리닉 이름
   "사얌 글로우 클리닉": { en: "Siam Glow Clinic", th: "สยาม โกลว์ คลินิก", zh: "暹罗焕颜诊所", ru: "Сиам Глоу Клиник" },
@@ -105,7 +145,11 @@ export const CONTENT: Record<string, Entry> = {
   "후기코드 사용 1건당 커미션이 150฿로 조정됩니다.": { en: "Commission per review code use is now ฿150.", th: "ค่าคอมมิชชั่นต่อการใช้โค้ดรีวิว 1 ครั้งปรับเป็น 150฿", zh: "每次使用评价码的佣金调整为 150฿。", ru: "Комиссия за одно использование кода отзыва — 150฿." },
   "앱 예약금 결제 수단 추가": { en: "New Deposit Payment Method", th: "เพิ่มช่องทางชำระมัดจำในแอป", zh: "新增定金支付方式", ru: "Новый способ оплаты депозита" },
   "PromptPay QR 외에 은행 이체 슬립 업로드가 가능합니다.": { en: "Besides PromptPay QR, you can now upload a bank transfer slip.", th: "นอกจาก PromptPay QR ยังอัปโหลดสลิปโอนเงินผ่านธนาคารได้แล้ว", zh: "除 PromptPay 二维码外，现可上传银行转账凭证。", ru: "Кроме PromptPay QR теперь можно загрузить банковский чек." },
-  "9월 화이트닝 페스티벌": { en: "September Whitening Festival", th: "เทศกาลไวท์เทนนิ่งเดือนกันยายน", zh: "九月美白节", ru: "Сентябрьский фестиваль отбеливания" },
+  "화이트닝 페스티벌": { en: "Whitening Festival", th: "เทศกาลไวท์เทนนิ่ง", zh: "美白节", ru: "Фестиваль отбеливания" },
+  "V라인 리프팅 위크": { en: "V-Line Lifting Week", th: "สัปดาห์ยกกระชับวีไลน์", zh: "V脸提升周", ru: "Неделя V-лифтинга" },
+  "RF 리프팅 · 하이푸 · V라인 보톡스 최대 25% 할인": { en: "Up to 25% off RF lifting, HIFU and V-line botox", th: "ลดสูงสุด 25% RF ลิฟติ้ง ไฮฟู่ และโบท็อกซ์วีไลน์", zh: "射频提升、超声刀与V脸瘦脸针最高享 75 折", ru: "До 25% скидки на RF-лифтинг, HIFU и ботокс V-линии" },
+  "스킨부스터 스페셜": { en: "Skin Booster Special", th: "สกินบูสเตอร์สเปเชียล", zh: "水光特惠", ru: "Скинбустер-спецпредложение" },
+  "리쥬란 · 엑소좀 스킨부스터 최대 15% 할인": { en: "Up to 15% off Rejuran and exosome skin boosters", th: "ลดสูงสุด 15% รีจูรันและเอ็กโซโซม", zh: "丽珠兰与外泌体水光最高享 85 折", ru: "До 15% скидки на Rejuran и экзосомы" },
   "전국 제휴 클리닉 화이트닝 시술 최대 20% 할인": { en: "Up to 20% off whitening treatments at partner clinics nationwide", th: "ลดสูงสุด 20% สำหรับหัตถการไวท์เทนนิ่งที่คลินิกพันธมิตรทั่วประเทศ", zh: "全国合作诊所美白项目最高享 8 折", ru: "До 20% скидки на отбеливание в клиниках-партнёрах по всей стране" },
 
   // 후기
@@ -137,8 +181,11 @@ export const CONTENT: Record<string, Entry> = {
   "p.intro": { ko: "{0} 중심가에 위치한 {1}. 화이트닝·V라인·리프팅 중심의 시술을 제공합니다.", en: "{1}, in the heart of {0}. Focused on whitening, V-line and lifting treatments.", th: "{1} ใจกลาง{0} เน้นหัตถการไวท์เทนนิ่ง วีไลน์ และยกกระชับ", zh: "位于{0}中心地段的{1}。以美白、V脸与提升项目为主。", ru: "{1} в самом центре района {0}. Специализация — отбеливание, V-линия и лифтинг." },
   "p.newIntro": { ko: "{0}의 신규 제휴 클리닉입니다.", en: "A new partner clinic in {0}.", th: "คลินิกพันธมิตรใหม่ใน{0}", zh: "{0}的新合作诊所。", ru: "Новая клиника-партнёр в районе {0}." },
   "p.treatmentDesc": { ko: "{0} — {1} 시술. 상담 후 개인별 프로토콜로 진행합니다.", en: "{0} — a {1} treatment. The protocol is tailored to you after a consultation.", th: "{0} — หัตถการ{1} กำหนดโปรโตคอลเฉพาะบุคคลหลังการปรึกษา", zh: "{0} — {1}项目。面诊后按个人方案进行。", ru: "{0} — процедура категории «{1}». Протокол подбирается индивидуально после консультации." },
-  "p.roadAddress": { ko: "{0} 로드 {1}, 방콕", en: "{1} {0} Road, Bangkok", th: "{0} โรด {1} กรุงเทพฯ", zh: "曼谷{0}路 {1} 号", ru: "{0} Роуд, {1}, Бангкок" },
-  "p.soiAddress": { ko: "{0} 소이 {1}, 방콕", en: "Soi {0} {1}, Bangkok", th: "ซอย{0} {1} กรุงเทพฯ", zh: "曼谷{0}巷 {1} 号", ru: "Сой {0}, {1}, Бангкок" },
+  "p.roadAddress": { ko: "{0} 로드 {1}, {2}", en: "{1} {0} Road, {2}", th: "{0} โรด {1} {2}", zh: "{2}{0}路 {1} 号", ru: "{0} Роуд, {1}, {2}" },
+  "p.soiAddress": { ko: "{0} 소이 {1}, {2}", en: "Soi {0} {1}, {2}", th: "ซอย{0} {1} {2}", zh: "{2}{0}巷 {1} 号", ru: "Сой {0}, {1}, {2}" },
+  "p.mainRoad": { ko: "{0} 메인 로드, {1}", en: "{0} Main Road, {1}", th: "{0} ถนนสายหลัก {1}", zh: "{1}主干道 {0} 号", ru: "{0} Мейн Роуд, {1}" },
+  "p.citySoi": { ko: "소이 {0}, {1}", en: "Soi {0}, {1}", th: "ซอย {0} {1}", zh: "{1}{0}巷", ru: "Сой {0}, {1}" },
+  "p.fillerName": { ko: "{0} {1} {2}", en: "{0} {1} {2}", th: "{0} {1} {2}", zh: "{0}{1}{2}", ru: "{0} {1} {2}" },
   "p.doctorName": { ko: "{0} 원장", en: "Dr. {0}", th: "พญ./นพ. {0}", zh: "{0} 院长", ru: "Др. {0}" },
   "p.mainBranch": { ko: "{0} 본점", en: "{0} Main", th: "{0} (สาขาหลัก)", zh: "{0}总店", ru: "{0} (главный)" },
   "p.branch": { ko: "{0}점", en: "{0} Branch", th: "สาขา{0}", zh: "{0}店", ru: "Филиал {0}" },
@@ -147,7 +194,12 @@ export const CONTENT: Record<string, Entry> = {
 // 시드가 이름·카테고리를 끼워 넣어 만든 문장은 통째로 사전에 담을 수 없다.
 // "지점"·"원장"처럼 꼬리가 짧은 틀은 아는 이름으로만 열어 둔다. `.+`로 열어 두면
 // 채팅에 직접 친 문장까지 지점 이름으로 착각해 번역해 버린다.
-const DISTRICT = "사얌|프롬퐁|아속|통러|실롬|아리|에까마이|라차다|차이나타운";
+const DISTRICT =
+  "사얌|프롬퐁|아속|통러|실롬|아리|에까마이|라차다|차이나타운|사톤|짜뚜짝|방나|랏프라오|프라카농|후아이꽝|온눗|빅토리|" +
+  "치앙마이|치앙라이|핏사눌록|우돈타니|콘깬|코랏|우본랏차타니|파타야|후아힌|꼬사무이|푸켓|끄라비|핫야이";
+const CITY = `방콕|${DISTRICT}`;
+const BRAND = "글로우|루체|노블|세레나|오로라|엘리시아|프리마|미라클";
+const SUFFIX = "클리닉|의원|스킨랩|뷰티하우스|더마클리닉";
 const DOCTOR = "나린|쁘라윳|깐야|아난|수니사|위라왓|말리완|티라폰|차이야|펀사이";
 
 // 위에서 아래로 처음 걸리는 것을 쓰므로 "○○ 본점"이 "○○점"보다 먼저 와야 한다.
@@ -155,8 +207,11 @@ export const CONTENT_PATTERNS: { match: RegExp; key: string }[] = [
   { match: /^(.+) 중심가에 위치한 (.+)\. 화이트닝·V라인·리프팅 중심의 시술을 제공합니다\.$/, key: "p.intro" },
   { match: /^(.+)의 신규 제휴 클리닉입니다\.$/, key: "p.newIntro" },
   { match: /^(.+) — (.+) 시술\. 상담 후 개인별 프로토콜로 진행합니다\.$/, key: "p.treatmentDesc" },
-  { match: new RegExp(`^(${DISTRICT}) 로드 (\\d+), 방콕$`), key: "p.roadAddress" },
-  { match: new RegExp(`^(${DISTRICT}) 소이 (\\d+), 방콕$`), key: "p.soiAddress" },
+  { match: new RegExp(`^(${DISTRICT}) 로드 (\\d+), (${CITY})$`), key: "p.roadAddress" },
+  { match: new RegExp(`^(${DISTRICT}) 소이 (\\d+), (${CITY})$`), key: "p.soiAddress" },
+  { match: new RegExp(`^(${DISTRICT}) (${BRAND}) (${SUFFIX})$`), key: "p.fillerName" },
+  { match: new RegExp(`^(\\d+) 메인 로드, (${CITY})$`), key: "p.mainRoad" },
+  { match: new RegExp(`^소이 (\\d+), (${CITY})$`), key: "p.citySoi" },
   { match: new RegExp(`^(${DOCTOR}) 원장$`), key: "p.doctorName" },
   { match: new RegExp(`^(${DISTRICT}) 본점$`), key: "p.mainBranch" },
   { match: new RegExp(`^(${DISTRICT})점$`), key: "p.branch" },

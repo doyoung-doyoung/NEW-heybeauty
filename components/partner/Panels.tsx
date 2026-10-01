@@ -594,7 +594,7 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
       )}
 
       {/* 넓은 화면: 표. 이름 밑에 뭉쳐 있던 전화·생일·관심·담당을 각자 열로 흩어 놓는다. */}
-      <TableOnly maxH="max-h-[30rem]">
+      <TableOnly maxH="sm:max-h-[30rem]">
         <Table minW="min-w-[64rem]">
           <Thead>
             <Th stick>이름</Th>

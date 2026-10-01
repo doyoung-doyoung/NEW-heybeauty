@@ -27,11 +27,14 @@ import type {
   Treatment,
 } from "./types";
 import { COMMISSION_BASELINE } from "./commission";
+import { CONSUMABLE_PRODUCTS, supplierOf } from "./distributors";
+import { PROVINCES } from "./geo";
+import { asset } from "./assets";
 
 const BASE_DATE = new Date("2026-09-17T09:00:00+07:00");
 
 // 스키마가 바뀌면 올린다. 저장된 데모 데이터가 이 값과 다르면 새 시드로 갈아끼운다.
-export const SEED_VERSION = 9;
+export const SEED_VERSION = 10;
 
 function rng(seed: number) {
   let a = seed >>> 0;
@@ -173,7 +176,7 @@ const SMS_TEXTS: Record<SmsLog["template"], (name: string) => string> = {
   재방문: (name) =>
     `${name}님, 지난 시술 후 4주가 지났습니다. 다음 회차 예약을 도와드릴까요?`,
   프로모션: (name) =>
-    `${name}님, 9월 화이트닝 페스티벌 진행 중입니다. 레이저 토닝 3회 패키지 20% 할인!`,
+    `${name}님, 화이트닝 페스티벌 진행 중입니다. 레이저 토닝 3회 패키지 20% 할인!`,
 };
 
 function makeHours(offset: number): Hours[] {
@@ -280,7 +283,7 @@ export function buildSeed(): DemoDb {
           distribution: (rand() > 0.72 ? "병행수입" : "정식") as Distribution,
           volume: pick(["1ml", "2ml", "100U", "500U", "5ml", "10 vial"]),
           expiry: dateOnly(between(90, 720)),
-          supplier: pick(SUPPLIERS),
+          supplier: supplierOf(product.id, pick(SUPPLIERS)),
           manager: STAFF_NAMES[(ci + bi + iv) % STAFF_NAMES.length],
           purchaseDate: dateOnly(-between(20, 300)),
           purchasePrice: between(900, 9000),
@@ -519,7 +522,13 @@ export function buildSeed(): DemoDb {
    */
   for (let ci = CLINIC_DEFS.length; ci < CLINIC_COUNT; ci++) {
     const clinicId = `C${String(ci + 1).padStart(2, "0")}`;
-    const district = FILLER_DISTRICTS[(ci * 7) % FILLER_DISTRICTS.length];
+    // 세 곳 중 한 곳은 지방 도시(치앙마이·푸켓·파타야…)에 둔다. 방콕 69곳 + 지방 30곳.
+    // 지점 있는 클리닉(ci % 3 === 0)과 겹치지 않게 ci % 3 === 2만 지방으로 보낸다.
+    const province = ci % 3 === 2 ? PROVINCES[(ci * 5) % PROVINCES.length] : null;
+    const district = province ? province.name : FILLER_DISTRICTS[(ci * 7) % FILLER_DISTRICTS.length];
+    const city = province ? province.name : "방콕";
+    const areaCode = province ? province.area : "02";
+    const slug = province ? province.slug : DISTRICT_SLUG[district];
     const brand = FILLER_BRANDS[(ci * 3) % FILLER_BRANDS.length];
     const name = `${district} ${brand} ${FILLER_SUFFIXES[ci % FILLER_SUFFIXES.length]}`;
     const hasBranches = ci % 3 === 0;
@@ -530,9 +539,12 @@ export function buildSeed(): DemoDb {
       name,
       hasBranches,
       district,
-      address: `${district} 로드 ${between(10, 240)}, 방콕`,
-      phone: `02-${between(200, 999)}-${between(1000, 9999)}`,
-      lineId: `@${DISTRICT_SLUG[district]}${ci + 1}`,
+      // 지방은 동네 = 도시라서 "푸켓 로드, 푸켓"처럼 겹친다. 번지 + 메인 로드로 적는다.
+      address: province
+        ? `${between(10, 240)} 메인 로드, ${city}`
+        : `${district} 로드 ${between(10, 240)}, ${city}`,
+      phone: `${areaCode}-${between(200, 999)}-${between(1000, 9999)}`,
+      lineId: `@${slug}${ci + 1}`,
       parking: pick(["발렛 가능", "건물 주차장 2시간 무료", "인근 유료 주차", "주차 불가 (BTS 도보 3분)"]),
       hours: makeHours(ci),
       rating: Number((4.0 + rand() * 0.9).toFixed(1)),
@@ -560,8 +572,10 @@ export function buildSeed(): DemoDb {
         id: branchId,
         clinicId,
         name: hasBranches ? FILLER_BRANCH_AREAS[(ci + bi) % FILLER_BRANCH_AREAS.length] : "본점",
-        address: `${district} 소이 ${between(1, 60)}, 방콕`,
-        phone: `02-${between(200, 999)}-${between(1000, 9999)}`,
+        address: province
+          ? `소이 ${between(1, 60)}, ${city}`
+          : `${district} 소이 ${between(1, 60)}, ${city}`,
+        phone: `${areaCode}-${between(200, 999)}-${between(1000, 9999)}`,
         parking: pick(["발렛 가능", "건물 주차장 2시간 무료", "인근 유료 주차"]),
         hours: makeHours(ci + bi),
       });
@@ -592,7 +606,7 @@ export function buildSeed(): DemoDb {
         distribution: (rand() > 0.72 ? "병행수입" : "정식") as Distribution,
         volume: pick(["1ml", "2ml", "100U", "500U", "5ml", "10 vial"]),
         expiry: dateOnly(between(90, 720)),
-        supplier: pick(SUPPLIERS),
+        supplier: supplierOf(product.id, pick(SUPPLIERS)),
         manager: STAFF_NAMES[(ci + iv) % STAFF_NAMES.length],
         purchaseDate: dateOnly(-between(20, 300)),
         purchasePrice: between(900, 9000),
@@ -848,7 +862,8 @@ export function buildSeed(): DemoDb {
   ];
 
   const popups: Popup[] = [
-    { id: "PP1", title: "9월 화이트닝 페스티벌", body: "전국 제휴 클리닉 화이트닝 시술 최대 20% 할인", image: "/popups/PP2.jpg", active: true },
+    // 날짜·월을 넣지 않는다. "9월 ○○"로 두면 10월이 되는 순간 다시 만들어야 한다.
+    { id: "PP1", title: "화이트닝 페스티벌", body: "전국 제휴 클리닉 화이트닝 시술 최대 20% 할인", image: asset("popups/PA1_whitening.jpg"), active: true },
   ];
 
   return {
@@ -859,7 +874,8 @@ export function buildSeed(): DemoDb {
     staff,
     treatments,
     promotions,
-    products: PRODUCTS,
+    // 소모품은 뒤에 따로 붙인다. PRODUCTS 길이가 바뀌면 재고 시드가 고르는 제품이 전부 밀린다.
+    products: [...PRODUCTS, ...CONSUMABLE_PRODUCTS],
     inventory,
     stockLogs,
     customers,

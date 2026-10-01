@@ -68,7 +68,7 @@ const DICT: Record<string, Entry> = {
   "cat스킨부스터": { ko: "스킨부스터", en: "Skin Booster", th: "สกินบูสเตอร์", zh: "水光针", ru: "Скинбустер" },
   "cat필러": { ko: "필러", en: "Filler", th: "ฟิลเลอร์", zh: "填充", ru: "Филлер" },
 
-  catDescAll: { ko: "방콕 전 지역 제휴 클리닉을 한눈에 비교하세요.", en: "Compare every partner clinic across Bangkok at a glance.", th: "เปรียบเทียบคลินิกพันธมิตรทั่วกรุงเทพได้ในที่เดียว", zh: "一览曼谷所有合作诊所。", ru: "Сравните все клиники-партнёры Бангкока." },
+  catDescAll: { ko: "방콕을 중심으로 태국 전국 제휴 클리닉을 한눈에 비교하세요.", en: "Compare partner clinics across Thailand — Bangkok first — at a glance.", th: "เปรียบเทียบคลินิกพันธมิตรทั่วประเทศไทย เน้นกรุงเทพฯ ได้ในที่เดียว", zh: "一览以曼谷为主的泰国全境合作诊所。", ru: "Клиники-партнёры по всему Таиланду, в первую очередь в Бангкоке." },
   "catDesc화이트닝": { ko: "레이저 토닝·물광주사·글루타치온으로 톤을 단계적으로 밝힙니다.", en: "Laser toning, aqua shine and glutathione for step-by-step brightening.", th: "เลเซอร์โทนนิ่ง วอเตอร์ไชน์ และกลูตาไธโอน เพื่อผิวกระจ่างใสทีละขั้น", zh: "激光调色、水光针与谷胱甘肽，逐步提亮肤色。", ru: "Лазерный тонинг, аква-сияние и глутатион для поэтапного осветления." },
   "catDescV라인": { ko: "사각턱 보톡스와 턱 필러로 턱선 윤곽을 정리합니다.", en: "Masseter botox and chin filler to refine the jawline.", th: "โบท็อกซ์กรามและฟิลเลอร์คางเพื่อปรับรูปหน้า", zh: "咬肌瘦脸针与下巴填充，修饰下颌线条。", ru: "Ботокс жевательных мышц и филлер подбородка для контура." },
   "catDesc리프팅": { ko: "울쎄라·올리지오 RF로 처진 조직을 끌어올립니다.", en: "Ulthera and Oligio RF to lift sagging tissue.", th: "อัลเทอร่าและโอลิจิโอ RF ยกกระชับผิวที่หย่อนคล้อย", zh: "超声刀与 Oligio 射频，提拉松弛组织。", ru: "Ultherapy и Oligio RF для подтяжки тканей." },
@@ -160,6 +160,16 @@ const DICT: Record<string, Entry> = {
   promoPeriod: { ko: "기간", en: "Period", th: "ระยะเวลา", zh: "期间", ru: "Срок" },
   promoPick: { ko: "시술을 고르면 할인가로 예약돼요", en: "Pick a treatment to book at the promo price", th: "เลือกหัตถการเพื่อจองในราคาโปรโมชั่น", zh: "选择项目即可按优惠价预约", ru: "Выберите процедуру по акционной цене" },
   promoApplied: { ko: "프로모션 적용", en: "Promo applied", th: "ใช้โปรโมชั่นแล้ว", zh: "已享优惠", ru: "Акция применена" },
+  catDescMap: { ko: "방콕 동네별 · 태국 도시별로 가까운 제휴 클리닉을 지도에서 찾아보세요.", en: "Find partner clinics near you by Bangkok district or Thai city.", th: "ค้นหาคลินิกพันธมิตรใกล้คุณตามย่านในกรุงเทพฯ หรือเมืองทั่วไทย", zh: "按曼谷街区或泰国城市在地图上查找附近的合作诊所。", ru: "Найдите клиники-партнёры по районам Бангкока и городам Таиланда." },
+  catMap: { ko: "지도로 보기", en: "Map View", th: "ดูบนแผนที่", zh: "地图查看", ru: "На карте" },
+  mapBangkok: { ko: "방콕", en: "Bangkok", th: "กรุงเทพฯ", zh: "曼谷", ru: "Бангкок" },
+  mapThailand: { ko: "태국 전체", en: "All Thailand", th: "ทั่วประเทศไทย", zh: "泰国全境", ru: "Весь Таиланд" },
+  mapHint: { ko: "핀을 누르면 클리닉 정보가 나와요", en: "Tap a pin to see the clinic", th: "แตะหมุดเพื่อดูข้อมูลคลินิก", zh: "点击图钉查看诊所信息", ru: "Нажмите на метку, чтобы увидеть клинику" },
+  mapHintTh: { ko: "도시를 누르면 그 지역 클리닉이 나와요", en: "Tap a city to see its clinics", th: "แตะเมืองเพื่อดูคลินิกในพื้นที่", zh: "点击城市查看当地诊所", ru: "Нажмите на город, чтобы увидеть клиники" },
+  mapClinicsIn: { ko: "{0} 클리닉 {1}곳", en: "{1} clinics in {0}", th: "คลินิกใน{0} {1} แห่ง", zh: "{0}的诊所 {1} 家", ru: "{0}: клиник — {1}" },
+  mapExample: { ko: "예시 지도", en: "Sample map", th: "แผนที่ตัวอย่าง", zh: "示意地图", ru: "Пример карты" },
+  viewDetail: { ko: "상세 보기", en: "View details", th: "ดูรายละเอียด", zh: "查看详情", ru: "Подробнее" },
+  promoOngoing: { ko: "진행 중", en: "Ongoing", th: "กำลังจัดโปรโมชั่น", zh: "进行中", ru: "Действует" },
   reviewSubmitted: { ko: "후기가 등록되었습니다 · 어드민 승인 후 노출됩니다", en: "Review submitted · it goes live after admin approval", th: "ส่งรีวิวแล้ว · จะแสดงหลังผู้ดูแลอนุมัติ", zh: "评价已提交 · 通过管理员审核后显示", ru: "Отзыв отправлен · появится после одобрения" },
 };
 
