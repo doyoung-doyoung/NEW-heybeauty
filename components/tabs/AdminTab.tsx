@@ -21,7 +21,7 @@ import {
   Thead,
   Tr,
 } from "@/components/ui/DataTable";
-import type { AccountStatus, Hours, NoticeTarget } from "@/lib/types";
+import type { AccountStatus, Hours, NoticeTarget, Review } from "@/lib/types";
 import {
   BackToList,
   Badge,
@@ -78,7 +78,9 @@ export default function AdminTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      {/* 표를 훑다가 다른 섹션으로 바로 넘어가고 싶을 때 스크롤을 맨 위로 되돌리지 않아도
+          되게, 섹션 탭을 화면 위에 고정한다 — 후기·유저·클리닉 표가 다 길어서 특히 아쉬웠다. */}
+      <div className="glass sticky top-0 z-30 flex gap-2 overflow-x-auto rounded-pill p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {SECTIONS.map((s) => (
           <GhostButton
             key={s.id}
@@ -427,6 +429,10 @@ function ReviewSection() {
   const toast = useToast();
   // 승인 버튼 하나가 고객 앱 클리닉 상세의 후기 목록과 평점 줄을 같이 바꾼다.
   const { note, show: showLinked, dismiss } = useLinkedNote();
+  // 전체 후기 관리 표에서 "수정"을 누르면 그 줄만 별점·본문을 고치는 입력으로 바뀐다.
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [editRating, setEditRating] = useState(5);
   if (!db) return null;
 
   function approve(reviewId: string) {
@@ -476,6 +482,47 @@ function ReviewSection() {
     });
   }
 
+  function togglePin(reviewId: string) {
+    let pinned = false;
+    update((draft) => {
+      const review = draft.reviews.find((r) => r.id === reviewId);
+      if (!review) return;
+      review.pinned = !review.pinned;
+      pinned = review.pinned;
+    });
+    toast(pinned ? "후기를 상단에 고정했습니다" : "고정을 해제했습니다");
+  }
+
+  function deleteReview(reviewId: string) {
+    if (!window.confirm("이 후기를 삭제할까요? 되돌릴 수 없습니다.")) return;
+    update((draft) => {
+      draft.reviews = draft.reviews.filter((r) => r.id !== reviewId);
+    });
+    if (editId === reviewId) setEditId(null);
+    toast("후기를 삭제했습니다");
+  }
+
+  function startEdit(review: Review) {
+    setEditId(review.id);
+    setEditText(review.text);
+    setEditRating(review.rating);
+  }
+
+  function saveEdit(reviewId: string) {
+    if (!editText.trim()) {
+      toast("내용을 입력해주세요");
+      return;
+    }
+    update((draft) => {
+      const review = draft.reviews.find((r) => r.id === reviewId);
+      if (!review) return;
+      review.text = editText.trim();
+      review.rating = editRating;
+    });
+    setEditId(null);
+    toast("후기를 수정했습니다");
+  }
+
   const settlements = buildSettlements(db);
   const addedTotal = db.commissions.reduce((s, c) => s + c.amountTHB, 0);
   const totalCommission = BASELINE_TOTAL + addedTotal;
@@ -523,15 +570,27 @@ function ReviewSection() {
     : [];
   const detailClinic = db.clinics.find((c) => c.id === openClinic);
 
+  // 승인/차단이 끝난 후기는 여기서 할 일이 없다 — 대기 중인 것만 올려서 매번 훑어야 하는
+  // 줄 수를 줄인다. 지나간 후기는 바로 아래 "전체 후기 관리" 표에서 계속 볼 수 있다.
+  const pendingReviews = db.reviews.filter((r) => !r.approved && !r.blocked);
+  // 고정한 후기가 맨 위로, 그다음은 최신순.
+  const allReviews = [...db.reviews].sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+
   return (
     <div className="space-y-4">
       <GlassCard className="p-6">
         <SectionTitle
           title="후기 승인"
-          sub="승인된 후기만 앱에 노출됩니다 · 사진은 직접 추가할 수 있습니다"
+          sub={`대기 중인 후기만 표시됩니다 · ${pendingReviews.length}건 · 사진은 직접 추가할 수 있습니다`}
         />
+        {pendingReviews.length === 0 && (
+          <p className="text-sm text-ink-sub">승인 대기 중인 후기가 없습니다.</p>
+        )}
         <div className="space-y-2">
-          {db.reviews.map((r) => {
+          {pendingReviews.map((r) => {
             const clinic = db.clinics.find((c) => c.id === r.clinicId);
             return (
               <div key={r.id} className="rounded-cell bg-white/70 p-4 hairline">
@@ -569,6 +628,87 @@ function ReviewSection() {
                     onClose={dismiss}
                     className="mt-3"
                   />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </GlassCard>
+
+      <GlassCard soft className="p-6">
+        <SectionTitle
+          title="전체 후기 관리"
+          sub={`총 ${allReviews.length}건 · 상태와 상관없이 모두 봅니다 · 수정·삭제·고정`}
+        />
+        <div className="space-y-2">
+          {allReviews.map((r) => {
+            const clinic = db.clinics.find((c) => c.id === r.clinicId);
+            const editing = editId === r.id;
+            return (
+              <div
+                key={r.id}
+                className={`rounded-cell p-4 hairline ${r.pinned ? "bg-hb-50" : "bg-white/70"}`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    {r.pinned && <Badge tone="pink">고정</Badge>}
+                    {clinic?.name}
+                  </div>
+                  <Badge
+                    tone={r.blocked ? "danger" : r.approved ? "pink" : "neutral"}
+                  >
+                    {r.blocked ? "차단됨" : r.approved ? "승인됨" : "승인 대기"}
+                  </Badge>
+                </div>
+
+                {editing ? (
+                  <div className="mt-2 space-y-2">
+                    <div className="flex flex-wrap gap-1">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <GhostButton
+                          key={n}
+                          active={n === editRating}
+                          onClick={() => setEditRating(n)}
+                        >
+                          {"★".repeat(n)}
+                        </GhostButton>
+                      ))}
+                    </div>
+                    <textarea
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      rows={3}
+                      className={`${inputClass} resize-none`}
+                    />
+                    <div className="flex gap-2">
+                      <InkButton arrow={false} onClick={() => saveEdit(r.id)}>
+                        저장
+                      </InkButton>
+                      <GhostButton onClick={() => setEditId(null)}>취소</GhostButton>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-1 text-xs text-ink-sub">
+                      {"★".repeat(r.rating)} · 후기코드 {r.code || "-"}
+                    </div>
+                    <p className="mt-2 text-sm text-ink/80">{r.text}</p>
+                  </>
+                )}
+
+                {!editing && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <GhostButton onClick={() => startEdit(r)}>수정</GhostButton>
+                    <GhostButton onClick={() => togglePin(r.id)}>
+                      {r.pinned ? "고정 해제" : "고정"}
+                    </GhostButton>
+                    <GhostButton
+                      className="text-danger"
+                      onClick={() => deleteReview(r.id)}
+                    >
+                      삭제
+                    </GhostButton>
+                  </div>
                 )}
               </div>
             );
@@ -636,7 +776,7 @@ function ReviewSection() {
                 <Th stick className="w-28 sm:w-40">
                   클리닉
                 </Th>
-                <Th align="right">후기코드</Th>
+                <Th align="right">후기코드 수</Th>
                 <Th align="right">클릭</Th>
                 <Th align="right">정산액</Th>
                 <Th align="right">신규</Th>

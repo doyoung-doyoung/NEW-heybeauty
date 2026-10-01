@@ -25,6 +25,8 @@ export default function NotePad({ where }: { where: string }) {
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [broken, setBroken] = useState(false);
+  // 완료된 노트를 지우지 않고 뒷 페이지에 남겨두기로 해서, 진행중/완료를 탭으로 나눠 본다.
+  const [tab, setTab] = useState<"todo" | "done">("todo");
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   async function refresh() {
@@ -49,7 +51,10 @@ export default function NotePad({ where }: { where: string }) {
     if (open) inputRef.current?.focus();
   }, [open]);
 
-  const todo = notes.filter((n) => !n.done).length;
+  const todoNotes = notes.filter((n) => !n.done);
+  const doneNotes = notes.filter((n) => n.done);
+  const todo = todoNotes.length;
+  const visible = tab === "todo" ? todoNotes : doneNotes;
 
   async function add() {
     const body = text.trim();
@@ -182,6 +187,29 @@ export default function NotePad({ where }: { where: string }) {
             </button>
           </div>
 
+          {notes.length > 0 && (
+            <div className="mt-3 flex gap-1.5 rounded-pill bg-surface p-1 text-xs hairline">
+              <button
+                type="button"
+                onClick={() => setTab("todo")}
+                className={`flex-1 rounded-pill py-1.5 font-medium transition ${
+                  tab === "todo" ? "bg-white shadow-sm" : "text-ink-sub"
+                }`}
+              >
+                진행중 {todoNotes.length}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("done")}
+                className={`flex-1 rounded-pill py-1.5 font-medium transition ${
+                  tab === "done" ? "bg-white shadow-sm" : "text-ink-sub"
+                }`}
+              >
+                완료 {doneNotes.length}
+              </button>
+            </div>
+          )}
+
           <div className="mt-3 flex-1 space-y-2 overflow-y-auto">
             {loading && (
               <p className="py-6 text-center text-xs text-ink-sub">불러오는 중…</p>
@@ -191,7 +219,12 @@ export default function NotePad({ where }: { where: string }) {
                 테스트하다 고칠 점이 보이면 여기 적어두세요
               </p>
             )}
-            {notes.map((note) => (
+            {!loading && notes.length > 0 && visible.length === 0 && (
+              <p className="py-6 text-center text-xs text-ink-sub">
+                {tab === "todo" ? "진행중인 노트가 없습니다" : "아직 완료한 노트가 없습니다"}
+              </p>
+            )}
+            {visible.map((note) => (
               <div
                 key={note.id}
                 className="flex items-start gap-2 rounded-cell bg-surface p-2.5 hairline"

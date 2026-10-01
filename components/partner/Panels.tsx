@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDb } from "@/lib/db";
 import { useToast } from "@/components/ui/Toast";
 import { LinkedNote, useLinkedNote } from "@/components/ui/LinkedNote";
@@ -85,9 +85,19 @@ export function TodayPanel({
   const lowStock = db.inventory.filter(
     (i) => i.branchId === branchId && isLowStock(i),
   );
-  // 지점에 따라 이번 달 차트가 한 건도 없을 수 있어서 누적으로 센다.
-  // 방문완료를 누르면 차트가 쌓이므로 이 숫자도 그 자리에서 올라간다.
-  const branchCharts = db.charts.filter((c) => c.branchId === branchId);
+  // 투자자 데모 지점(C01-B1)은 예약·차트가 매번 "오늘" 기준으로 새로 채워지므로 최근
+  // 1개월로 좁혀도 항상 값이 나온다. 나머지 지점은 시드 날짜가 한 시점에 고정돼 있어
+  // 1개월로 좁히면 시간이 지날수록 0건이 되어 버리므로 그대로 누적으로 센다.
+  const isEvergreenBranch = branchId === "C01-B1";
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+  const oneMonthAgoStr = oneMonthAgo.toISOString().slice(0, 10);
+
+  const branchCharts = db.charts.filter(
+    (c) =>
+      c.branchId === branchId &&
+      (!isEvergreenBranch || c.visitDate >= oneMonthAgoStr),
+  );
   const revenue = branchCharts.reduce((s, c) => s + c.paidAmount, 0);
 
   const cards = [
@@ -95,7 +105,9 @@ export function TodayPanel({
     { label: "안 읽은 문의", value: `${unread.length}건`, go: "inbox" },
     { label: "재고 경고", value: `${lowStock.length}개`, go: "inventory" },
     {
-      label: `누적 매출 · 차트 ${branchCharts.length}건`,
+      label: isEvergreenBranch
+        ? `최근 1개월 매출 · 차트 ${branchCharts.length}건`
+        : `누적 매출 · 차트 ${branchCharts.length}건`,
       value: `฿${revenue.toLocaleString()}`,
       go: "stats",
     },
@@ -195,6 +207,18 @@ export function InboxPanel({ branchId }: { branchId: string }) {
   // 헤이뷰티 채널 답장은 고객 앱 채팅창에도 그대로 꽂힌다. 그 반대 방향은 이미
   // 고객 화면에서 알려주고 있으니, 여기서도 한 번은 보여줘야 짝이 맞는다.
   const { note, show: showLinked, dismiss } = useLinkedNote();
+
+  // 인박스에 처음 들어오면 왼쪽 목록만 보이고 오른쪽은 비어 있어서 뭘 봐야 할지 모른다.
+  // 자사 앱(헤이뷰티) 채널 중 가장 최근 대화를 자동으로 열어 바로 보이게 한다.
+  useEffect(() => {
+    if (!db || openId) return;
+    const latestApp = db.inbox
+      .filter((t) => t.branchId === branchId && t.channel === "App")
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+    if (latestApp) openThread(latestApp.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db, branchId]);
+
   if (!db) return null;
 
   const threads = db.inbox
@@ -615,9 +639,24 @@ function FilterRow({
   );
 }
 
+// 하루 그리드의 뼈대가 되는 시간 칸. 그 날 실제 예약 시간이 이 목록에 없으면
+// (수동으로 다른 시간에 잡은 경우) 아래에서 그 시간도 섞어서 함께 보여준다.
+const GRID_TIME_SLOTS = Array.from({ length: 20 }, (_, i) => {
+  const totalMin = 9 * 60 + i * 30; // 09:00 ~ 18:30, 30분 간격
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+});
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function BookingPanel({ branchId }: { branchId: string }) {
   const { db, update } = useDb();
   const toast = useToast();
+  const [date, setDate] = useState(todayStr);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ date: "", time: "", doctorId: "" });
   const { note, show: showLinked, dismiss } = useLinkedNote();
@@ -625,6 +664,23 @@ export function BookingPanel({ branchId }: { branchId: string }) {
 
   const bookings = db.bookings.filter((b) => b.branchId === branchId);
   const doctors = db.doctors.filter((d) => d.branchId === branchId);
+  const dayBookings = bookings.filter((b) => b.date === date);
+  const times = Array.from(
+    new Set([...GRID_TIME_SLOTS, ...dayBookings.map((b) => b.time)]),
+  ).sort();
+
+  function shiftDate(deltaDays: number) {
+    const d = new Date(`${date}T00:00:00`);
+    d.setDate(d.getDate() + deltaDays);
+    setDate(d.toISOString().slice(0, 10));
+    setSelectedId(null);
+    setEditId(null);
+  }
+
+  function selectBooking(id: string) {
+    setSelectedId((cur) => (cur === id ? null : id));
+    setEditId(null);
+  }
 
   function setStatus(id: string, status: "예약확정" | "방문완료" | "취소") {
     if (status === "방문완료") {
@@ -790,116 +846,226 @@ export function BookingPanel({ branchId }: { branchId: string }) {
     toast("예약 정보를 수정했습니다");
   }
 
+  const selected = selectedId ? bookings.find((b) => b.id === selectedId) : null;
+  const selectedTreatment = selected
+    ? db.treatments.find((t) => t.id === selected.treatmentId)
+    : null;
+  const selectedDoctor = selected
+    ? db.doctors.find((d) => d.id === selected.doctorId)
+    : null;
+  const selectedUser = selected
+    ? db.users.find((u) => u.id === selected.userId)
+    : null;
+
   return (
     <GlassCard className="p-6">
-      <SectionTitle title="예약 확인" sub={`총 ${bookings.length}건`} />
-      <div className="space-y-2">
-        {bookings.length === 0 && (
-          <p className="text-sm text-ink-sub">이 지점의 예약이 없습니다.</p>
-        )}
-        {bookings.map((b) => {
-          const treatment = db.treatments.find((t) => t.id === b.treatmentId);
-          const doctor = db.doctors.find((d) => d.id === b.doctorId);
-          const user = db.users.find((u) => u.id === b.userId);
-          return (
-            <div key={b.id} className="rounded-cell bg-white/70 p-4 hairline">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="font-semibold">{user?.name ?? b.userId}</div>
-                <Badge tone={b.status === "취소" ? "danger" : "pink"}>
-                  {b.status}
-                </Badge>
-              </div>
-              <div className="mt-1 text-xs text-ink-sub">
-                {treatment?.name} · {b.date} {b.time} · {doctor?.name} · 예약금 ฿
-                {b.depositTHB.toLocaleString()}
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {(["예약확정", "방문완료", "취소"] as const).map((s) => (
-                  <GhostButton
-                    key={s}
-                    active={b.status === s}
-                    onClick={() => setStatus(b.id, s)}
-                    className="px-3 py-1.5 text-xs"
-                  >
-                    {s}
-                  </GhostButton>
-                ))}
-                <GhostButton
-                  active={editId === b.id}
-                  onClick={() => (editId === b.id ? setEditId(null) : startEdit(b.id))}
-                  className="px-3 py-1.5 text-xs"
-                >
-                  수정
-                </GhostButton>
-              </div>
-
-              {note?.key === b.id && (
-                <LinkedNote
-                  note={note}
-                  title="전자차트가 자동으로 만들어졌습니다"
-                  hint={`방문완료 한 번으로 ${note.rows.length}곳이 처리되었습니다`}
-                  onClose={dismiss}
-                  className="mt-3"
-                />
-              )}
-
-              {editId === b.id && (
-                <div className="animate-rise mt-3 grid gap-2 rounded-cell bg-white/70 p-3 hairline sm:grid-cols-3">
-                  <label className="block">
-                    <span className="mb-1 block text-[11px] font-semibold text-ink-sub">
-                      날짜
-                    </span>
-                    <input
-                      type="date"
-                      value={form.date}
-                      onChange={(e) =>
-                        setForm({ ...form, date: e.target.value })
-                      }
-                      className={inputClass}
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="mb-1 block text-[11px] font-semibold text-ink-sub">
-                      시간
-                    </span>
-                    <input
-                      type="time"
-                      value={form.time}
-                      onChange={(e) =>
-                        setForm({ ...form, time: e.target.value })
-                      }
-                      className={inputClass}
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="mb-1 block text-[11px] font-semibold text-ink-sub">
-                      담당 의사
-                    </span>
-                    <select
-                      value={form.doctorId}
-                      onChange={(e) =>
-                        setForm({ ...form, doctorId: e.target.value })
-                      }
-                      className={inputClass}
-                    >
-                      {doctors.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <div className="sm:col-span-3">
-                    <InkButton arrow={false} onClick={saveEdit}>
-                      수정 저장
-                    </InkButton>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+      <SectionTitle
+        title="예약 확인"
+        sub={`총 ${bookings.length}건 · ${date} ${dayBookings.length}건`}
+      />
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <GhostButton onClick={() => shiftDate(-1)} className="px-3 py-1.5 text-xs">
+          ‹ 전날
+        </GhostButton>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => {
+            setDate(e.target.value);
+            setSelectedId(null);
+            setEditId(null);
+          }}
+          className={`${inputClass} w-auto`}
+        />
+        <GhostButton onClick={() => shiftDate(1)} className="px-3 py-1.5 text-xs">
+          다음날 ›
+        </GhostButton>
+        <GhostButton
+          active={date === todayStr()}
+          onClick={() => {
+            setDate(todayStr());
+            setSelectedId(null);
+            setEditId(null);
+          }}
+          className="px-3 py-1.5 text-xs"
+        >
+          오늘
+        </GhostButton>
       </div>
+
+      {doctors.length === 0 ? (
+        <p className="text-sm text-ink-sub">이 지점에 담당 의사가 없습니다.</p>
+      ) : (
+        <TableOnly maxH="max-h-[480px]">
+          <Table minW="min-w-[420px]">
+            <Thead>
+              <Th stick className="w-16">
+                시간
+              </Th>
+              {doctors.map((d) => (
+                <Th key={d.id}>{d.name}</Th>
+              ))}
+            </Thead>
+            <tbody>
+              {times.map((t) => (
+                <Tr key={t}>
+                  <Td stick muted className="w-16">
+                    {t}
+                  </Td>
+                  {doctors.map((d) => {
+                    const b = dayBookings.find(
+                      (x) => x.time === t && x.doctorId === d.id,
+                    );
+                    if (!b) {
+                      return (
+                        <Td key={d.id} className="text-ink-sub/30">
+                          ·
+                        </Td>
+                      );
+                    }
+                    const treatment = db.treatments.find(
+                      (t2) => t2.id === b.treatmentId,
+                    );
+                    const user = db.users.find((u) => u.id === b.userId);
+                    const isSelected = selectedId === b.id;
+                    return (
+                      <Td key={d.id} className="max-w-[160px] !p-0">
+                        <button
+                          onClick={() => selectBooking(b.id)}
+                          className={`block w-full max-w-[160px] rounded-cell p-2 text-left text-xs transition ${
+                            isSelected
+                              ? "bg-ink text-white"
+                              : "bg-white/70 hover:bg-white"
+                          }`}
+                        >
+                          <div className="truncate font-semibold">
+                            {user?.name ?? b.userId}
+                          </div>
+                          <div
+                            className={`truncate ${
+                              isSelected ? "text-white/80" : "text-ink-sub"
+                            }`}
+                          >
+                            {treatment?.name}
+                          </div>
+                          <Badge tone={b.status === "취소" ? "danger" : "pink"}>
+                            {b.status}
+                          </Badge>
+                        </button>
+                      </Td>
+                    );
+                  })}
+                </Tr>
+              ))}
+            </tbody>
+          </Table>
+        </TableOnly>
+      )}
+
+      {selected && (
+        <div className="animate-rise mt-4 rounded-cell bg-white/70 p-4 hairline">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="font-semibold">
+              {selectedUser?.name ?? selected.userId}
+            </div>
+            <Badge tone={selected.status === "취소" ? "danger" : "pink"}>
+              {selected.status}
+            </Badge>
+          </div>
+          <div className="mt-1 text-xs text-ink-sub">
+            {selectedTreatment?.name} · {selected.date} {selected.time} ·{" "}
+            {selectedDoctor?.name} · 예약금 ฿
+            {selected.depositTHB.toLocaleString()}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(["예약확정", "방문완료", "취소"] as const).map((s) => (
+              <GhostButton
+                key={s}
+                active={selected.status === s}
+                onClick={() => setStatus(selected.id, s)}
+                className="px-3 py-1.5 text-xs"
+              >
+                {s}
+              </GhostButton>
+            ))}
+            <GhostButton
+              active={editId === selected.id}
+              onClick={() =>
+                editId === selected.id ? setEditId(null) : startEdit(selected.id)
+              }
+              className="px-3 py-1.5 text-xs"
+            >
+              수정
+            </GhostButton>
+            <GhostButton
+              onClick={() => setSelectedId(null)}
+              className="px-3 py-1.5 text-xs"
+            >
+              닫기
+            </GhostButton>
+          </div>
+
+          {note?.key === selected.id && (
+            <LinkedNote
+              note={note}
+              title="전자차트가 자동으로 만들어졌습니다"
+              hint={`방문완료 한 번으로 ${note.rows.length}곳이 처리되었습니다`}
+              onClose={dismiss}
+              className="mt-3"
+            />
+          )}
+
+          {editId === selected.id && (
+            <div className="animate-rise mt-3 grid gap-2 rounded-cell bg-white/70 p-3 hairline sm:grid-cols-3">
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold text-ink-sub">
+                  날짜
+                </span>
+                <input
+                  type="date"
+                  value={form.date}
+                  onChange={(e) => setForm({ ...form, date: e.target.value })}
+                  className={inputClass}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold text-ink-sub">
+                  시간
+                </span>
+                <input
+                  type="time"
+                  value={form.time}
+                  onChange={(e) => setForm({ ...form, time: e.target.value })}
+                  className={inputClass}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold text-ink-sub">
+                  담당 의사
+                </span>
+                <select
+                  value={form.doctorId}
+                  onChange={(e) =>
+                    setForm({ ...form, doctorId: e.target.value })
+                  }
+                  className={inputClass}
+                >
+                  {doctors.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="sm:col-span-3">
+                <InkButton arrow={false} onClick={saveEdit}>
+                  수정 저장
+                </InkButton>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </GlassCard>
   );
 }
@@ -934,15 +1100,7 @@ export function ChartPanel({ branchId }: { branchId: string }) {
 
     return (
       <div className="space-y-4">
-        <div className="flex flex-wrap gap-2">
-          <GhostButton onClick={() => setOpenId(null)}>← 목록으로</GhostButton>
-          <GhostButton onClick={() => window.print()}>프린트</GhostButton>
-          <GhostButton
-            onClick={() => toast("PDF 다운로드를 시작합니다 (데모)")}
-          >
-            PDF 다운로드
-          </GhostButton>
-        </div>
+        <GhostButton onClick={() => setOpenId(null)}>← 목록으로</GhostButton>
 
         <GlassCard className="p-6">
           <SectionTitle
@@ -1001,6 +1159,20 @@ export function ChartPanel({ branchId }: { branchId: string }) {
               {open.comment}
             </p>
           </div>
+
+          <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-ink/10 pt-4">
+            <GhostButton
+              onClick={() => toast("전자차트가 저장되었습니다 (데모)")}
+            >
+              저장하기
+            </GhostButton>
+            <GhostButton onClick={() => window.print()}>프린터하기</GhostButton>
+            <GhostButton
+              onClick={() => toast("공유 링크가 복사되었습니다 (데모)")}
+            >
+              공유하기
+            </GhostButton>
+          </div>
         </GlassCard>
       </div>
     );
@@ -1010,40 +1182,51 @@ export function ChartPanel({ branchId }: { branchId: string }) {
     <GlassCard className="p-6">
       <SectionTitle
         title="전자차트 (OPD)"
-        sub="차트를 누르면 상세 내용과 프린트 · PDF 버튼이 열립니다"
+        sub="차트를 누르면 상세 내용과 저장 · 프린터 · 공유 버튼이 열립니다"
       />
-      <div className="space-y-2">
-        {charts.map((c) => {
-          const customer = db.customers.find((x) => x.id === c.customerId);
-          const doctor = db.doctors.find((d) => d.id === c.doctorId);
-          const staff = db.staff.find((s) => s.id === c.staffId);
-          return (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setOpenId(c.id)}
-              className="w-full rounded-cell bg-white/70 p-4 text-left transition hairline hover:bg-white"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="font-semibold">{customer?.name}</div>
-                <span className="text-sm font-semibold">
-                  ฿{c.paidAmount.toLocaleString()}
-                </span>
-              </div>
-              <div className="mt-1 text-xs text-ink-sub">
-                {c.visitDate} · {doctor?.name} · {staff?.name}
-              </div>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {c.treatmentNames.map((t) => (
-                  <Badge key={t} tone="pink">
-                    {t}
-                  </Badge>
-                ))}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+      <TableOnly maxH="max-h-[30rem]">
+        <Table minW="min-w-[46rem]">
+          <Thead>
+            <Th stick>고객명</Th>
+            <Th>방문일</Th>
+            <Th>담당 의사</Th>
+            <Th>담당 직원</Th>
+            <Th>시술</Th>
+            <Th align="right">결제 금액</Th>
+          </Thead>
+          <tbody>
+            {charts.map((c) => {
+              const customer = db.customers.find((x) => x.id === c.customerId);
+              const doctor = db.doctors.find((d) => d.id === c.doctorId);
+              const staff = db.staff.find((s) => s.id === c.staffId);
+              return (
+                <Tr key={c.id} onClick={() => setOpenId(c.id)}>
+                  <Td stick className="font-medium">
+                    {customer?.name}
+                  </Td>
+                  <Td muted nums>
+                    {c.visitDate}
+                  </Td>
+                  <Td muted>{doctor?.name}</Td>
+                  <Td muted>{staff?.name}</Td>
+                  <Td wrap className="max-w-[16rem]">
+                    <div className="flex flex-wrap gap-1.5">
+                      {c.treatmentNames.map((t) => (
+                        <Badge key={t} tone="pink">
+                          {t}
+                        </Badge>
+                      ))}
+                    </div>
+                  </Td>
+                  <Td align="right" nums className="font-semibold">
+                    ฿{c.paidAmount.toLocaleString()}
+                  </Td>
+                </Tr>
+              );
+            })}
+          </tbody>
+        </Table>
+      </TableOnly>
     </GlassCard>
   );
 }
@@ -1138,13 +1321,22 @@ export function InventoryPanel({ branchId }: { branchId: string }) {
                 className={`rounded-cell p-4 hairline ${low ? "bg-danger/10" : "bg-white/70"}`}
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="truncate font-semibold">
-                      {product?.name}
-                    </div>
-                    <div className="truncate text-xs text-ink-sub">
-                      {item.volume} · {item.distribution} · LOT {item.lotNo} ·
-                      유효기간 {item.expiry}
+                  <div className="flex min-w-0 items-center gap-3">
+                    {product?.image && (
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="h-12 w-12 shrink-0 rounded-cell object-cover hairline"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <div className="truncate font-semibold">
+                        {product?.name}
+                      </div>
+                      <div className="truncate text-xs text-ink-sub">
+                        {item.volume} · {item.distribution} · LOT {item.lotNo} ·
+                        유효기간 {item.expiry}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1213,6 +1405,13 @@ export function InventoryPanel({ branchId }: { branchId: string }) {
               onClick={() => setBuyingId(p.id)}
               className="lift rounded-cell bg-white/80 p-4 text-left hairline"
             >
+              {p.image && (
+                <img
+                  src={p.image}
+                  alt={p.name}
+                  className="mb-3 h-24 w-full rounded-cell object-cover hairline"
+                />
+              )}
               <div className="text-xs text-ink-sub">{p.category}</div>
               <div className="mt-1 truncate font-semibold">{p.name}</div>
               <div className="mt-2 text-sm font-bold">
@@ -1485,6 +1684,13 @@ function PurchaseView({
               }}
               className="lift rounded-cell bg-white/80 p-4 text-left hairline"
             >
+              {p.image && (
+                <img
+                  src={p.image}
+                  alt={p.name}
+                  className="mb-3 h-24 w-full rounded-cell object-cover hairline"
+                />
+              )}
               <div className="text-xs text-ink-sub">{p.category}</div>
               <div className="mt-1 truncate font-semibold">{p.name}</div>
               <div className="mt-2 text-sm font-bold">

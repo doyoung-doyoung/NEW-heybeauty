@@ -2,6 +2,7 @@ import type {
   Account,
   AppUser,
   Booking,
+  BookingStatus,
   Branch,
   ChatThread,
   Clinic,
@@ -31,7 +32,7 @@ import { COMMISSION_BASELINE } from "./commission";
 const BASE_DATE = new Date("2026-09-17T09:00:00+07:00");
 
 // 스키마가 바뀌면 올린다. 저장된 데모 데이터가 이 값과 다르면 새 시드로 갈아끼운다.
-export const SEED_VERSION = 8;
+export const SEED_VERSION = 10;
 
 function rng(seed: number) {
   let a = seed >>> 0;
@@ -57,6 +58,20 @@ function shiftDays(days: number) {
 
 function dateOnly(days: number) {
   return shiftDays(days).slice(0, 10);
+}
+
+// 투자자 데모 지점(C01-B1)의 예약·차트만 여기서 재는 "오늘"을 기준으로 날짜를 잡는다.
+// 나머지는 BASE_DATE에 고정해 둬야 재현 가능한데, 이 지점만은 시간이 지나도 항상
+// "이번 주" 처럼 보여야 해서 실제 현재 시각을 앵커로 쓴다. migrate.ts가 매번 이 지점의
+// 예약·차트를 새로 그려 넣어야 이 값이 뜻이 있다.
+function shiftFromToday(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+}
+
+function todayOnly(days: number) {
+  return shiftFromToday(days).slice(0, 10);
 }
 
 const PRODUCTS: Product[] = [
@@ -427,6 +442,10 @@ export function buildSeed(): DemoDb {
     });
   });
 
+  // 손으로 쓴 열 곳의 지점만 담아 둔다. 채움용 클리닉(C11~C99)의 지점은 예약을 안 만든다 —
+  // 아래 예약 채움 루프가 이 스냅샷을 쓰므로, 뒤이어 오는 채움용 지점은 여기 안 잡힌다.
+  const demoBranches = branches.slice();
+
   // 재고 한 칸마다 입출고 기록을 20건 안팎으로 쌓는다.
   // 한 줄("초기 재고 등록")만 있으면 상세 화면이 텅 비어서, 재고가 실제로 돌아간 것처럼 안 보인다.
   // 맨 아래가 최초 입고이고 위로 올라올수록 최근이다.
@@ -688,6 +707,143 @@ export function buildSeed(): DemoDb {
     },
   ];
 
+  // A-3: "예약 확인"이 표(→ 시간×의사 그리드)로 볼 만한 규모가 되도록 지점마다 채운다.
+  // 위 BK1·BK2는 후기코드·커미션 데모와 엮여 있어 그대로 둔다.
+  // 홈 탭 "내 예약"은 U1·U2만 걸러서 보여주므로(UserPanels.tsx MyBookings) 그 화면이
+  // 엉뚱한 지점들로 흔들리지 않게, 채움용 예약은 U3·U4만 쓴다.
+  // 이 블록은 파일에서 rand()를 쓰는 마지막 코드라 — 채움용 클리닉(C11~C99)을 포함해
+  // 이 앞의 모든 시드 값에는 영향이 없다.
+  const BOOKING_TIMES = [
+    "09:30", "10:30", "11:00", "13:00", "13:30",
+    "14:30", "15:30", "16:00", "17:00", "17:30",
+  ];
+  let bookingSeq = 3;
+  demoBranches.forEach((branch) => {
+    const branchTreatments = treatments.filter((t) => t.clinicId === branch.clinicId);
+    const branchDoctors = doctors.filter((d) => d.branchId === branch.id);
+    // 파트너 데모 기본 로그인 지점(C01-B1)만 조금 더 채워서 그리드가 휑해 보이지 않게 한다.
+    const isEvergreen = branch.id === "C01-B1";
+    const dayCount = isEvergreen ? 6 : between(3, 4);
+    const usedOffsets = new Set<number>();
+
+    for (let d = 0; d < dayCount; d++) {
+      let offset = between(-18, 16);
+      while (usedOffsets.has(offset)) offset = between(-18, 16);
+      usedOffsets.add(offset);
+
+      // 같은 날 두 의사 다 채우는 날도 섞는다 — 그래야 그리드 열이 둘 다 보인다.
+      const doctorsToday =
+        isEvergreen && rand() < 0.5 ? branchDoctors : [pick(branchDoctors)];
+      const usedTimes = new Set<string>();
+
+      doctorsToday.forEach((doctor) => {
+        let time = pick(BOOKING_TIMES);
+        while (usedTimes.has(time)) time = pick(BOOKING_TIMES);
+        usedTimes.add(time);
+
+        const status: BookingStatus =
+          offset < 0
+            ? rand() < 0.85 ? "방문완료" : "취소"
+            : rand() < 0.85 ? "예약확정" : "취소";
+
+        bookings.push({
+          id: `BK${bookingSeq++}`,
+          userId: rand() < 0.5 ? "U3" : "U4",
+          clinicId: branch.clinicId,
+          branchId: branch.id,
+          treatmentId: pick(branchTreatments).id,
+          doctorId: doctor.id,
+          date: isEvergreen ? todayOnly(offset) : dateOnly(offset),
+          time,
+          depositTHB: 1000,
+          slipImage: null,
+          status,
+          usedReviewCode: null,
+          createdAt: isEvergreen
+            ? shiftFromToday(offset - between(1, 5))
+            : shiftDays(offset - between(1, 5)),
+        });
+      });
+    }
+  });
+
+  // 투자자 데모 지점(C01-B1)의 전자차트를 9건으로 채운다. 위 고객 루프(cu<2)가 이미 2건을
+  // 만들어 뒀으니 7건만 더한다. 방문일은 오늘 기준 최근 한 달 안쪽이라 "최근 1개월 매출"이
+  // 항상 뜻이 있는 값을 보여준다.
+  const c01B1Customers = customers.filter((c) => c.branchId === "C01-B1");
+  const c01B1Doctors = doctors.filter((d) => d.branchId === "C01-B1");
+  const c01B1Staff = staff.filter((s) => s.branchId === "C01-B1");
+  const c01B1Treatments = treatments.filter((t) => t.clinicId === "C01");
+  const evergreenChartComments = [
+    "시술 부위 홍조 경미, 2주 후 경과 관찰 예정",
+    "통증 호소 없음, 마취크림 20분 적용",
+    "다운타임 안내 완료, 재방문 4주 후 권장",
+    "부기 거의 없음, 냉찜질 안내",
+    "다음 시술까지 4주 간격 권장",
+  ];
+  for (let n = 1; n <= 7; n++) {
+    charts.push({
+      id: `C01-B1-EVG${n}`,
+      customerId: pick(c01B1Customers).id,
+      clinicId: "C01",
+      branchId: "C01-B1",
+      visitDate: todayOnly(-between(1, 28)),
+      doctorId: pick(c01B1Doctors).id,
+      staffId: pick(c01B1Staff).id,
+      treatmentNames: [pick(c01B1Treatments).name],
+      usedProducts: [{ productId: pick(PRODUCTS).id, qty: between(1, 3) }],
+      comment: pick(evergreenChartComments),
+      paidAmount: between(3000, 45000),
+    });
+  }
+
+  // 투자자 데모 지점(C01-B1)의 통합 인박스를 11개로 채운다. 위 루프가 이미 LINE·Meta·App
+  // 한 개씩(IN1~3)을 만들어 뒀으니, 헤이뷰티(App) 위주로 8개를 더해 총 11개·App 5개를 맞춘다.
+  const evergreenInboxPlan: { channel: InboxThread["channel"]; count: number }[] = [
+    { channel: "LINE", count: 2 },
+    { channel: "Meta", count: 2 },
+    { channel: "App", count: 4 },
+  ];
+  const evergreenInboxQuestions = [
+    "안녕하세요, 레이저 토닝 가격 문의드려요",
+    "이번 주 토요일 예약 가능한가요?",
+    "보톡스 프로모션 아직 하나요?",
+    "리쥬란 몇 회 받아야 효과 있나요?",
+    "필러 유지 기간이 얼마나 되나요?",
+    "주차 가능한가요?",
+    "상담만 먼저 받아볼 수 있을까요?",
+    "다음 방문 시 할인 받을 수 있나요?",
+  ];
+  let evergreenInboxSeq = 4;
+  evergreenInboxPlan.forEach(({ channel, count }) => {
+    for (let n = 0; n < count; n++) {
+      const id = `C01-B1-IN${evergreenInboxSeq++}`;
+      inbox.push({
+        id,
+        clinicId: "C01",
+        branchId: "C01-B1",
+        channel,
+        customerName: `${pick(CUSTOMER_FIRST)} ${pick(CUSTOMER_LAST)}`,
+        unread: rand() < 0.3,
+        updatedAt: shiftFromToday(-between(0, 6)),
+        messages: [
+          {
+            id: `${id}-M1`,
+            role: "user",
+            text: pick(evergreenInboxQuestions),
+            at: shiftFromToday(-between(1, 6)),
+          },
+          {
+            id: `${id}-M2`,
+            role: "clinic",
+            text: "문의 감사합니다! 담당 상담사가 곧 안내드리겠습니다.",
+            at: shiftFromToday(-between(0, 1)),
+          },
+        ],
+      });
+    }
+  });
+
   const reviewCodes: ReviewCode[] = [
     {
       id: "RC1",
@@ -723,6 +879,7 @@ export function buildSeed(): DemoDb {
       images: ["/reviews/RV1-1.jpg", "/reviews/RV1-2.jpg"],
       approved: true,
       blocked: false,
+      pinned: false,
       createdAt: shiftDays(-12),
     },
     {
@@ -735,6 +892,7 @@ export function buildSeed(): DemoDb {
       images: ["/reviews/RV2-1.jpg", "/reviews/RV2-2.jpg"],
       approved: false,
       blocked: false,
+      pinned: false,
       createdAt: shiftDays(-4),
     },
   ];
