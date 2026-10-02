@@ -252,7 +252,7 @@ export default function ChatView({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={t("chatPlaceholder")}
-          className="flex-1 rounded-pill bg-white/70 px-5 py-3 text-sm outline-none hairline placeholder:text-ink-sub focus:bg-white"
+          className="min-w-0 flex-1 rounded-pill bg-white/70 px-5 py-3 text-sm outline-none hairline placeholder:text-ink-sub focus:bg-white"
         />
         <InkButton onClick={() => input.trim() && ask(input.trim())}>
           {t("send")}

@@ -79,23 +79,26 @@ export default function AdminTab() {
   const [section, setSection] = useState<Section>("inventory");
 
   return (
-    <div className="space-y-4">
-      {/* 표를 훑다가 다른 섹션으로 바로 넘어가고 싶을 때 스크롤을 맨 위로 되돌리지 않아도
-          되게, 섹션 탭을 화면 위에 고정한다 — 후기·유저·클리닉 표가 다 길어서 특히 아쉬웠다. */}
-      <div className="glass sticky top-0 z-30 flex gap-2 overflow-x-auto rounded-pill p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="grid gap-4 lg:grid-cols-[13rem_1fr] lg:items-start">
+      {/* 카테고리를 넓은 화면에서는 왼쪽 사이드바로, 폰에서는 기존처럼 위쪽 가로 스크롤
+          칩으로 보여 준다 — 표를 훑다가 다른 섹션으로 바로 넘어가고 싶을 때 스크롤을
+          맨 위로 되돌리지 않아도 되게, 둘 다 화면에 고정한다. */}
+      <div className="glass sticky top-0 z-30 flex gap-2 overflow-x-auto rounded-pill p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:block lg:space-y-1 lg:overflow-visible lg:rounded-card lg:p-2">
         {SECTIONS.map((s) => (
-          <GhostButton
+          <button
             key={s.id}
-            active={section === s.id}
+            type="button"
             onClick={() => setSection(s.id)}
-            className="shrink-0"
+            className={`w-auto shrink-0 rounded-cell px-3.5 py-2.5 text-left text-sm font-medium transition duration-100 active:scale-[0.97] lg:w-full ${
+              section === s.id ? "bg-ink text-white" : "hover:bg-white/70"
+            }`}
           >
             {s.label}
-          </GhostButton>
+          </button>
         ))}
       </div>
 
-      <div key={section} className="animate-rise">
+      <div key={section} className="animate-rise min-w-0">
         {section === "inventory" && <InventorySection />}
         {section === "reviews" && <ReviewSection />}
         {section === "users" && <UserSection />}
