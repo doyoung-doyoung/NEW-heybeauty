@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDb } from "@/lib/db";
 import { useT } from "@/lib/i18n";
 import { asset } from "@/lib/assets";
@@ -26,6 +26,61 @@ export default function ClinicMap({ onOpen }: { onOpen: (clinicId: string) => vo
   const [city, setCity] = useState<string | null>(null);
   // 지도를 확대해서 볼 수 있게 — 안쪽 판 너비를 늘리고, 바깥 상자는 스크롤로 민다.
   const [zoom, setZoom] = useState(1);
+  const zoomRef = useRef(zoom);
+  const pinchBoxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
+  // 손가락 두 개로 꼬집어 확대 — 버튼과 같은 zoom 값을 쓴다. 매번 touchstart 기준
+  // 거리·배율을 다시 재서, 꼬집는 중간에 손을 떼고 다시 잡아도 튀지 않는다.
+  useEffect(() => {
+    const el = pinchBoxRef.current;
+    if (!el) return;
+
+    let startDist = 0;
+    let startZoom = zoomRef.current;
+
+    const distanceOf = (touches: TouchList) =>
+      Math.hypot(
+        touches[0].clientX - touches[1].clientX,
+        touches[0].clientY - touches[1].clientY,
+      );
+
+    function onTouchStart(e: TouchEvent) {
+      if (e.touches.length === 2) {
+        startDist = distanceOf(e.touches);
+        startZoom = zoomRef.current;
+      }
+    }
+    function onTouchMove(e: TouchEvent) {
+      if (e.touches.length === 2 && startDist > 0) {
+        e.preventDefault();
+        const scale = distanceOf(e.touches) / startDist;
+        const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(startZoom * scale).toFixed(2)));
+        setZoom(next);
+      }
+    }
+    function onTouchEnd(e: TouchEvent) {
+      if (e.touches.length < 2) startDist = 0;
+    }
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("touchcancel", onTouchEnd);
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+    // db는 처음엔 null이었다가 비동기로 들어오고, 방콕/태국 전체 보기를 오가면
+    // 이 판 자체가 통째로 다시 그려진다(= 새 DOM, ref가 바뀜) — 둘 다 바뀔 때마다
+    // 지금 붙어 있는 판에 다시 리스너를 건다.
+  }, [db, view]);
+
   if (!db) return null;
 
   const bkk = db.clinics.filter((c) => cityOf(c.district) === "방콕" && BKK_POS[c.district]);
@@ -71,10 +126,13 @@ export default function ClinicMap({ onOpen }: { onOpen: (clinicId: string) => vo
           <GlassCard className="h-fit overflow-hidden p-0">
             <div className="relative">
               {/* 확대 중엔 안쪽 판이 상자보다 커져서 가로·세로로 민다(= 돋보기로 보는 느낌).
-                  바깥을 누르면 열려 있던 점 정보가 닫힌다. */}
+                  바깥을 누르면 열려 있던 점 정보가 닫힌다. touchAction을 pan-x pan-y로
+                  두면 브라우저가 제 맘대로 화면 전체를 확대하지 않고, 손가락 두 개
+                  꼬집는 동작만 우리 JS(위 useEffect)가 받아서 처리한다. */}
               <div
+                ref={pinchBoxRef}
                 className="overflow-auto overscroll-contain"
-                style={{ maxHeight: "34rem" }}
+                style={{ maxHeight: "34rem", touchAction: "pan-x pan-y" }}
                 onClick={() => setPickedId(null)}
               >
                 <div
