@@ -169,3 +169,31 @@ export function ArrowRight() {
     </svg>
   );
 }
+
+/**
+ * 채팅 입력창 오른쪽의 동그란 보내기 버튼(위 화살표). 홈 AI 상담·클리닉 대화·파트너 답장이
+ * 모두 이 버튼을 써서 모양이 같다. 글자 대신 화살표라 좁은 폰에서도 "보내기"가 꺾이지 않는다.
+ */
+export function SendArrowButton({
+  label,
+  disabled = false,
+  onClick,
+}: {
+  label: string;
+  disabled?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type={onClick ? "button" : "submit"}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="flex size-10 shrink-0 items-center justify-center rounded-pill bg-ink text-white transition disabled:bg-ink/25 active:scale-[0.95]"
+    >
+      <svg aria-hidden viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 19V5M5 12l7-7 7 7" />
+      </svg>
+    </button>
+  );
+}

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useDb } from "@/lib/db";
 import { useT } from "@/lib/i18n";
-import { GhostButton, GlassCard, InkButton } from "@/components/ui/primitives";
+import { GhostButton, GlassCard, SendArrowButton } from "@/components/ui/primitives";
 import { LinkedNote, useLinkedNote } from "@/components/ui/LinkedNote";
 import { DEMO_SLIPS, SlipImage } from "./DemoAssets";
 
@@ -187,7 +187,7 @@ export default function ClinicChat({
             placeholder={t("msgPlaceholder")}
             className="flex-1 rounded-pill bg-white/70 px-5 py-3 text-sm outline-none hairline placeholder:text-ink-sub focus:bg-white"
           />
-          <InkButton onClick={send} className="shrink-0 whitespace-nowrap">{t("send")}</InkButton>
+          <SendArrowButton label={t("send")} disabled={!input.trim()} />
         </form>
       </GlassCard>
     </div>

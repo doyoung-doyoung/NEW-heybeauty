@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { SCENARIOS, type Scenario, turnAt } from "@/lib/scenario";
 import { useDb } from "@/lib/db";
 import { useT } from "@/lib/i18n";
+import { SendArrowButton } from "@/components/ui/primitives";
 
 interface Bubble {
   id: string;
@@ -262,14 +263,9 @@ export default function ChatView({
             <span className="rounded-pill px-3 py-2 text-xs font-medium text-ink-sub hairline">
               {t("aiTag")}
             </span>
-            <button
-              type="submit"
-              aria-label={t("send")}
-              disabled={!input.trim()}
-              className="ml-auto flex size-9 items-center justify-center rounded-pill bg-ink text-white transition disabled:bg-ink/25 active:scale-[0.95]"
-            >
-              <svg aria-hidden viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
-            </button>
+            <span className="ml-auto">
+              <SendArrowButton label={t("send")} disabled={!input.trim()} />
+            </span>
           </div>
         </form>
       </div>

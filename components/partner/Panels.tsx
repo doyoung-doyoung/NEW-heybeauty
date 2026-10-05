@@ -19,6 +19,7 @@ import {
   GlassCard,
   InkButton,
   SectionTitle,
+  SendArrowButton,
 } from "@/components/ui/primitives";
 import type { Booking, Channel } from "@/lib/types";
 
@@ -384,7 +385,7 @@ export function InboxPanel({ branchId }: { branchId: string }) {
                 placeholder="답장을 입력하세요"
                 className="flex-1 rounded-pill bg-white/70 px-5 py-3 text-sm outline-none hairline placeholder:text-ink-sub focus:bg-white"
               />
-              <InkButton onClick={send}>보내기</InkButton>
+              <SendArrowButton label="보내기" disabled={!reply.trim()} />
             </form>
           </>
         )}
