@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useDb } from "@/lib/db";
 import { useToast } from "@/components/ui/Toast";
 import { useT } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
 import { GlassCard, InkButton } from "@/components/ui/primitives";
 import ChatView from "@/components/home/ChatView";
 import ClinicsView from "@/components/home/ClinicsView";
@@ -26,8 +27,8 @@ export default function HomeTab() {
   const { t, tf } = useT();
   const { db } = useDb();
   const toast = useToast();
+  const { loggedIn, provider, login } = useAuth();
   const [view, setView] = useState<View>({ name: "chat", threadId: null });
-  const [loggedIn, setLoggedIn] = useState(false);
   const [popupClosed, setPopupClosed] = useState(false);
   // 새 대화를 눌러도 threadId가 null 그대로면 ChatView의 초기화 효과가 다시 돌지 않는다.
   // 이 값을 key로 써서 아예 새로 마운트시킨다.
@@ -184,14 +185,16 @@ export default function HomeTab() {
               </span>
               <div className="text-sm">
                 <div className="font-semibold">{tf("userGreeting", t("도도"))}</div>
-                <div className="text-[11px] text-ink-sub">{t("lineLinked")}</div>
+                <div className="text-[11px] text-ink-sub">
+                  {provider === "google" ? t("googleLinked") : t("lineLinked")}
+                </div>
               </div>
             </div>
           ) : (
             <button
               type="button"
               onClick={() => {
-                setLoggedIn(true);
+                login("line");
                 toast(t("loginDone"));
               }}
               className="mb-3 w-full rounded-pill bg-[#06C755] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-95"
@@ -242,7 +245,10 @@ export default function HomeTab() {
           />
         </GlassCard>
 
-        <div>
+        {/* min-w-0이 없으면 그리드 칸이 안의 내용(채팅 카드 등)이 원하는 폭에 맞춰
+            커져 버려, 좁은 폰(320px급)에서 화면이 옆으로 밀려났다 — 실제로 겪은
+            가로 스크롤 버그라 사이드바 카드와 똑같이 달아 둔다. */}
+        <div className="min-w-0">
           {view.name === "chat" && (
             <GlassCard className="p-5">
               <ChatView
