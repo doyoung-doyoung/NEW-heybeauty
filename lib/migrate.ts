@@ -36,6 +36,21 @@ export function migrate(saved: DemoDb | null): DemoDb {
 
   if (saved.version < 10) refreshV10(result, fresh);
 
+  // v12: C11~C99의 빈 이미지와 파일 없는 이전 시드 JPG 경로를 새 사진에 연결한다.
+  // 기존 열 곳과 사용자가 등록한 이미지는 덮어쓰지 않는다.
+  if (saved.version < 12) {
+    const freshClinics = new Map(fresh.clinics.map((c) => [c.id, c]));
+    result = {
+      ...result,
+      clinics: result.clinics.map((c) => {
+        if (!/^C(?:1[1-9]|[2-9]\d)$/.test(c.id)) return c;
+        if (c.image && c.image !== `/clinics/${c.id}.jpg`) return c;
+        const image = freshClinics.get(c.id)?.image;
+        return image ? { ...c, image } : c;
+      }),
+    };
+  }
+
   // 투자자 데모 지점(사얌 본점 · C01-B1)의 예약·차트는 "오늘" 기준으로 만들어지므로,
   // 저장본에 그대로 얼려 두면 날마다 과거로 밀려난다. 그래서 이 지점만은 매번 새로
   // 그린 값으로 갈아 끼운다 — 그날 클릭해 바꾼 상태(방문완료 등)는 새로고침하면
