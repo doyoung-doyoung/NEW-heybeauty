@@ -139,7 +139,9 @@ export default function NotePad({ where }: { where: string }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="glass fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-pill px-4 py-3 text-sm font-medium text-ink transition hover:bg-white/80"
+        // 폰에서는 오른쪽 가장자리 가운데에 반쪽 탭으로 붙인다. 오른쪽 아래에 두면
+        // 홈 채팅 입력창의 보내기 버튼을 가린다.
+        className="glass fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-pill px-4 py-3 text-sm font-medium text-ink transition hover:bg-white/80 max-sm:bottom-auto max-sm:right-0 max-sm:top-[42%] max-sm:rounded-r-none max-sm:px-3 max-sm:py-2.5 max-sm:text-xs"
       >
         노트
         {todo > 0 && (

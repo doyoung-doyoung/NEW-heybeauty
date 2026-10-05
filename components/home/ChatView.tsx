@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { SCENARIOS, type Scenario, turnAt } from "@/lib/scenario";
 import { useDb } from "@/lib/db";
 import { useT } from "@/lib/i18n";
-import { InkButton } from "@/components/ui/primitives";
 
 interface Bubble {
   id: string;
@@ -142,41 +141,17 @@ export default function ChatView({
 
   const empty = bubbles.length === 0;
 
-  // 대화 전에는 예시질문 카드가 두 장뿐이라, 채팅창 높이를 꽉 채우는 레이아웃을 그대로
-  // 쓰면 카드 밑에 화면 절반이 빈 채로 남고 입력창은 저 아래로 떠밀려 나간다. 대화가
-  // 없는 동안은 높이를 내용만큼만 쓰게 해서 예시질문 바로 아래에 입력창이 붙게 한다.
+  // 클로드 앱처럼: 대화 전에는 화면 한가운데 인사말 하나, 입력창은 늘 맨 아래에 붙어 있다.
+  // 부모(HomeTab)가 높이를 정해 주고, 여기서는 그 안을 꽉 채운다.
   return (
-    <div className={empty ? "flex flex-col" : "flex h-[calc(100dvh-14rem)] min-h-[28rem] flex-col"}>
-      <div className={empty ? "" : "flex-1 space-y-4 overflow-y-auto pr-1"}>
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4">
         {empty && (
-          <div className="animate-rise pt-6">
-            <h2 className="text-2xl font-bold leading-snug">
+          <div className="animate-rise flex h-full flex-col items-center justify-center text-center">
+            <SparkMark />
+            <h2 className="mt-4 text-[22px] font-semibold tracking-tight text-ink/85">
               {t("chatTitle")}
             </h2>
-            <p className="mt-2 text-sm text-ink-sub">
-              {t("chatSubtitle")}
-            </p>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {SCENARIOS.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => {
-                    setScenario(s);
-                    setTurnIndex(0);
-                    ask(s.question, s);
-                  }}
-                  className="lift rounded-card bg-white/70 p-5 text-left hairline"
-                >
-                  <div className="text-xs font-semibold text-hb-600">
-                    {t(s.category)}
-                  </div>
-                  <div className="mt-2 font-semibold leading-snug">
-                    {t(s.question)}
-                  </div>
-                </button>
-              ))}
-            </div>
           </div>
         )}
 
@@ -241,23 +216,70 @@ export default function ChatView({
         <div ref={bottomRef} />
       </div>
 
-      <form
-        className="mt-4 flex items-center gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (input.trim()) ask(input.trim());
-        }}
-      >
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={t("chatPlaceholder")}
-          className="min-w-0 flex-1 rounded-pill bg-white/70 px-5 py-3 text-sm outline-none hairline placeholder:text-ink-sub focus:bg-white"
-        />
-        <InkButton onClick={() => input.trim() && ask(input.trim())}>
-          {t("send")}
-        </InkButton>
-      </form>
+      <div className="px-3 pb-3">
+        {/* 대화 전에만 예시 질문을 입력창 바로 위에 칩으로 둔다 — 눌러서 바로 시작. */}
+        {empty && (
+          <div className="mb-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {SCENARIOS.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => {
+                  setScenario(s);
+                  setTurnIndex(0);
+                  ask(s.question, s);
+                }}
+                className="shrink-0 rounded-pill bg-white/70 px-3.5 py-2 text-left text-[13px] transition hairline active:scale-[0.97]"
+              >
+                <span className="mr-1.5 font-semibold text-hb-600">{t(s.category)}</span>
+                {t(s.question)}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <form
+          className="rounded-[26px] bg-white/90 p-2 shadow-float hairline"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (input.trim()) ask(input.trim());
+          }}
+        >
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={t("chatPlaceholder")}
+            className="w-full bg-transparent px-3 pb-3 pt-2 text-[15px] outline-none placeholder:text-ink-sub"
+          />
+          <div className="flex items-center gap-2">
+            <span className="flex size-9 items-center justify-center rounded-pill text-ink-sub hairline">
+              <svg aria-hidden viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+            </span>
+            <span className="rounded-pill px-3 py-2 text-xs font-medium text-ink-sub hairline">
+              {t("aiTag")}
+            </span>
+            <button
+              type="submit"
+              aria-label={t("send")}
+              disabled={!input.trim()}
+              className="ml-auto flex size-9 items-center justify-center rounded-pill bg-ink text-white transition disabled:bg-ink/25 active:scale-[0.95]"
+            >
+              <svg aria-hidden viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
+  );
+}
+
+/** 홈 화면 한가운데 마크. 클로드 앱의 주황 별 자리에 헤이뷰티 핑크 반짝이를 둔다. */
+function SparkMark() {
+  return (
+    <svg aria-hidden viewBox="0 0 48 48" className="size-12 text-hb-600">
+      {[0, 30, 60, 90, 120, 150].map((r) => (
+        <rect key={r} x="22.5" y="4" width="3" height="40" rx="1.5" fill="currentColor" transform={`rotate(${r} 24 24)`} />
+      ))}
+    </svg>
   );
 }
