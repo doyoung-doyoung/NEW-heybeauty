@@ -383,7 +383,7 @@ export function InboxPanel({ branchId }: { branchId: string }) {
                 value={reply}
                 onChange={(e) => setReply(e.target.value)}
                 placeholder="답장을 입력하세요"
-                className="flex-1 rounded-pill bg-white/70 px-5 py-3 text-sm outline-none hairline placeholder:text-ink-sub focus:bg-white"
+                className="min-w-0 flex-1 rounded-pill bg-white/70 px-5 py-3 text-sm outline-none hairline placeholder:text-ink-sub focus:bg-white"
               />
               <SendArrowButton label="보내기" disabled={!reply.trim()} />
             </form>

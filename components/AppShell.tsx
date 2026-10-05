@@ -44,10 +44,10 @@ export default function AppShell() {
       <header className="animate-rise relative z-30">
         {/* 언어·로그인은 유저가 쓰는 홈 화면에만 걸려 있어서, 지구 버튼·로그인 버튼도
             홈 탭에서만 보인다. 로그인은 그 줄의 맨 오른쪽에 둔다. */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-extrabold tracking-tight">Hey!</span>
-            <span className="text-2xl font-light text-ink-sub">Beauty</span>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex shrink-0 items-baseline gap-1.5 sm:gap-2">
+            <span className="text-xl font-extrabold min-[360px]:text-2xl tracking-tight">Hey!</span>
+            <span className="text-xl font-light min-[360px]:text-2xl text-ink-sub">Beauty</span>
           </div>
           {tab === "home" && <LangMenu lang={lang} onChange={setLang} />}
           {tab === "home" && <LoginMenu className="ml-auto" />}

@@ -2,6 +2,7 @@
 
 import { createContext, useContext } from "react";
 import { CONTENT, CONTENT_PATTERNS } from "./i18n-content";
+import { DISCOVERY_MESSAGES } from "./discovery-i18n";
 
 export type LangCode = "ko" | "en" | "th" | "zh" | "ru" | "ar";
 
@@ -19,6 +20,7 @@ export type Entry = Partial<Record<LangCode, string>>;
 
 // KO가 기준값. AR은 준비 중이라 전환되지 않고 KO로 떨어진다.
 const DICT: Record<string, Entry> = {
+  ...DISCOVERY_MESSAGES,
   aiChat: { ko: "AI 채팅", en: "AI Chat", th: "แชท AI", zh: "AI 聊天", ru: "AI-чат" },
   clinics: { ko: "클리닉 둘러보기", en: "Browse Clinics", th: "ดูคลินิก", zh: "浏览诊所", ru: "Клиники" },
   myBookings: { ko: "내 예약", en: "My Bookings", th: "การจองของฉัน", zh: "我的预约", ru: "Мои записи" },

@@ -1,6 +1,7 @@
 # HeyBeauty — 작업 메모
 
 ## 세션 시작 시
+- 최신 인계: NEXT_SESSION.md를 먼저 읽는다 (10/5 클리닉 검색·필터·찜·비교와 모바일 수정, 사용자 PR #14 병합 승인, 다음 작업 우선순위).
 - 최근 기록: `NOTES_LOG_2026-10-05.md` — 맨 아래 "아직 남은 것"부터 읽는다 (지도 '태국 전체' 확대 안 됨 · 지도 비교표 · 미정 2건).
 - 홈은 클로드 앱 구조다: 채팅 먼저, 메뉴는 ☰ 서랍(`components/tabs/HomeTab.tsx`), 채팅은 `components/home/ChatView.tsx`.
 - 사진 판독은 `/api/ocr` (모델 `claude-opus-5-5`). 키는 Production에만 있다.
