@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDb } from "@/lib/db";
 import { useT } from "@/lib/i18n";
 import { asset } from "@/lib/assets";
@@ -14,12 +14,80 @@ import type { Clinic } from "@/lib/types";
  * 지도는 진짜 지도가 아니라 예시 그림(Supabase Storage)이고, 핀 위치는 lib/geo.ts의
  * 동네 좌표(%)에 id별 작은 흔들림을 더해 찍는다.
  */
+const ZOOM_MIN = 1;
+const ZOOM_MAX = 2.5;
+const ZOOM_STEP = 0.5;
+
 export default function ClinicMap({ onOpen }: { onOpen: (clinicId: string) => void }) {
   const { t, tf } = useT();
   const { db } = useDb();
   const [view, setView] = useState<"bkk" | "th">("bkk");
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [city, setCity] = useState<string | null>(null);
+  // 지도를 확대해서 볼 수 있게 — 안쪽 판 너비를 늘리고, 바깥 상자는 스크롤로 민다.
+  const [zoom, setZoom] = useState(1);
+  const zoomRef = useRef(zoom);
+  const pinchBoxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
+  // 손가락 두 개로 꼬집어 확대 — 버튼과 같은 zoom 값을 쓴다. 매번 touchstart 기준
+  // 거리·배율을 다시 재서, 꼬집는 중간에 손을 떼고 다시 잡아도 튀지 않는다.
+  useEffect(() => {
+    const el = pinchBoxRef.current;
+    if (!el) return;
+
+    let startDist = 0;
+    let startZoom = zoomRef.current;
+
+    const distanceOf = (touches: TouchList) =>
+      Math.hypot(
+        touches[0].clientX - touches[1].clientX,
+        touches[0].clientY - touches[1].clientY,
+      );
+
+    function onTouchStart(e: TouchEvent) {
+      if (e.touches.length === 2) {
+        startDist = distanceOf(e.touches);
+        startZoom = zoomRef.current;
+      }
+    }
+    function onTouchMove(e: TouchEvent) {
+      if (e.touches.length === 2 && startDist > 0) {
+        e.preventDefault();
+        const scale = distanceOf(e.touches) / startDist;
+        const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(startZoom * scale).toFixed(2)));
+        setZoom(next);
+      }
+    }
+    function onTouchEnd(e: TouchEvent) {
+      if (e.touches.length < 2) startDist = 0;
+    }
+
+    // 아이폰 사파리는 touchmove를 막아도 자체 "gesture" 이벤트로 화면 전체를 확대한다.
+    // 지도 상자 안에서는 그것까지 막아야 지도만 커진다.
+    const stopGesture = (e: Event) => e.preventDefault();
+    el.addEventListener("gesturestart", stopGesture);
+    el.addEventListener("gesturechange", stopGesture);
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("touchcancel", onTouchEnd);
+    return () => {
+      el.removeEventListener("gesturestart", stopGesture);
+      el.removeEventListener("gesturechange", stopGesture);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+    // db는 처음엔 null이었다가 비동기로 들어오고, 방콕/태국 전체 보기를 오가면
+    // 이 판 자체가 통째로 다시 그려진다(= 새 DOM, ref가 바뀜) — 둘 다 바뀔 때마다
+    // 지금 붙어 있는 판에 다시 리스너를 건다.
+  }, [db, view]);
+
   if (!db) return null;
 
   const bkk = db.clinics.filter((c) => cityOf(c.district) === "방콕" && BKK_POS[c.district]);
@@ -63,42 +131,122 @@ export default function ClinicMap({ onOpen }: { onOpen: (clinicId: string) => vo
       {view === "bkk" ? (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <GlassCard className="h-fit overflow-hidden p-0">
-            <div className="relative w-full" style={{ aspectRatio: "1168 / 880" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={asset("maps/bangkok.jpg")}
-                alt={t("mapBangkok")}
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-              <span className="absolute left-3 top-3 rounded-pill bg-white/85 px-2.5 py-1 text-[11px] text-ink-sub hairline">
+            <div className="relative">
+              {/* 확대 중엔 안쪽 판이 상자보다 커져서 가로·세로로 민다(= 돋보기로 보는 느낌).
+                  바깥을 누르면 열려 있던 점 정보가 닫힌다. touchAction을 pan-x pan-y로
+                  두면 브라우저가 제 맘대로 화면 전체를 확대하지 않고, 손가락 두 개
+                  꼬집는 동작만 우리 JS(위 useEffect)가 받아서 처리한다. */}
+              <div
+                ref={pinchBoxRef}
+                className="overflow-auto overscroll-contain"
+                style={{ maxHeight: "34rem", touchAction: "pan-x pan-y" }}
+                onClick={() => setPickedId(null)}
+              >
+                <div
+                  className="relative"
+                  style={{ width: `${zoom * 100}%`, aspectRatio: "1168 / 880" }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={asset("maps/bangkok.jpg")}
+                    alt={t("mapBangkok")}
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                  {bkk.map((c) => {
+                    const pos = BKK_POS[c.district];
+                    const j = offsets.get(c.id) ?? { dx: 0, dy: 0 };
+                    const on = c.id === pickedId;
+                    const best = cheapest(c.id);
+                    return (
+                      // 핀과 그 밑 정보 카드를 같은 좌표에 둘 상자. 정보 카드 안에 "상세보기"
+                      // 버튼이 있어서, 핀 자체를 button으로 두면 button 안에 button이 들어가
+                      // 버린다(HTML에서 금지 — 실제로 하이드레이션 에러가 났다).
+                      <div
+                        key={c.id}
+                        className="absolute -translate-x-1/2 -translate-y-1/2"
+                        style={{ left: `${pos.x + j.dx}%`, top: `${pos.y + j.dy}%` }}
+                      >
+                        <button
+                          type="button"
+                          title={t(c.name)}
+                          aria-label={t(c.name)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPickedId(on ? null : c.id);
+                          }}
+                          className={`block rounded-full border-2 border-white shadow-md transition ${
+                            on
+                              ? "z-20 h-5 w-5 bg-ink ring-4 ring-ink/20"
+                              : `z-10 h-3.5 w-3.5 hover:z-20 hover:scale-125 ${c.hasBranches ? "bg-hb-600" : "bg-pink-400"}`
+                          }`}
+                        />
+                        {/* 점을 누르면 이름만 뜨던 자리를, 평점·최저가·상세보기까지 보이는
+                            카드로 바꿔서 점 바로 밑에 띄운다. 확대해서 봐도 그 점 밑에 그대로 붙는다. */}
+                        {on && (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="animate-pop absolute left-1/2 top-full z-30 mt-2 w-48 -translate-x-1/2 rounded-cell bg-white p-3 text-left shadow-float hairline"
+                          >
+                            <div className="truncate text-sm font-bold text-ink">
+                              {t(c.name)}
+                            </div>
+                            <div className="mt-0.5 truncate text-[11px] text-ink-sub">
+                              {t(c.district)}
+                            </div>
+                            <div className="mt-1.5 flex items-center justify-between text-[11px]">
+                              <span className="font-semibold">★ {c.rating}</span>
+                              {best && (
+                                <span className="font-bold text-ink">
+                                  ฿{best.price.toLocaleString()}~
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpen(c.id);
+                              }}
+                              className="mt-2 w-full rounded-pill bg-ink py-1.5 text-[11px] font-semibold text-white transition hover:bg-ink-deep"
+                            >
+                              {t("viewDetail")}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <span className="pointer-events-none absolute left-3 top-3 z-10 rounded-pill bg-white/85 px-2.5 py-1 text-[11px] text-ink-sub hairline">
                 {t("mapExample")}
               </span>
-              {bkk.map((c) => {
-                const pos = BKK_POS[c.district];
-                const j = offsets.get(c.id) ?? { dx: 0, dy: 0 };
-                const on = c.id === pickedId;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    title={t(c.name)}
-                    aria-label={t(c.name)}
-                    onClick={() => setPickedId(c.id)}
-                    className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-md transition ${
-                      on
-                        ? "z-20 h-5 w-5 bg-ink ring-4 ring-ink/20"
-                        : `z-10 h-3.5 w-3.5 hover:z-20 hover:scale-125 ${c.hasBranches ? "bg-hb-600" : "bg-pink-400"}`
-                    }`}
-                    style={{ left: `${pos.x + j.dx}%`, top: `${pos.y + j.dy}%` }}
-                  >
-                    {on && (
-                      <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-pill bg-ink px-2 py-0.5 text-[11px] font-semibold text-white">
-                        {t(c.name)}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+
+              {/* 확대/축소 버튼. 스크롤 상자 바깥(이 relative 기준)에 고정해서 밀어도 안 움직인다. */}
+              <div className="absolute right-3 top-3 z-10 flex items-center gap-0.5 rounded-pill bg-white/90 p-1 shadow-float hairline">
+                <button
+                  type="button"
+                  aria-label={t("mapZoomOut")}
+                  disabled={zoom <= ZOOM_MIN}
+                  onClick={() => setZoom((z) => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2)))}
+                  className="flex size-7 items-center justify-center rounded-pill text-base font-bold text-ink transition hover:bg-black/5 disabled:opacity-30"
+                >
+                  −
+                </button>
+                <span className="w-10 text-center text-[11px] font-semibold tabular-nums text-ink-sub">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <button
+                  type="button"
+                  aria-label={t("mapZoomIn")}
+                  disabled={zoom >= ZOOM_MAX}
+                  onClick={() => setZoom((z) => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2)))}
+                  className="flex size-7 items-center justify-center rounded-pill text-base font-bold text-ink transition hover:bg-black/5 disabled:opacity-30"
+                >
+                  +
+                </button>
+              </div>
             </div>
           </GlassCard>
 

@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useT } from "@/lib/i18n";
 import { GlassCard, InkButton } from "@/components/ui/primitives";
 import ChatView from "@/components/home/ChatView";
-import ClinicsView from "@/components/home/ClinicsView";
+import ClinicsView, { MAP } from "@/components/home/ClinicsView";
 import BookingFlow from "@/components/home/BookingFlow";
 import ClinicChat from "@/components/home/ClinicChat";
 import { MyBookings, WriteReview } from "@/components/home/UserPanels";
@@ -15,7 +15,7 @@ import type { ChatThread } from "@/lib/types";
 
 type View =
   | { name: "chat"; threadId: string | null }
-  | { name: "clinics"; category: string }
+  | { name: "clinics"; category: string; openId?: string }
   | { name: "booking"; clinicId: string; treatmentId: string; promoId?: string }
   | { name: "clinicChat"; threadId: string }
   | { name: "mybookings" }
@@ -23,11 +23,10 @@ type View =
   | { name: "notice" };
 
 export default function HomeTab() {
-  const { t, tf } = useT();
+  const { t } = useT();
   const { db } = useDb();
   const toast = useToast();
-  const [view, setView] = useState<View>({ name: "chat", threadId: null });
-  const [loggedIn, setLoggedIn] = useState(false);
+    const [view, setView] = useState<View>({ name: "chat", threadId: null });
   const [popupClosed, setPopupClosed] = useState(false);
   // 새 대화를 눌러도 threadId가 null 그대로면 ChatView의 초기화 효과가 다시 돌지 않는다.
   // 이 값을 key로 써서 아예 새로 마운트시킨다.
@@ -53,10 +52,16 @@ export default function HomeTab() {
     }, 180);
   }
 
-  // 공지 팝업에서 "예약하기"를 누르면 곧장 예약 화면으로 보낸다.
-  // 팝업에 클리닉이 지정돼 있지는 않아서 첫 번째 클리닉의 첫 시술을 쓴다.
+  // 팝업이 가리키는 클리닉. 어드민에서 고른 곳, 안 골랐으면 사진 있는 첫 클리닉
+  // (10/1 노트 "우선은 클리닉 이미지가 있는 곳으로").
+  const popupClinic =
+    db.clinics.find((c) => c.id === popup?.clinicId) ??
+    db.clinics.find((c) => c.image) ??
+    db.clinics[0];
+
+  // 공지 팝업에서 "예약하기"를 누르면 곧장 그 클리닉의 예약 화면으로 보낸다.
   function bookFromPopup() {
-    const clinic = db?.clinics[0];
+    const clinic = popupClinic;
     const treatment = db?.treatments.find((tr) => tr.clinicId === clinic?.id);
     closePopupModal(() => {
       if (clinic && treatment) {
@@ -153,7 +158,9 @@ export default function HomeTab() {
                 <InkButton
                   arrow={false}
                   onClick={() =>
-                    closePopupModal(() => setView({ name: "clinics", category: "전체" }))
+                    closePopupModal(() =>
+                      setView({ name: "clinics", category: "전체", openId: popupClinic?.id }),
+                    )
                   }
                 >
                   {t("clinics")}
@@ -177,29 +184,6 @@ export default function HomeTab() {
 
       <div className="grid gap-4 lg:grid-cols-[17rem_1fr]">
         <GlassCard className="h-fit min-w-0 p-4">
-          {loggedIn ? (
-            <div className="mb-3 flex items-center gap-2 rounded-cell bg-white/70 p-3 hairline">
-              <span className="flex size-8 items-center justify-center rounded-pill bg-hb-400/30 text-xs font-bold text-hb-600">
-                {t("도도").slice(0, 1)}
-              </span>
-              <div className="text-sm">
-                <div className="font-semibold">{tf("userGreeting", t("도도"))}</div>
-                <div className="text-[11px] text-ink-sub">{t("lineLinked")}</div>
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setLoggedIn(true);
-                toast(t("loginDone"));
-              }}
-              className="mb-3 w-full rounded-pill bg-[#06C755] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-95"
-            >
-              {t("login")}
-            </button>
-          )}
-
           <div className="mb-3">
             <InkButton
               arrow={false}
@@ -214,8 +198,15 @@ export default function HomeTab() {
           </div>
 
           <div className="flex gap-2 overflow-x-auto pb-1 lg:block lg:space-y-1 lg:overflow-visible lg:pb-0">
-            {sideItem("clinics", t("clinics"), view.name === "clinics", () =>
-              setView({ name: "clinics", category: "전체" }),
+            {sideItem(
+              "clinics",
+              t("clinics"),
+              view.name === "clinics" && view.category !== MAP,
+              () => setView({ name: "clinics", category: "전체" }),
+            )}
+            {/* 지도는 많이 쓰는 기능이라 클리닉 둘러보기 바로 옆에 따로 둔다 (10/2 노트). */}
+            {sideItem("map", t("catMap"), view.name === "clinics" && view.category === MAP, () =>
+              setView({ name: "clinics", category: MAP }),
             )}
             {sideItem("mybookings", t("myBookings"), view.name === "mybookings", () =>
               setView({ name: "mybookings" }),
@@ -242,7 +233,10 @@ export default function HomeTab() {
           />
         </GlassCard>
 
-        <div>
+        {/* min-w-0이 없으면 그리드 칸이 안의 내용(채팅 카드 등)이 원하는 폭에 맞춰
+            커져 버려, 좁은 폰(320px급)에서 화면이 옆으로 밀려났다 — 실제로 겪은
+            가로 스크롤 버그라 사이드바 카드와 똑같이 달아 둔다. */}
+        <div className="min-w-0">
           {view.name === "chat" && (
             <GlassCard className="p-5">
               <ChatView
@@ -255,7 +249,10 @@ export default function HomeTab() {
 
           {view.name === "clinics" && (
             <ClinicsView
+              // 같은 화면 안에서 목록 ↔ 지도 ↔ 특정 클리닉으로 옮겨 갈 때 안쪽 상태를 새로 잡는다.
+              key={`${view.category}|${view.openId ?? ""}`}
               initialCategory={view.category}
+              initialOpenId={view.openId ?? null}
               onBook={(clinicId, treatmentId, promoId) =>
                 setView({ name: "booking", clinicId, treatmentId, promoId })
               }

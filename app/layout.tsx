@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 const title = "Hey! Beauty";
@@ -19,6 +19,14 @@ export const metadata: Metadata = {
     images: [{ url: "/og.jpg", width: 1200, height: 630, alt: title }],
   },
   twitter: { card: "summary_large_image", title, description, images: ["/og.jpg"] },
+};
+
+// maximumScale 1: 입력칸을 눌렀을 때 아이폰이 화면을 멋대로 확대하지 않게 한다.
+// (iOS 10부터는 이 값이 있어도 사용자가 두 손가락으로 확대하는 건 막지 않는다.)
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({

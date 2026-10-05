@@ -3,7 +3,7 @@ import { asset } from "./assets";
 /**
  * 어드민 → 전체 재고 → "유통업체 · 유통 제품" 표.
  *
- * 업체 이름은 2026-10-01에 웹에서 찾아 넣었다. check 값의 뜻:
+ * 업체 이름은 2026-10-01에 웹에서 찾아 넣었다. "확인 필요"였던 4줄(D18·D19·D22·D23)은 10-05에 채웠다. check 값의 뜻:
  *  - "확인"  : 기사·클리닉 안내글에 "이 회사가 태국 수입사"라고 적힌 것을 찾음
  *  - "추정"  : 그 브랜드를 만든 회사의 태국 법인. 수입사라는 글은 아직 못 찾음
  *  - "제공"  : 도도가 직접 알려 준 정보
@@ -52,14 +52,14 @@ export const DIST_ROWS: DistRow[] = [
   { id: "D15", product: "Juvederm Ultra Plus XC", productId: "P09", category: "필러", spec: "1ml 시린지", distributor: "Allergan Aesthetics (AbbVie Thailand)", route: "정식", priceTHB: 8800, check: "추정" },
   { id: "D16", product: "Juvederm Volite", productId: "P07", category: "스킨부스터", spec: "1ml 시린지", distributor: "Allergan Aesthetics (AbbVie Thailand)", route: "정식", priceTHB: 7900, check: "추정" },
   { id: "D17", product: "Relife Definisse", productId: "P04", category: "필러", spec: "1ml 시린지", distributor: "A. Menarini (Thailand)", route: "정식", priceTHB: 5600, check: "추정", note: "Relife는 메나리니 그룹 회사" },
-  { id: "D18", product: "Flore Max", productId: "P01", category: "필러", spec: "1ml 시린지", distributor: "확인 필요", route: "병행수입", priceTHB: 4800, check: "미확인" },
-  { id: "D19", product: "Neauvia Hydro Deluxe", productId: "P21", category: "바이오스티뮬레이터", spec: "2.5ml 시린지", distributor: "확인 필요", route: "정식", priceTHB: 9700, check: "미확인" },
+  { id: "D18", product: "Flore Max", productId: "P01", category: "필러", spec: "1ml 시린지", distributor: "Bon-Song", distributorTh: "บอน-ซอง", route: "정식", priceTHB: 4800, check: "확인", note: "BNC Korea 제조 · 태국 FDA 등록" },
+  { id: "D19", product: "Neauvia Hydro Deluxe", productId: "P21", category: "바이오스티뮬레이터", spec: "2.5ml 시린지", distributor: "Ampex Aesthetics", distributorTh: "แอมแพ็กซ์ เอสเธติคส์", route: "정식", priceTHB: 9700, check: "확인", note: "Matex Lab(이탈리아) 제품" },
 
   // 스킨부스터 · 메조
   { id: "D20", product: "Rejuran", productId: "P16", category: "스킨부스터", spec: "2ml 시린지", distributor: "Rejuran Thailand", distributorTh: "รีจูรัน ประเทศไทย", route: "정식", priceTHB: 5400, check: "확인", note: "공식 계정 · 정품 인증 운영" },
   { id: "D21", product: "ASCE+ Exosome", productId: "P19", category: "스킨부스터", spec: "1 키트", distributor: "MC Supplymed", route: "정식", priceTHB: 3500, check: "확인", note: "판매가 ฿3,500 확인" },
-  { id: "D22", product: "NCTF 135HA", productId: "P17", category: "메조", spec: "5ml 앰플", distributor: "확인 필요", route: "병행수입", priceTHB: 2600, check: "미확인" },
-  { id: "D23", product: "MADE Collagen", productId: "P20", category: "메조", spec: "5ml 앰플", distributor: "확인 필요", route: "병행수입", priceTHB: 3100, check: "미확인" },
+  { id: "D22", product: "NCTF 135HA", productId: "P17", category: "메조", spec: "5ml 앰플", distributor: "Laboratoires Fillmed Thailand (Dermalogic)", route: "정식", priceTHB: 2600, check: "추정", note: "필메드 태국 법인 · 방콕 True Digital Park" },
+  { id: "D23", product: "MADE Collagen", productId: "P20", category: "메조", spec: "5ml 앰플", distributor: "GOUTH", distributorTh: "กูธ", route: "정식", priceTHB: 3100, check: "확인", note: "GUNA(이탈리아) 제품 · 태국 유일 정식 수입사" },
 
   // 클리닉 소모품 (태국 현지 제조사)
   { id: "D24", product: "니트릴 장갑 (파우더 프리)", productId: "S02", category: "소모품", spec: "M · 100매/박스", distributor: "Sri Trang Gloves (Thailand)", distributorTh: "ศรีตรังโกลฟส์ (ประเทศไทย)", route: "정식", priceTHB: 180, check: "추정", note: "태국 장갑 제조사" },

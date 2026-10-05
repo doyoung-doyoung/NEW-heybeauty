@@ -275,6 +275,8 @@ export interface Popup {
   body: string;
   image: string | null;
   active: boolean;
+  /** 팝업의 "클리닉 둘러보기"를 누르면 열 클리닉. 비어 있으면 사진이 있는 첫 클리닉. */
+  clinicId?: string | null;
 }
 
 export interface Account {
