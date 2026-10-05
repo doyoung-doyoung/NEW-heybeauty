@@ -1,7 +1,7 @@
 # HeyBeauty — 작업 메모
 
 ## 세션 시작 시
-- 최근 기록: `NOTES_LOG_2026-10-05.md` — 맨 아래 "아직 남은 것"부터 읽는다 (아이폰 확인 2건 · 지도 비교표 · 미정 2건).
+- 최근 기록: `NOTES_LOG_2026-10-05.md` — 맨 아래 "아직 남은 것"부터 읽는다 (아이폰 지도 확대 확인 · 지도 비교표 · 미정 2건).
 - 홈은 클로드 앱 구조다: 채팅 먼저, 메뉴는 ☰ 서랍(`components/tabs/HomeTab.tsx`), 채팅은 `components/home/ChatView.tsx`.
 - 사진 판독은 `/api/ocr` (모델 `claude-opus-5-5`). 키는 Production에만 있다.
 - 노트 위젯 내용은 Supabase 프로젝트 `hdujouoaeqatrazrnlhn`의 `hb_notes` 테이블에 있다
