@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDb } from "@/lib/db";
 import { useToast } from "@/components/ui/Toast";
@@ -22,12 +22,18 @@ type View =
   | { name: "review" }
   | { name: "notice" };
 
+// 공지 팝업은 홈에 처음 들어올 때 한 번만 자동으로 띄운다. 탭을 오가며 HomeTab이
+// 다시 그려져도 또 뜨지 않게, 컴포넌트 밖(페이지가 열려 있는 동안 유지)에 기억한다.
+let popupAutoShown = false;
+
 export default function HomeTab() {
   const { t } = useT();
   const { db } = useDb();
   const toast = useToast();
     const [view, setView] = useState<View>({ name: "chat", threadId: null });
-  const [popupClosed, setPopupClosed] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  // 마지막으로 보던 AI 대화. 다른 화면에 갔다가 "채팅으로 돌아가기"를 누르면 여기로 온다.
+  const [lastChatId, setLastChatId] = useState<string | null>(null);
   // 새 대화를 눌러도 threadId가 null 그대로면 ChatView의 초기화 효과가 다시 돌지 않는다.
   // 이 값을 key로 써서 아예 새로 마운트시킨다.
   const [chatNonce, setChatNonce] = useState(0);
@@ -35,6 +41,14 @@ export default function HomeTab() {
   // 닫히는 180ms 동안에도 모달을 화면에 남겨 둬야 pop-out이 재생된다.
   // 뜬 경로 그대로 되짚어 사라지게 하려고 popupOpen과 따로 둔다.
   const [popupClosing, setPopupClosing] = useState(false);
+
+  const hasActivePopup = Boolean(db?.popups.some((p) => p.active));
+  useEffect(() => {
+    if (hasActivePopup && !popupAutoShown) {
+      popupAutoShown = true;
+      setPopupOpen(true);
+    }
+  }, [hasActivePopup]);
 
   if (!db) return null;
 
@@ -72,63 +86,193 @@ export default function HomeTab() {
     });
   }
 
-  // 작은 화면에서는 가로로 늘어선 칩이라 글자 너비만 차지해야 한다. w-full을 주면
-  // 칩 하나가 화면을 다 먹어 나머지가 밖으로 밀려난다. lg부터는 세로 사이드바라 그때만 꽉 채운다.
-  const sideItem = (key: string, label: string, active: boolean, onClick: () => void) => (
-    <button
-      key={key}
-      type="button"
-      onClick={onClick}
-      className={`w-auto shrink-0 rounded-cell px-3 py-2.5 text-left text-sm transition duration-100 active:scale-[0.97] lg:w-full ${
-        active ? "bg-ink text-white" : "hover:bg-white/70"
-      }`}
-    >
-      <span className="truncate font-medium">{label}</span>
-    </button>
-  );
+  // 서랍 메뉴에서 고르면 화면을 바꾸고 서랍은 닫는다.
+  function go(next: View) {
+    setView(next);
+    setDrawerOpen(false);
+  }
+
+  function newChat() {
+    setLastChatId(null);
+    setChatNonce((n) => n + 1);
+    go({ name: "chat", threadId: null });
+  }
+
+  const title =
+    view.name === "clinics"
+      ? view.category === MAP
+        ? t("catMap")
+        : t("clinics")
+      : view.name === "mybookings"
+        ? t("myBookings")
+        : view.name === "review"
+          ? t("writeReview")
+          : view.name === "notice"
+            ? t("notice")
+            : "Hey! Beauty";
+
+  const menu: { key: string; label: string; icon: React.ReactNode; active: boolean; to: View }[] = [
+    { key: "clinics", label: t("clinics"), icon: <IconClinic />, active: view.name === "clinics" && view.category !== MAP, to: { name: "clinics", category: "전체" } },
+    { key: "map", label: t("catMap"), icon: <IconMap />, active: view.name === "clinics" && view.category === MAP, to: { name: "clinics", category: MAP } },
+    { key: "mybookings", label: t("myBookings"), icon: <IconCalendar />, active: view.name === "mybookings", to: { name: "mybookings" } },
+    { key: "review", label: t("writeReview"), icon: <IconStar />, active: view.name === "review", to: { name: "review" } },
+    { key: "notice", label: t("notice"), icon: <IconBell />, active: view.name === "notice", to: { name: "notice" } },
+  ];
 
   return (
-    <div className="space-y-4">
-      {popup && !popupClosed && (
-        <div className="animate-rise overflow-hidden rounded-card bg-ink text-white">
-          {/* 배너를 눌러도 크게 볼 수 있게 한다. */}
-          <button
-            type="button"
-            onClick={() => setPopupOpen(true)}
-            className="block w-full text-left"
-          >
-            {popup.image && (
-              // 광고 이미지에 글씨가 들어 있어서 위아래를 자르면 안 된다. 비율(12:5) 그대로 보여 준다.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={popup.image} alt={popup.title} className="aspect-[12/5] w-full object-cover" />
+    <>
+      {/* 클로드 앱처럼: 들어오면 AI 상담 채팅이 먼저, 나머지 메뉴는 왼쪽 위 ☰ 서랍 안에.
+          높이를 화면에 맞춰 고정해야 입력창이 늘 맨 아래에 붙어 있다. */}
+      <div className="glass relative flex h-[calc(100svh-12.5rem)] min-h-[30rem] flex-col overflow-hidden rounded-card">
+        <div className="flex items-center gap-2 px-3 pt-3">
+          <RoundIcon label="menu" onClick={() => setDrawerOpen(true)}>
+            <IconMenu />
+          </RoundIcon>
+          {/* 채팅이 아닌 화면(클리닉·지도·예약·후기·공지·클리닉 대화) 어디서든 맨 위 가운데
+              버튼 하나로 보던 AI 상담에 돌아온다. 위에 두면 어떤 화면의 내용·입력창도 가리지 않는다. */}
+          <div className="flex min-w-0 flex-1 justify-center">
+            {view.name === "chat" ? (
+              <span className="truncate text-sm font-semibold text-ink/80">{title}</span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => go({ name: "chat", threadId: lastChatId })}
+                className="flex min-w-0 items-center gap-1.5 rounded-pill bg-ink px-4 py-2.5 text-[13px] font-semibold text-white shadow-float transition active:scale-[0.97]"
+              >
+                <IconChat />
+                <span className="truncate">{t("backToChat")}</span>
+              </button>
             )}
-          </button>
-          <div className="flex items-start justify-between gap-4 p-5">
-            <button
-              type="button"
-              onClick={() => setPopupOpen(true)}
-              className="min-w-0 text-left"
-            >
-              <div className="text-xs text-white/60">{t("noticePopup")}</div>
-              <div className="mt-1 font-bold">{t(popup.title)}</div>
-              <p className="mt-1 text-sm text-white/75">{t(popup.body)}</p>
-              <span className="mt-2 inline-block text-xs text-white/60 underline">
-                {t("detail")}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setPopupClosed(true)}
-              className="shrink-0 rounded-pill border border-white/25 px-3 py-1.5 text-xs transition duration-100 active:scale-[0.97]"
-            >
-              {t("close")}
-            </button>
           </div>
+          <RoundIcon label={t("newChat")} onClick={newChat}>
+            <IconCompose />
+          </RoundIcon>
         </div>
-      )}
+
+        <div className="min-h-0 flex-1">
+          {view.name === "chat" ? (
+            <ChatView
+              key={chatNonce}
+              threadId={view.threadId}
+              onSaved={setLastChatId}
+              onCta={(category) => setView({ name: "clinics", category })}
+            />
+          ) : (
+            <div className="h-full overflow-y-auto overscroll-contain p-3">
+              {view.name === "clinics" && (
+                <ClinicsView
+                  // 같은 화면 안에서 목록 ↔ 지도 ↔ 특정 클리닉으로 옮겨 갈 때 안쪽 상태를 새로 잡는다.
+                  key={`${view.category}|${view.openId ?? ""}`}
+                  initialCategory={view.category}
+                  initialOpenId={view.openId ?? null}
+                  onBook={(clinicId, treatmentId, promoId) =>
+                    setView({ name: "booking", clinicId, treatmentId, promoId })
+                  }
+                />
+              )}
+
+              {view.name === "booking" && (
+                <BookingFlow
+                  clinicId={view.clinicId}
+                  treatmentId={view.treatmentId}
+                  promoId={view.promoId}
+                  onBack={() => setView({ name: "clinics", category: "전체" })}
+                  onOpenClinicChat={(threadId) =>
+                    setView({ name: "clinicChat", threadId })
+                  }
+                />
+              )}
+
+              {view.name === "clinicChat" && (
+                <ClinicChat
+                  threadId={view.threadId}
+                  onBack={() => setView({ name: "chat", threadId: null })}
+                  onEnd={() => {
+                    // "이전 대화"는 가장 최근에 주고받은 AI 상담 스레드다.
+                    const prev = db.chats
+                      .filter((c) => c.kind === "ai")
+                      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+                    toast(t("chatEnded"));
+                    setView({ name: "chat", threadId: prev?.id ?? null });
+                  }}
+                />
+              )}
+
+              {view.name === "mybookings" && <MyBookings />}
+              {view.name === "review" && <WriteReview />}
+              {view.name === "notice" && <NoticeList />}
+            </div>
+          )}
+        </div>
+
+
+        {drawerOpen && (
+          <div className="absolute inset-0 z-30">
+            <button
+              type="button"
+              aria-label={t("close")}
+              onClick={() => setDrawerOpen(false)}
+              className="animate-backdrop-in absolute inset-0 bg-ink/30"
+            />
+            <aside className="animate-drawer-in absolute inset-y-0 left-0 flex w-[84%] max-w-xs flex-col bg-[#fff7fa] shadow-float">
+              <div className="flex items-baseline gap-1.5 px-5 pb-2 pt-5">
+                <span className="text-xl font-extrabold tracking-tight">Hey!</span>
+                <span className="text-xl font-light text-ink-sub">Beauty</span>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2">
+                <ul className="space-y-0.5">
+                  {menu.map((m) => (
+                    <li key={m.key}>
+                      <button
+                        type="button"
+                        onClick={() => go(m.to)}
+                        className={`flex w-full items-center gap-3 rounded-[14px] px-3 py-3 text-left text-[15px] transition active:scale-[0.98] ${
+                          m.active ? "bg-ink/[0.07] font-semibold" : "hover:bg-ink/[0.04]"
+                        }`}
+                      >
+                        <span className="text-ink/70">{m.icon}</span>
+                        {m.label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+
+                <ChatHistory
+                  activeId={
+                    view.name === "chat" || view.name === "clinicChat" ? view.threadId : null
+                  }
+                  onOpen={(c) =>
+                    go(
+                      c.kind === "ai"
+                        ? { name: "chat", threadId: c.id }
+                        : { name: "clinicChat", threadId: c.id },
+                    )
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-3 border-t border-ink/10 p-3">
+                <span className="flex size-10 items-center justify-center rounded-pill bg-hb-400/30 text-sm font-bold text-hb-600">
+                  {t("도도").slice(0, 1)}
+                </span>
+                <button
+                  type="button"
+                  onClick={newChat}
+                  className="flex items-center gap-1.5 rounded-pill bg-ink px-5 py-2.5 text-sm font-semibold text-white transition active:scale-[0.97]"
+                >
+                  <span className="text-base leading-none">+</span>
+                  {t("newChat")}
+                </button>
+              </div>
+            </aside>
+          </div>
+        )}
+      </div>
 
       {/* <main>에 animate-rise(transform)가 걸려 있어서, 그 안에서 fixed를 쓰면
-          화면이 아니라 main 박스를 기준으로 붙는다. body로 빼내야 화면 전체를 덮는다. */}
+          화면이 아니라 main 박스를 기준으로 붙는다. body로 빼내야 화면 전체를 덮는다.
+          홈에 들어오면 채팅 화면 위에 이 팝업이 먼저 뜬다. */}
       {popup && (popupOpen || popupClosing) && createPortal(
         <div
           className={`fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4 ${
@@ -181,119 +325,66 @@ export default function HomeTab() {
         </div>,
         document.body,
       )}
-
-      <div className="grid gap-4 lg:grid-cols-[17rem_1fr]">
-        <GlassCard className="h-fit min-w-0 p-4">
-          <div className="mb-3">
-            <InkButton
-              arrow={false}
-              className="w-full justify-center"
-              onClick={() => {
-                setChatNonce((n) => n + 1);
-                setView({ name: "chat", threadId: null });
-              }}
-            >
-              {t("newChat")}
-            </InkButton>
-          </div>
-
-          <div className="flex gap-2 overflow-x-auto pb-1 lg:block lg:space-y-1 lg:overflow-visible lg:pb-0">
-            {sideItem(
-              "clinics",
-              t("clinics"),
-              view.name === "clinics" && view.category !== MAP,
-              () => setView({ name: "clinics", category: "전체" }),
-            )}
-            {/* 지도는 많이 쓰는 기능이라 클리닉 둘러보기 바로 옆에 따로 둔다 (10/2 노트). */}
-            {sideItem("map", t("catMap"), view.name === "clinics" && view.category === MAP, () =>
-              setView({ name: "clinics", category: MAP }),
-            )}
-            {sideItem("mybookings", t("myBookings"), view.name === "mybookings", () =>
-              setView({ name: "mybookings" }),
-            )}
-            {sideItem("review", t("writeReview"), view.name === "review", () =>
-              setView({ name: "review" }),
-            )}
-            {sideItem("notice", t("notice"), view.name === "notice", () =>
-              setView({ name: "notice" }),
-            )}
-          </div>
-
-          <ChatHistory
-            activeId={
-              view.name === "chat" || view.name === "clinicChat" ? view.threadId : null
-            }
-            onOpen={(c) =>
-              setView(
-                c.kind === "ai"
-                  ? { name: "chat", threadId: c.id }
-                  : { name: "clinicChat", threadId: c.id },
-              )
-            }
-          />
-        </GlassCard>
-
-        {/* min-w-0이 없으면 그리드 칸이 안의 내용(채팅 카드 등)이 원하는 폭에 맞춰
-            커져 버려, 좁은 폰(320px급)에서 화면이 옆으로 밀려났다 — 실제로 겪은
-            가로 스크롤 버그라 사이드바 카드와 똑같이 달아 둔다. */}
-        <div className="min-w-0">
-          {view.name === "chat" && (
-            <GlassCard className="p-5">
-              <ChatView
-                key={chatNonce}
-                threadId={view.threadId}
-                onCta={(category) => setView({ name: "clinics", category })}
-              />
-            </GlassCard>
-          )}
-
-          {view.name === "clinics" && (
-            <ClinicsView
-              // 같은 화면 안에서 목록 ↔ 지도 ↔ 특정 클리닉으로 옮겨 갈 때 안쪽 상태를 새로 잡는다.
-              key={`${view.category}|${view.openId ?? ""}`}
-              initialCategory={view.category}
-              initialOpenId={view.openId ?? null}
-              onBook={(clinicId, treatmentId, promoId) =>
-                setView({ name: "booking", clinicId, treatmentId, promoId })
-              }
-            />
-          )}
-
-          {view.name === "booking" && (
-            <BookingFlow
-              clinicId={view.clinicId}
-              treatmentId={view.treatmentId}
-              promoId={view.promoId}
-              onBack={() => setView({ name: "clinics", category: "전체" })}
-              onOpenClinicChat={(threadId) =>
-                setView({ name: "clinicChat", threadId })
-              }
-            />
-          )}
-
-          {view.name === "clinicChat" && (
-            <ClinicChat
-              threadId={view.threadId}
-              onBack={() => setView({ name: "chat", threadId: null })}
-              onEnd={() => {
-                // "이전 대화"는 가장 최근에 주고받은 AI 상담 스레드다.
-                const prev = db.chats
-                  .filter((c) => c.kind === "ai")
-                  .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
-                toast(t("chatEnded"));
-                setView({ name: "chat", threadId: prev?.id ?? null });
-              }}
-            />
-          )}
-
-          {view.name === "mybookings" && <MyBookings />}
-          {view.name === "review" && <WriteReview />}
-          {view.name === "notice" && <NoticeList />}
-        </div>
-      </div>
-    </div>
+    </>
   );
 }
+
+function RoundIcon({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className="flex size-10 shrink-0 items-center justify-center rounded-pill bg-white/70 text-ink/80 hairline transition active:scale-[0.94]"
+    >
+      {children}
+    </button>
+  );
+}
+
+// 서랍·상단 아이콘. 선 두께를 맞춘 라인 아이콘이다.
+const iconProps = {
+  "aria-hidden": true,
+  viewBox: "0 0 24 24",
+  className: "size-5",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.8,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+};
+const IconMenu = () => (
+  <svg {...iconProps}><path d="M4 7h16M4 12h16M4 17h10" /></svg>
+);
+const IconCompose = () => (
+  <svg {...iconProps}><path d="M12 20h8" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+);
+const IconClinic = () => (
+  <svg {...iconProps}><path d="M4 21V8l8-5 8 5v13" /><path d="M10 21v-5h4v5M12 8v4M10 10h4" /></svg>
+);
+const IconMap = () => (
+  <svg {...iconProps}><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11Z" /><circle cx="12" cy="10" r="2.2" /></svg>
+);
+const IconCalendar = () => (
+  <svg {...iconProps}><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /></svg>
+);
+const IconStar = () => (
+  <svg {...iconProps}><path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9Z" /></svg>
+);
+const IconChat = () => (
+  <svg {...iconProps} className="size-4 shrink-0"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.1A8 8 0 1 1 20 12Z" /></svg>
+);
+const IconBell = () => (
+  <svg {...iconProps}><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15Z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></svg>
+);
 
 function NoticeList() {
   const { t } = useT();
@@ -342,7 +433,7 @@ function ChatHistory({
   return (
     <div className="mt-4 border-t border-ink/10 pt-3">
       <div className="mb-2 flex items-center justify-between px-1">
-        <span className="text-xs font-semibold text-ink-sub">{t("myChats")}</span>
+        <span className="text-xs text-ink-sub">{t("myChats")}</span>
         <span className="text-[11px] text-ink-sub/70">{chats.length}</span>
       </div>
       {chats.length === 0 ? (

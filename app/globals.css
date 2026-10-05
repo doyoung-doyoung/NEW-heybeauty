@@ -35,6 +35,17 @@
   --animate-pop-out: pop-out 0.18s cubic-bezier(0.4, 0, 1, 1) both;
   --animate-backdrop-in: backdrop-in 0.22s ease-out both;
   --animate-backdrop-out: backdrop-out 0.18s ease-in both;
+  --animate-drawer-in: drawer-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 홈 왼쪽 메뉴(햄버거)가 왼쪽에서 밀려 들어온다 — 클로드 앱 서랍과 같은 움직임 */
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: none;
+  }
 }
 
 @keyframes rise {
