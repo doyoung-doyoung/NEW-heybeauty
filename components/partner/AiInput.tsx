@@ -42,14 +42,10 @@ function genderFromName(name: string): Gender {
 type Kind = "음성" | "사진" | "텍스트";
 type Step = "home" | "camera" | "voice" | "review";
 
-interface OcrFields {
-  제품명: string;
-  용량: string;
-  Lot번호: string;
-  유통기한: string;
-  유통형태: string;
-}
-type OcrResponse = { ok: true; fields: OcrFields } | { ok: false; reason: string };
+// /api/ocr 응답. 어떤 사진이든 "종류 + 이름: 값 목록 + 한 줄 요약"으로 돌아온다.
+type OcrResponse =
+  | { ok: true; kind: string; items: { label: string; value: string }[]; summary: string }
+  | { ok: false; reason: string };
 
 interface Draft {
   kind: Kind;
@@ -422,8 +418,8 @@ export default function AiInput({
     const image = shot;
     if (!image) return;
     setReading(true);
-    let source = "직접 촬영 · AI 판독";
-    let fields: OcrFields | null = null;
+    let result: Extract<OcrResponse, { ok: true }> | null = null;
+    let reason = "";
     try {
       const res = await fetch("/api/ocr", {
         method: "POST",
@@ -431,28 +427,58 @@ export default function AiInput({
         body: JSON.stringify({ image }),
       });
       const json: OcrResponse = await res.json();
-      if (json.ok) fields = json.fields;
+      if (json.ok) result = json;
+      else reason = json.reason;
     } catch {
-      fields = null;
+      reason = "network";
     }
-    if (!fields) {
-      source = "직접 촬영 · 판독 실패(양식만 채움)";
-      toast("사진에서 글자를 읽지 못했습니다. 직접 입력해주세요");
+    if (!result) {
+      toast(
+        reason === "no_api_key"
+          ? "AI 판독 키가 설정되지 않았습니다. 직접 입력해주세요"
+          : "사진에서 글자를 읽지 못했습니다. 직접 입력해주세요",
+      );
     }
+    // 읽은 내용을 그대로 메시지(메모)로 만든다 — 첫 줄은 무슨 사진인지, 다음 줄부터 "이름: 값".
+    const lines = result
+      ? [
+          `${result.kind || "사진"}에서 읽은 내용`,
+          ...result.items.map((it) => `${it.label}: ${it.value}`),
+          ...(result.summary ? ["", result.summary] : []),
+        ]
+      : ["사진에서 읽은 내용", "(판독 실패 — 직접 입력해주세요)"];
     setDraft({
       kind: "사진",
-      source,
-      text: `촬영 사진에서 읽은 내용
-제품명: ${fields?.제품명 ?? ""}
-용량: ${fields?.용량 ?? ""}
-Lot번호: ${fields?.Lot번호 ?? ""}
-유통기한: ${fields?.유통기한 ?? ""}
-유통 형태: ${fields?.유통형태 || "정식"}`,
+      source: result ? `사진 · AI 판독 (${result.kind || "기타"})` : "사진 · 판독 실패",
+      text: lines.join("\n"),
       shot: image,
     });
     setReading(false);
     setShot(null);
     setStep("review");
+  }
+
+  // 카메라 대신 앨범(사진 보관함)에 있는 사진을 고른다. 아이폰은 이 길이 더 편하다.
+  // 큰 사진은 그대로 보내면 느리고 서버 한도(8MB)를 넘을 수 있어서, 긴 변 1280px로 줄인다.
+  function pickFromAlbum(file: File) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, 1280 / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        stopCamera();
+        setShot(canvas.toDataURL("image/jpeg", 0.8));
+      };
+      img.onerror = () => toast("이 사진 형식은 열 수 없습니다 (JPG·PNG로 올려주세요)");
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
   }
 
   function pickPhoto(source: string, text: string, image: string) {
@@ -621,9 +647,24 @@ Lot번호: ${fields?.Lot번호 ?? ""}
               </GhostButton>
             </>
           ) : (
-            <InkButton arrow={false} onClick={capture}>
-              촬영
-            </InkButton>
+            <>
+              <InkButton arrow={false} onClick={capture}>
+                촬영
+              </InkButton>
+              <label className="cursor-pointer rounded-pill bg-white/70 px-4 py-2.5 text-sm font-medium hairline transition active:scale-[0.97]">
+                앨범에서 고르기
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) pickFromAlbum(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </>
           )}
         </div>
 
