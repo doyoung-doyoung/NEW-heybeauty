@@ -20,9 +20,12 @@ const GENERIC_ANSWER =
 export default function ChatView({
   threadId,
   onCta,
+  onSaved,
 }: {
   threadId: string | null;
   onCta: (category: string) => void;
+  /** 대화가 저장될 때마다 그 스레드 id를 알려 준다 — "채팅으로 돌아가기"가 이 대화로 돌아온다. */
+  onSaved?: (threadId: string) => void;
 }) {
   const { t } = useT();
   const { db, update } = useDb();
@@ -69,6 +72,7 @@ export default function ChatView({
   function persist(next: Bubble[], title: string) {
     const id = savedThreadId.current ?? `CH-${Date.now()}`;
     savedThreadId.current = id;
+    onSaved?.(id);
     update((draft) => {
       const messages = next.map((b, i) => ({
         id: `${id}-M${i + 1}`,

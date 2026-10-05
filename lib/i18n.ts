@@ -24,6 +24,7 @@ const DICT: Record<string, Entry> = {
   myBookings: { ko: "내 예약", en: "My Bookings", th: "การจองของฉัน", zh: "我的预约", ru: "Мои записи" },
   writeReview: { ko: "후기 쓰기", en: "Write a Review", th: "เขียนรีวิว", zh: "写评价", ru: "Оставить отзыв" },
   newChat: { ko: "새 대화", en: "New Chat", th: "แชทใหม่", zh: "新对话", ru: "Новый чат" },
+  backToChat: { ko: "채팅으로 돌아가기", en: "Back to chat", th: "กลับไปที่แชท", zh: "返回聊天", ru: "Вернуться в чат" },
   book: { ko: "예약하기", en: "Book Now", th: "จองเลย", zh: "立即预约", ru: "Записаться" },
   price: { ko: "가격", en: "Price", th: "ราคา", zh: "价格", ru: "Цена" },
   promotion: { ko: "프로모션", en: "Promotion", th: "โปรโมชั่น", zh: "促销", ru: "Акция" },

@@ -101,7 +101,7 @@ export default function ClinicChat({
     <div className="space-y-4">
       <GhostButton onClick={onBack}>← {t("goBack")}</GhostButton>
 
-      <GlassCard className="flex h-[calc(100dvh-18rem)] min-h-[26rem] flex-col p-5">
+      <GlassCard className="flex h-[calc(100svh-21rem)] min-h-[22rem] flex-col p-5">
         <div className="flex items-start justify-between gap-3 border-b border-ink/10 pb-3">
           <div className="min-w-0">
             <div className="truncate font-bold">{clinic ? t(clinic.name) : t("clinicFallback")}</div>
@@ -187,7 +187,7 @@ export default function ClinicChat({
             placeholder={t("msgPlaceholder")}
             className="flex-1 rounded-pill bg-white/70 px-5 py-3 text-sm outline-none hairline placeholder:text-ink-sub focus:bg-white"
           />
-          <InkButton onClick={send}>{t("send")}</InkButton>
+          <InkButton onClick={send} className="shrink-0 whitespace-nowrap">{t("send")}</InkButton>
         </form>
       </GlassCard>
     </div>

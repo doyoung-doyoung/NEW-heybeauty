@@ -32,6 +32,8 @@ export default function HomeTab() {
   const toast = useToast();
     const [view, setView] = useState<View>({ name: "chat", threadId: null });
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // 마지막으로 보던 AI 대화. 다른 화면에 갔다가 "채팅으로 돌아가기"를 누르면 여기로 온다.
+  const [lastChatId, setLastChatId] = useState<string | null>(null);
   // 새 대화를 눌러도 threadId가 null 그대로면 ChatView의 초기화 효과가 다시 돌지 않는다.
   // 이 값을 key로 써서 아예 새로 마운트시킨다.
   const [chatNonce, setChatNonce] = useState(0);
@@ -91,6 +93,7 @@ export default function HomeTab() {
   }
 
   function newChat() {
+    setLastChatId(null);
     setChatNonce((n) => n + 1);
     go({ name: "chat", threadId: null });
   }
@@ -125,8 +128,21 @@ export default function HomeTab() {
           <RoundIcon label="menu" onClick={() => setDrawerOpen(true)}>
             <IconMenu />
           </RoundIcon>
-          <div className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-ink/80">
-            {title}
+          {/* 채팅이 아닌 화면(클리닉·지도·예약·후기·공지·클리닉 대화) 어디서든 맨 위 가운데
+              버튼 하나로 보던 AI 상담에 돌아온다. 위에 두면 어떤 화면의 내용·입력창도 가리지 않는다. */}
+          <div className="flex min-w-0 flex-1 justify-center">
+            {view.name === "chat" ? (
+              <span className="truncate text-sm font-semibold text-ink/80">{title}</span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => go({ name: "chat", threadId: lastChatId })}
+                className="flex min-w-0 items-center gap-1.5 rounded-pill bg-ink px-4 py-2.5 text-[13px] font-semibold text-white shadow-float transition active:scale-[0.97]"
+              >
+                <IconChat />
+                <span className="truncate">{t("backToChat")}</span>
+              </button>
+            )}
           </div>
           <RoundIcon label={t("newChat")} onClick={newChat}>
             <IconCompose />
@@ -138,6 +154,7 @@ export default function HomeTab() {
             <ChatView
               key={chatNonce}
               threadId={view.threadId}
+              onSaved={setLastChatId}
               onCta={(category) => setView({ name: "clinics", category })}
             />
           ) : (
@@ -187,6 +204,7 @@ export default function HomeTab() {
             </div>
           )}
         </div>
+
 
         {drawerOpen && (
           <div className="absolute inset-0 z-30">
@@ -360,6 +378,9 @@ const IconCalendar = () => (
 );
 const IconStar = () => (
   <svg {...iconProps}><path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9Z" /></svg>
+);
+const IconChat = () => (
+  <svg {...iconProps} className="size-4 shrink-0"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.1A8 8 0 1 1 20 12Z" /></svg>
 );
 const IconBell = () => (
   <svg {...iconProps}><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15Z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></svg>
