@@ -8,6 +8,9 @@ import { useDb } from "@/lib/db";
 import { useT } from "@/lib/i18n";
 import { ClinicPhoto } from "@/components/home/DemoAssets";
 import { branchImage, promoImage, treatmentImage } from "@/lib/images";
+import ClinicComparison from "./ClinicComparison";
+import { ClinicDiscoveryControls, ClinicActions, useClinicFavorites } from "./ClinicDiscoveryControls";
+import { discoverClinics, EMPTY_CLINIC_FILTERS, toggleComparison } from "@/lib/clinic-discovery";
 import ClinicMap from "@/components/home/ClinicMap";
 import { Badge, GlassCard, InkButton, GhostButton } from "@/components/ui/primitives";
 
@@ -35,6 +38,10 @@ export default function ClinicsView({
   const [openId, setOpenId] = useState<string | null>(initialOpenId);
   const [promoId, setPromoId] = useState<string | null>(null);
 
+  const [filters, setFilters] = useState(EMPTY_CLINIC_FILTERS);
+  const [comparisonIds, setComparisonIds] = useState<string[]>([]);
+  const { favoriteIds, toggleFavorite } = useClinicFavorites();
+
   if (!db) return null;
 
   // 지도로 보기는 시술 분류가 아니라 보는 방식이다. 거르는 기준은 "전체"와 같다.
@@ -43,10 +50,6 @@ export default function ClinicsView({
   const suffix = CATEGORY_KEY[category] ?? category;
   const categoryLabel = t(`cat${suffix}`);
   const categoryDesc = t(`catDesc${suffix}`);
-
-  const matches = (clinicId: string) =>
-    isAll ||
-    db.treatments.some((x) => x.clinicId === clinicId && x.category === category);
 
   // 지금 보이는 카테고리 안에서 제일 싼 시술 가격. 시술이 없으면 정렬 맨 뒤로 밀려나게 무한대.
   const cheapestPrice = (clinicId: string) => {
@@ -57,13 +60,10 @@ export default function ClinicsView({
   };
   // 사진 있는 클리닉을 무조건 앞에 세운다 (10/2 노트) — 사진 없는 카드가 맨 위에 오면 휑하다.
   // 그 안에서는 최저가 순. 그래서 "최저가" 배지는 맨 위가 아니라 실제로 제일 싼 카드에 붙인다.
-  const clinics = db.clinics
-    .filter((c) => matches(c.id))
-    .sort(
-      (a, b) =>
-        Number(Boolean(b.image)) - Number(Boolean(a.image)) ||
-        cheapestPrice(a.id) - cheapestPrice(b.id),
-    );
+  const clinics = discoverClinics(db.clinics, db.treatments, { ...filters, category }, favoriteIds, t);
+  const resetFilters = () => { setFilters(EMPTY_CLINIC_FILTERS); setCategory("전체"); };
+  const comparison = <ClinicComparison clinics={comparisonIds.flatMap(id => db.clinics.filter(c => c.id === id))} treatments={db.treatments} onClear={() => setComparisonIds([])} onRemove={id => setComparisonIds(ids => ids.filter(x => x !== id))} onOpen={setOpenId} />;
+  const actions = (clinic: typeof db.clinics[number]) => <ClinicActions clinic={clinic} saved={favoriteIds.includes(clinic.id)} selected={comparisonIds.includes(clinic.id)} comparisonFull={comparisonIds.length >= 3} onFavorite={() => toggleFavorite(clinic.id)} onCompare={() => setComparisonIds(ids => toggleComparison(ids, clinic.id))} />;
   // 정렬이 사진 우선이라 맨 위가 최저가가 아닐 수 있다. 배지는 진짜 최저가 클리닉에만.
   const lowestId = clinics.reduce<string | null>(
     (best, c) =>
@@ -88,8 +88,10 @@ export default function ClinicsView({
         );
 
     return (
-      <div className="space-y-4">
+      <div className={`space-y-4 ${comparisonIds.length ? "pb-48" : ""}`}>
+        {comparison}
         <GhostButton onClick={() => setOpenId(null)}>← {t("back")}</GhostButton>
+        {actions(open)}
 
         <GlassCard className="overflow-hidden">
           <div className="h-48 w-full sm:h-60">
@@ -331,7 +333,9 @@ export default function ClinicsView({
   }
 
   return (
-    <div className="space-y-4">
+    <div className={`space-y-4 ${comparisonIds.length ? "pb-48" : ""}`}>
+      {comparison}
+      {!isMap && <ClinicDiscoveryControls clinics={db.clinics} filters={{ ...filters, category }} onChange={setFilters} favoritesCount={db.clinics.filter(c => favoriteIds.includes(c.id)).length} onReset={resetFilters} />}
       {/* 칩이 줄바꿈되면 두 번째 줄이 화면 아래로 밀려 안 보인다. 한 줄로 고정하고
           다 안 들어가면 옆으로 넘기게 한다 — HomeTab 사이드 탭과 같은 패턴. */}
       <div className="flex gap-2 overflow-x-auto pb-1">
@@ -370,7 +374,9 @@ export default function ClinicsView({
 
       {!isMap && clinics.length === 0 && (
         <GlassCard soft className="p-8 text-center text-sm text-ink-sub">
-          {t("noClinicInCategory")}
+          <p className="font-semibold text-ink">{t(filters.favoritesOnly && !favoriteIds.length ? "clinicNoFavorites" : "clinicNoResults")}</p>
+          <p className="mt-2">{t(filters.favoritesOnly && !favoriteIds.length ? "clinicNoFavoritesHint" : "clinicNoResultsHint")}</p>
+          <button type="button" onClick={resetFilters} className="mt-4 rounded-pill bg-ink px-5 py-3 text-white">{t("clinicResetFilters")}</button>
         </GlassCard>
       )}
 
@@ -388,12 +394,8 @@ export default function ClinicsView({
             : null;
           const promo = db.promotions.find((p) => p.clinicId === c.id);
           return (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setOpenId(c.id)}
-              className="lift glass-soft overflow-hidden rounded-card text-left"
-            >
+<article key={c.id} className="lift glass-soft overflow-hidden rounded-card">
+            <button type="button" onClick={() => setOpenId(c.id)} className="block w-full text-left" aria-label={`${t(c.name)} ${t("viewDetail")}`}>
               <div className="h-36 w-full">
                 <ClinicPhoto
                   clinicId={c.id}
@@ -450,6 +452,8 @@ export default function ClinicsView({
                 </div>
               </div>
             </button>
+            <div className="px-5 pb-4">{actions(c)}</div>
+            </article>
           );
         })}
       </div>
