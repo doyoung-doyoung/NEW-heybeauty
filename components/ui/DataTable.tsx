@@ -29,8 +29,12 @@ export function TableOnly({
   // 순간 헤더가 화면 밖으로 사라져서 "틀 고정"이 의미가 없어진다. 상자가 화면 안에 다 들어와야
   // 그 안에서 위 줄(헤더)과 앞 칸(첫 열)이 고정된 채로 행만 움직인다.
   // 넓은 화면 높이는 부르는 쪽이 `sm:max-h-[…]`로 정한다.
+  // `overscroll-none`: 아이폰 사파리는 표 끝에서 더 밀면 표 전체가 고무줄처럼 늘어나며 따라온다
+  // (바운스). 그 순간엔 고정해 둔 헤더·첫 열까지 같이 밀려서, 왼쪽·위에 빈 공간이 생기고
+  // "표가 손가락을 따라 움직인다"로 보였다(10/5 도영님 아이폰 캡처). 상자 안 바운스를 끄면
+  // 틀(헤더·첫 열)은 그대로 있고 안쪽 내용만 스크롤된다.
   return (
-    <div className={`max-h-[60svh] overflow-auto overscroll-contain rounded-cell ${maxH ?? ""}`}>
+    <div className={`max-h-[60svh] overflow-auto overscroll-none rounded-cell ${maxH ?? ""}`}>
       {children}
     </div>
   );
