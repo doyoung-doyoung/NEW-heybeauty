@@ -277,13 +277,18 @@ export default function ChatView({
   );
 }
 
-/** 홈 화면 한가운데 마크. 클로드 앱의 주황 별 자리에 헤이뷰티 핑크 반짝이를 둔다. */
+/**
+ * 홈 화면 한가운데 마크 — 헤이뷰티 HB 로고(10/5 도영님 3안: 검은 네모 없이 마크만, 사이트 핑크).
+ * 투명 PNG를 마스크로 써서 색은 CSS로 칠한다. 색을 바꾸려면 backgroundColor만 바꾸면 된다.
+ */
 function SparkMark() {
+  const mask = "url(/brand/logo-mark.png) center / contain no-repeat";
   return (
-    <svg aria-hidden viewBox="0 0 48 48" className="size-12 text-hb-600">
-      {[0, 30, 60, 90, 120, 150].map((r) => (
-        <rect key={r} x="22.5" y="4" width="3" height="40" rx="1.5" fill="currentColor" transform={`rotate(${r} 24 24)`} />
-      ))}
-    </svg>
+    <span
+      role="img"
+      aria-label="Hey! Beauty"
+      className="block size-14"
+      style={{ backgroundColor: "var(--color-hb-600)", WebkitMask: mask, mask }}
+    />
   );
 }
