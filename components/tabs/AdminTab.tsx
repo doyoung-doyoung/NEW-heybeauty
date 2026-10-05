@@ -1890,8 +1890,14 @@ function NoticeSection() {
   const [asPopup, setAsPopup] = useState(false);
   const [target, setTarget] = useState<NoticeTarget>("전체");
   const [images, setImages] = useState<string[]>([]);
+  // 팝업에서 "클리닉 둘러보기"를 누르면 열 클리닉. 빈 값이면 사진 있는 첫 클리닉.
+  const [popupClinic, setPopupClinic] = useState("");
   const { note, show: showLinked, dismiss } = useLinkedNote();
   if (!db) return null;
+
+  // 사진이 없는 클리닉은 팝업에서 열어도 휑해 보인다. 우선 사진 있는 곳만 고르게 한다.
+  const photoClinics = db.clinics.filter((c) => c.image);
+  const clinicName = (id?: string | null) => db.clinics.find((c) => c.id === id)?.name;
 
   function submit() {
     if (!title.trim() || !body.trim()) {
@@ -1909,6 +1915,7 @@ function NoticeSection() {
           body: body.trim(),
           image: images[0] ?? null,
           active: true,
+          clinicId: popupClinic || null,
         });
         return;
       }
@@ -1929,6 +1936,7 @@ function NoticeSection() {
               ? ["기존 팝업 · 한 번에 하나만 뜨므로 자동으로 내려감"]
               : []),
             images[0] ? "팝업 이미지 · 등록한 사진으로 표시" : "팝업 이미지 · 없음 (글자만 표시)",
+            `클리닉 둘러보기 · ${clinicName(popupClinic) ?? "사진 있는 첫 클리닉"} 상세로 이동`,
           ]
         : [
             target === "클리닉"
@@ -1940,6 +1948,7 @@ function NoticeSection() {
     setTitle("");
     setBody("");
     setImages([]);
+    setPopupClinic("");
     toast(asPopup ? "팝업을 등록했습니다" : "공지를 등록했습니다");
   }
 
@@ -2053,6 +2062,23 @@ function NoticeSection() {
                 label="직접 올리기 (1장)"
                 hint="넣지 않으면 텍스트만 있는 팝업이 됩니다"
               />
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-ink-sub">
+                  &quot;클리닉 둘러보기&quot; 누르면 열 클리닉
+                </span>
+                <select
+                  value={popupClinic}
+                  onChange={(e) => setPopupClinic(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="">자동 · 사진 있는 첫 클리닉</option>
+                  {photoClinics.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.district})
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           ) : (
             <div>
@@ -2108,6 +2134,9 @@ function NoticeSection() {
                 <div className="min-w-0 text-sm">
                   <div className="font-semibold">{p.title}</div>
                   <div className="truncate text-xs text-ink-sub">{p.body}</div>
+                  <div className="truncate text-[11px] text-ink-sub/80">
+                    → {clinicName(p.clinicId) ?? "사진 있는 첫 클리닉"}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">

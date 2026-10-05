@@ -66,11 +66,18 @@ export default function ClinicMap({ onOpen }: { onOpen: (clinicId: string) => vo
       if (e.touches.length < 2) startDist = 0;
     }
 
+    // 아이폰 사파리는 touchmove를 막아도 자체 "gesture" 이벤트로 화면 전체를 확대한다.
+    // 지도 상자 안에서는 그것까지 막아야 지도만 커진다.
+    const stopGesture = (e: Event) => e.preventDefault();
+    el.addEventListener("gesturestart", stopGesture);
+    el.addEventListener("gesturechange", stopGesture);
     el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
     el.addEventListener("touchend", onTouchEnd);
     el.addEventListener("touchcancel", onTouchEnd);
     return () => {
+      el.removeEventListener("gesturestart", stopGesture);
+      el.removeEventListener("gesturechange", stopGesture);
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);

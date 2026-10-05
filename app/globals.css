@@ -168,6 +168,19 @@ body {
     radial-gradient(120% 80% at 50% 0%, var(--color-hb-200) 0%, transparent 60%),
     linear-gradient(180deg, var(--color-hb-50) 0%, var(--color-hb-200) 45%, var(--color-hb-600) 100%);
   background-attachment: fixed;
+  /* 페이지 자체가 옆으로 밀리지 않게 한다. 넓은 표·지도는 각자 상자 안에서만 민다. */
+  overflow-x: clip;
+}
+
+/* 아이폰 사파리는 글자가 16px보다 작은 입력칸을 누르면 화면 전체를 확대한다.
+   확대된 채로 표를 밀면 표가 아니라 페이지가 손가락을 따라 움직여서, 첫 열이 고정돼 있어도
+   "표가 따라 움직인다"로 보였다(10/1·10/2 노트). 폰 크기에서만 입력칸 글자를 16px로 둔다. */
+@media (max-width: 639px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
 
 @utility glass {

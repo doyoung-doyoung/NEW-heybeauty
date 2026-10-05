@@ -11,23 +11,28 @@ import { branchImage, promoImage, treatmentImage } from "@/lib/images";
 import ClinicMap from "@/components/home/ClinicMap";
 import { Badge, GlassCard, InkButton, GhostButton } from "@/components/ui/primitives";
 
-const MAP = "지도로 보기";
-const CATEGORIES = ["전체", MAP, "화이트닝", "V라인", "리프팅", "스킨부스터", "필러"];
+// 지도로 보기는 많이 쓰는 기능이라 홈 왼쪽 메뉴("클리닉 둘러보기" 바로 옆)로 올렸다.
+// 그래서 칩 줄에는 시술 분류만 남긴다. HomeTab이 이 값을 initialCategory로 넘겨 지도를 연다.
+export const MAP = "지도로 보기";
+const CATEGORIES = ["전체", "화이트닝", "V라인", "리프팅", "스킨부스터", "필러"];
 
 // 사전 키는 영문이라 "전체"·"지도로 보기"만 갈아끼우면 나머지는 한국어 그대로 붙여 쓴다.
 const CATEGORY_KEY: Record<string, string> = { 전체: "All", [MAP]: "Map" };
 
 export default function ClinicsView({
   initialCategory = "전체",
+  initialOpenId = null,
   onBook,
 }: {
   initialCategory?: string;
+  /** 처음부터 이 클리닉 상세를 연다 (공지 팝업 → 클리닉 둘러보기). */
+  initialOpenId?: string | null;
   onBook: (clinicId: string, treatmentId: string, promoId?: string) => void;
 }) {
   const { t } = useT();
   const { db } = useDb();
   const [category, setCategory] = useState(initialCategory);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(initialOpenId);
   const [promoId, setPromoId] = useState<string | null>(null);
 
   if (!db) return null;
@@ -50,11 +55,21 @@ export default function ClinicsView({
     );
     return pool.length ? Math.min(...pool.map((x) => x.price)) : Infinity;
   };
-  // 리스트 맨 위 카드에 "최저가" 배지를 붙이는데, 그 배지가 거짓말이 되면 안 되니까
-  // 진짜로 제일 싼 클리닉이 맨 위로 오게 정렬한다.
+  // 사진 있는 클리닉을 무조건 앞에 세운다 (10/2 노트) — 사진 없는 카드가 맨 위에 오면 휑하다.
+  // 그 안에서는 최저가 순. 그래서 "최저가" 배지는 맨 위가 아니라 실제로 제일 싼 카드에 붙인다.
   const clinics = db.clinics
     .filter((c) => matches(c.id))
-    .sort((a, b) => cheapestPrice(a.id) - cheapestPrice(b.id));
+    .sort(
+      (a, b) =>
+        Number(Boolean(b.image)) - Number(Boolean(a.image)) ||
+        cheapestPrice(a.id) - cheapestPrice(b.id),
+    );
+  // 정렬이 사진 우선이라 맨 위가 최저가가 아닐 수 있다. 배지는 진짜 최저가 클리닉에만.
+  const lowestId = clinics.reduce<string | null>(
+    (best, c) =>
+      cheapestPrice(c.id) < (best ? cheapestPrice(best) : Infinity) ? c.id : best,
+    null,
+  );
   const open = openId ? db.clinics.find((c) => c.id === openId) : null;
 
   if (open) {
@@ -361,7 +376,7 @@ export default function ClinicsView({
 
       {!isMap && (
       <div className="grid gap-4 sm:grid-cols-2">
-        {clinics.map((c, idx) => {
+        {clinics.map((c) => {
           const pool = db.treatments.filter((x) => x.clinicId === c.id);
           const scoped = isAll
             ? pool
@@ -403,9 +418,9 @@ export default function ClinicsView({
                   </div>
                 </div>
 
-                {(idx === 0 && best) || promo ? (
+                {(c.id === lowestId && best) || promo ? (
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {idx === 0 && best && (
+                    {c.id === lowestId && best && (
                       <Badge tone="pink">{t("fromPrice")}</Badge>
                     )}
                     {promo && (

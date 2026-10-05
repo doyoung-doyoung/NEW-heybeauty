@@ -1,7 +1,7 @@
 # HeyBeauty — 작업 메모
 
 ## 세션 시작 시
-- **할 일 목록은 `NOTES_LOG_2026-10-02.md`의 "내일 할 일" 7개.** 먼저 읽고 하나도 빠짐없이 처리한다.
+- 최근 기록: `NOTES_LOG_2026-10-05.md` (10/2 할 일 7개 처리 결과 · 아이폰 확인 남은 것).
 - 노트 위젯 내용은 Supabase 프로젝트 `hdujouoaeqatrazrnlhn`의 `hb_notes` 테이블에 있다
   (`done=false`가 진행중). 작업 전에 같이 확인한다.
 
