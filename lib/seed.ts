@@ -34,7 +34,7 @@ import { asset } from "./assets";
 const BASE_DATE = new Date("2026-09-17T09:00:00+07:00");
 
 // 스키마가 바뀌면 올린다. 저장된 데모 데이터가 이 값과 다르면 새 시드로 갈아끼운다.
-export const SEED_VERSION = 11;
+export const SEED_VERSION = 12;
 
 function rng(seed: number) {
   let a = seed >>> 0;
@@ -564,10 +564,8 @@ export function buildSeed(): DemoDb {
       rating: Number((4.0 + rand() * 0.9).toFixed(1)),
       reviewCount: between(12, 480),
       intro: `${district} 중심가에 위치한 ${name}. 화이트닝·V라인·리프팅 중심의 시술을 제공합니다.`,
-      // 사진은 손으로 준비한 열 장(C01~C10)뿐이라 일부러 비워 둔다.
-      // `/clinics/C42.jpg`처럼 적어 두면 있지도 않은 파일을 89번 부르고 나서야
-      // `onError`로 대체 그림이 뜬다. 처음부터 비워 두면 그 왕복이 아예 없다.
-      image: "",
+      // C11~C99: 개별 생성한 카드용 예시 이미지. 기존 C01~C10 사진은 유지한다.
+      image: `/images/heybeauty/clinics/clinic-${String(ci + 1).padStart(2, "0")}.webp`,
     });
 
     accounts.push({
