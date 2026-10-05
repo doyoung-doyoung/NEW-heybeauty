@@ -167,7 +167,7 @@ function PartnerLogin({ onLogin }: { onLogin: (s: Session) => void }) {
   }
 
   return (
-    <GlassCard className="mx-auto max-w-lg p-8">
+    <GlassCard className="mx-auto max-w-lg p-5 sm:p-8">
       <SectionTitle
         title="파트너 CRM 로그인"
         sub="데모용이라 ID와 비밀번호는 아무 값이나 입력하면 됩니다"

@@ -13,7 +13,7 @@ export function GlassCard({
 }) {
   return (
     <div
-      className={`${soft ? "glass-soft" : "glass"} rounded-card ${className}`}
+      className={`${soft ? "glass-soft" : "glass"} min-w-0 max-w-full rounded-card ${className}`}
     >
       {children}
     </div>
@@ -68,7 +68,7 @@ export function GhostButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-pill px-4 py-2 text-sm transition duration-100 active:scale-[0.97] disabled:opacity-40 disabled:active:scale-100 ${
+      className={`min-h-11 rounded-pill px-4 py-2 text-sm transition duration-100 active:scale-[0.97] disabled:opacity-40 disabled:active:scale-100 ${
         active
           ? "bg-ink text-white"
           : "bg-white/70 text-ink hairline hover:bg-white"

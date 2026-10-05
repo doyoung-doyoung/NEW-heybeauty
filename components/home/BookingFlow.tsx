@@ -404,7 +404,7 @@ export default function BookingFlow({
               {t(clinic.name)} · {date} {time}
             </p>
 
-            <div className="mx-auto mt-5 w-52 animate-pop overflow-hidden rounded-card bg-white p-4 shadow-float">
+            <div className="mx-auto mt-5 w-52 max-w-full animate-pop overflow-hidden rounded-card bg-white p-4 shadow-float">
               <PseudoQR seed={`${clinicId}-${date}-${time}`} className="w-full" />
               <div className="mt-3 text-[11px] font-semibold tracking-wide text-ink-sub">
                 {t("demoQr")}

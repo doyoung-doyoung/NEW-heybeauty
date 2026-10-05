@@ -102,7 +102,7 @@ export default function ClinicsView({
               src={open.image}
             />
           </div>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="text-2xl font-bold">{t(open.name)}</h2>
@@ -184,7 +184,7 @@ export default function ClinicsView({
         </GlassCard>
 
         {promos.length > 0 && (
-          <GlassCard soft className="p-6">
+          <GlassCard soft className="p-4 sm:p-6">
             <h3 className="font-bold">{t("activePromos")}</h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               {promos.map((p) => (
@@ -231,7 +231,7 @@ export default function ClinicsView({
             ) : null;
           })()}
 
-        <GlassCard soft className="p-6">
+        <GlassCard soft className="p-4 sm:p-6">
           <h3 className="font-bold">{t("treatmentList")}</h3>
           <div className="mt-3 space-y-2">
             {sorted.map((x) => {
@@ -254,7 +254,7 @@ export default function ClinicsView({
                       className="h-14 w-14 shrink-0 rounded-cell object-cover"
                     />
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold">{t(x.name)}</span>
                       <Badge tone={hit ? "pink" : "neutral"}>{t(x.category)}</Badge>
                     </div>
@@ -279,7 +279,7 @@ export default function ClinicsView({
         </GlassCard>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <GlassCard soft className="p-6">
+          <GlassCard soft className="p-4 sm:p-6">
             <h3 className="font-bold">{t("doctors")}</h3>
             <div className="mt-3 space-y-2">
               {doctors.slice(0, 6).map((d) => (
@@ -293,7 +293,7 @@ export default function ClinicsView({
             </div>
           </GlassCard>
 
-          <GlassCard soft className="p-6">
+          <GlassCard soft className="p-4 sm:p-6">
             <h3 className="font-bold">{t("reviews")}</h3>
             <div className="mt-3 space-y-2">
               {reviews.length === 0 && (
@@ -404,7 +404,7 @@ export default function ClinicsView({
                   src={c.image}
                 />
               </div>
-              <div className="p-5">
+              <div className="p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="truncate font-bold">{t(c.name)}</div>
@@ -452,7 +452,7 @@ export default function ClinicsView({
                 </div>
               </div>
             </button>
-            <div className="px-5 pb-4">{actions(c)}</div>
+            <div className="px-4 pb-4 sm:px-5">{actions(c)}</div>
             </article>
           );
         })}
@@ -491,7 +491,7 @@ function PromoSheet({
       <div
         role="dialog"
         aria-label={t(promo.title)}
-        className="animate-pop max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-t-card bg-white p-6 sm:rounded-card"
+        className="animate-pop max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-t-card bg-white p-6 sm:rounded-card"
         onClick={(e) => e.stopPropagation()}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}

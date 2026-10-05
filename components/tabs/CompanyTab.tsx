@@ -32,9 +32,9 @@ export default function CompanyTab() {
 
   return (
     <div className="space-y-5">
-      <GlassCard className="overflow-hidden p-7 sm:p-10">
+      <GlassCard className="overflow-hidden p-5 sm:p-10">
         <Badge tone="pink">Investor Deck · Demo</Badge>
-        <h1 className="mt-4 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
+        <h1 className="mt-4 text-3xl font-extrabold min-[400px]:text-4xl leading-tight tracking-tight [word-break:keep-all] sm:text-5xl">
           태국 뷰티 클리닉을
           <br />
           <span className="text-ink-sub font-light">하나의 흐름으로</span>

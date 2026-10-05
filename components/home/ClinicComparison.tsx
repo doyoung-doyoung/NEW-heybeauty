@@ -15,7 +15,7 @@ export default function ClinicComparison({ clinics, treatments, onClear, onRemov
   const [visible, setVisible] = useState(false);
   if (!clinics.length) return null;
   return createPortal(<>
-    <div className="fixed inset-x-3 bottom-4 z-40 mx-auto max-w-lg rounded-card bg-white p-3 shadow-xl hairline">
+    <div className="fixed inset-x-3 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-lg rounded-card bg-white p-3 shadow-xl hairline">
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-bold">{tf("clinicCompareCount", clinics.length)}</span>
         <button type="button" onClick={onClear} className="p-2 text-xs text-ink-sub underline">{t("clinicClearComparison")}</button>
@@ -62,7 +62,7 @@ function ComparisonSheet({ clinics, treatments, onClose, onOpen }: {
     <div className="pr-1 text-[11px] text-ink-sub">{label}</div>{cells.map((cell, i) => <div key={clinics[i].id} className="break-words px-1 text-center text-xs font-medium">{cell}</div>)}
   </div>;
   return <div className="fixed inset-0 z-[60] flex items-end justify-center bg-ink/60 sm:items-center sm:p-4" onClick={onClose}>
-    <div ref={dialog} role="dialog" aria-modal="true" aria-label={t("clinicCompare")} className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-t-card bg-white p-4 sm:rounded-card sm:p-6" onClick={e => e.stopPropagation()}>
+    <div ref={dialog} role="dialog" aria-modal="true" aria-label={t("clinicCompare")} className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-t-card bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:rounded-card sm:p-6" onClick={e => e.stopPropagation()}>
       <div className="flex items-center justify-between gap-2"><h2 className="text-xl font-bold">{t("clinicCompare")}</h2><button type="button" onClick={onClose} className="min-h-11 px-3 text-sm">{t("close")} ×</button></div>
       <p className="mb-4 text-xs text-ink-sub">{t("clinicComparePriceNote")}</p>
       {names.length ? <label className="mb-4 block text-xs font-semibold">{t("clinicCompareTreatment")}<select value={name} onChange={e => setSelected(e.target.value)} className="mt-2 w-full rounded-cell bg-hb-50 p-3 text-base hairline">{names.map(n => <option key={n} value={n}>{t(n)}</option>)}</select></label> : <p className="mb-4 rounded-cell bg-hb-50 p-3 text-sm">{t("clinicNoSharedTreatment")}</p>}

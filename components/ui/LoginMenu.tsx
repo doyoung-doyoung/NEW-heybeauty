@@ -44,13 +44,13 @@ export default function LoginMenu({ className = "" }: { className?: string }) {
   }
 
   return (
-    <div ref={box} className={`relative ${className}`}>
+    <div ref={box} className={`relative shrink-0 ${className}`}>
       <button
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1.5 rounded-pill py-1.5 pl-2.5 pr-3 text-xs font-semibold transition ${
+        className={`flex items-center gap-1.5 whitespace-nowrap rounded-pill py-1.5 pl-2.5 pr-3 text-xs font-semibold transition ${
           loggedIn
             ? open
               ? "bg-white text-ink shadow-float"
