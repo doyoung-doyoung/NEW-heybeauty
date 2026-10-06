@@ -19,7 +19,7 @@ const root = path.resolve(__dirname, '..');
 
 async function main() {
   const fresh = buildSeed();
-  assert.equal(SEED_VERSION, 12);
+  assert.ok(SEED_VERSION >= 12);
   assert.equal(fresh.clinics.length, 99);
   assert.equal(new Set(fresh.clinics.map(c => c.id)).size, 99);
   const hashes = new Set();
@@ -53,7 +53,7 @@ async function main() {
     saved.clinics[11].image = '/clinics/C12.jpg';
     saved.clinics[0].image = '/user/custom-c01.jpg';
     const result = migrate(saved);
-    assert.equal(result.version, 12);
+    assert.equal(result.version, SEED_VERSION);
     assert.equal(result.clinics[0].image, '/user/custom-c01.jpg');
     assert.deepEqual(result.clinics.slice(1, 10), saved.clinics.slice(1, 10));
     assert.deepEqual(result.clinics.slice(10), fresh.clinics.slice(10));

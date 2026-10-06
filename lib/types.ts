@@ -128,6 +128,22 @@ export interface Customer {
   doctorId: string;
   memo: string;
   createdAt: string;
+  lineId?: string;
+  localName?: string;
+  address?: string;
+  sourceDetail?: string;
+  portrait?: { src: string; tile?: number; capturedAt: string };
+  identityCard?: {
+    image: string;
+    type: string;
+    number: string;
+    name: string;
+    localName: string;
+    birthday: string;
+    address: string;
+    issuedAt: string;
+    expiresAt: string;
+  };
 }
 
 export interface OpdChart {

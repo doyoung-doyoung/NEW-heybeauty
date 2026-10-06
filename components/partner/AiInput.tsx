@@ -519,6 +519,19 @@ export default function AiInput({
         );
         if (existing) {
           existing.memo = `신분증 재확인 · ${fields["신분증 번호"]}`;
+          existing.birthday = fields["생년월일"] || existing.birthday;
+          existing.localName = fields["태국어 이름"] || existing.localName;
+          existing.address = fields["주소"] || existing.address;
+          existing.phone = fields["전화번호"] || existing.phone;
+          existing.identityCard = {
+            image: draft.shot || existing.identityCard?.image || "",
+            type: "태국 ID 카드", number: fields["신분증 번호"], name,
+            localName: fields["태국어 이름"] || existing.identityCard?.localName || "",
+            birthday: fields["생년월일"] || existing.birthday,
+            address: fields["주소"] || existing.address || "",
+            issuedAt: fields["발급일"] || existing.identityCard?.issuedAt || "",
+            expiresAt: fields["만료일"] || existing.identityCard?.expiresAt || "",
+          };
           links.push(`고객 카드 · ${name} 정보 갱신`);
         } else {
           drft.customers.unshift({
@@ -535,6 +548,11 @@ export default function AiInput({
             doctorId: drft.doctors.find((d) => d.branchId === branchId)?.id ?? "",
             memo: `신분증 촬영 등록 · ${fields["신분증 번호"]}`,
             createdAt: now,
+            localName: fields["태국어 이름"] || "",
+            address: fields["주소"] || "",
+            identityCard: { image: draft.shot || "", type: "태국 ID 카드", number: fields["신분증 번호"], name,
+              localName: fields["태국어 이름"] || "", birthday: fields["생년월일"] || "",
+              address: fields["주소"] || "", issuedAt: fields["발급일"] || "", expiresAt: fields["만료일"] || "" },
           });
           links.push(`고객 카드 · ${name} 신규 등록`);
         }

@@ -30,11 +30,12 @@ import { COMMISSION_BASELINE } from "./commission";
 import { CONSUMABLE_PRODUCTS, supplierOf } from "./distributors";
 import { PROVINCES } from "./geo";
 import { asset } from "./assets";
+import { addSiamCustomers } from "./siam-customers";
 
 const BASE_DATE = new Date("2026-09-17T09:00:00+07:00");
 
 // 스키마가 바뀌면 올린다. 저장된 데모 데이터가 이 값과 다르면 새 시드로 갈아끼운다.
-export const SEED_VERSION = 12;
+export const SEED_VERSION = 15;
 
 function rng(seed: number) {
   let a = seed >>> 0;
@@ -960,6 +961,8 @@ export function buildSeed(): DemoDb {
     // 날짜·월을 넣지 않는다. "9월 ○○"로 두면 10월이 되는 순간 다시 만들어야 한다.
     { id: "PP1", title: "화이트닝 페스티벌", body: "전국 제휴 클리닉 화이트닝 시술 최대 20% 할인", image: asset("popups/PA1_whitening.jpg"), active: true },
   ];
+
+  addSiamCustomers(customers, bookings, charts, treatments, todayOnly(1), shiftFromToday(0));
 
   return {
     version: SEED_VERSION,

@@ -21,6 +21,7 @@ import {
   SectionTitle,
   SendArrowButton,
 } from "@/components/ui/primitives";
+import CustomerDetail, { CustomerPortrait } from "./CustomerDetail";
 import type { Booking, Channel } from "@/lib/types";
 
 const inputClass =
@@ -438,108 +439,10 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
   const open = openId ? all.find((c) => c.id === openId) : null;
 
   if (open) {
-    const doctor = db.doctors.find((d) => d.id === open.doctorId);
-    const charts = db.charts.filter((x) => x.customerId === open.id);
-    const spent = charts.reduce((s, x) => s + x.paidAmount, 0);
-    const rows: { label: string; value: string }[] = [
-      { label: "전화번호", value: open.phone },
-      { label: "생년월일", value: open.birthday || "미입력" },
-      { label: "성별", value: open.gender },
-      { label: "국가", value: open.nationality },
-      { label: "유입 경로", value: CHANNEL_LABEL[open.channel] },
-      { label: "담당 의사", value: doctor?.name ?? "-" },
-      { label: "관심 시술", value: open.interests.join(", ") },
-      { label: "등록일", value: open.createdAt.slice(0, 10) },
-    ];
-
-    return (
-      <div className="space-y-4">
-        <GhostButton onClick={() => setOpenId(null)}>← 목록으로</GhostButton>
-
-        <GlassCard className="p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-2xl font-bold">{open.name}</h2>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                <ChannelTag channel={open.channel} />
-                <Badge>{open.nationality}</Badge>
-                <Badge tone="pink">{open.gender}</Badge>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-xs text-ink-sub">누적 결제</div>
-              <div className="text-2xl font-bold tabular-nums">
-                ฿{spent.toLocaleString()}
-              </div>
-              <div className="text-xs text-ink-sub">방문 {charts.length}회</div>
-            </div>
-          </div>
-
-          <div className="mt-5 grid gap-2 sm:grid-cols-2">
-            {rows.map((r) => (
-              <div
-                key={r.label}
-                className="flex items-center justify-between gap-3 rounded-cell bg-white/70 px-4 py-3 text-sm hairline"
-              >
-                <span className="text-xs text-ink-sub">{r.label}</span>
-                <span className="truncate font-medium">{r.value}</span>
-              </div>
-            ))}
-          </div>
-
-          <label className="mt-4 block">
-            <span className="mb-1.5 block text-xs font-semibold text-ink-sub">
-              메모
-            </span>
-            <textarea
-              value={open.memo}
-              onChange={(e) => {
-                const value = e.target.value;
-                update((draft) => {
-                  const target = draft.customers.find((x) => x.id === open.id);
-                  if (target) target.memo = value;
-                });
-              }}
-              rows={3}
-              className={`${inputClass} resize-none`}
-            />
-          </label>
-
-          <div className="mt-5">
-            <InkButton onClick={() => toast("고객 정보를 저장했습니다")}>
-              저장
-            </InkButton>
-          </div>
-        </GlassCard>
-
-        <GlassCard soft className="p-6">
-          <SectionTitle title="방문 기록" sub={`총 ${charts.length}건`} />
-          <div className="space-y-2">
-            {charts.length === 0 && (
-              <p className="text-sm text-ink-sub">방문 기록이 없습니다.</p>
-            )}
-            {charts.map((x) => (
-              <div key={x.id} className="rounded-cell bg-white/70 p-4 hairline">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-sm font-semibold">{x.visitDate}</span>
-                  <span className="text-sm font-semibold">
-                    ฿{x.paidAmount.toLocaleString()}
-                  </span>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {x.treatmentNames.map((t) => (
-                    <Badge key={t} tone="pink">
-                      {t}
-                    </Badge>
-                  ))}
-                </div>
-                <p className="mt-2 text-xs text-ink-sub">{x.comment}</p>
-              </div>
-            ))}
-          </div>
-        </GlassCard>
-      </div>
-    );
+    return <CustomerDetail customer={open} db={db} onBack={() => setOpenId(null)} onSave={() => toast("고객 정보를 저장했습니다")} onMemo={(value) => update((draft) => {
+      const target = draft.customers.find((c) => c.id === open.id);
+      if (target) target.memo = value;
+    })} />;
   }
 
   return (
@@ -570,51 +473,34 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
           </div>
         ))}
       </div>
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="이름 또는 전화번호 검색"
-        className={`${inputClass} mb-3`}
-      />
-
-      <div className="mb-4 space-y-2">
-        <FilterRow label="국가">
-          {nations.map((n) => (
-            <GhostButton
-              key={n}
-              active={nation === n}
-              onClick={() => setNation(n)}
-              className="px-3 py-1.5 text-xs"
-            >
-              {n}
-            </GhostButton>
-          ))}
-        </FilterRow>
-        <FilterRow label="성별">
-          {(["전체", "여", "남"] as const).map((g) => (
-            <GhostButton
-              key={g}
-              active={gender === g}
-              onClick={() => setGender(g)}
-              className="px-3 py-1.5 text-xs"
-            >
-              {g}
-            </GhostButton>
-          ))}
-        </FilterRow>
-        <FilterRow label="경로">
-          {(["전체", "LINE", "Meta", "App"] as const).map((ch) => (
-            <GhostButton
-              key={ch}
-              active={channel === ch}
-              onClick={() => setChannel(ch)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs"
-            >
-              {ch !== "전체" && <ChannelIcon channel={ch} />}
-              {ch === "전체" ? "전체" : CHANNEL_LABEL[ch]}
-            </GhostButton>
-          ))}
-        </FilterRow>
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="고객 검색"
+          placeholder="이름 또는 전화번호 검색"
+          className={`${inputClass} min-w-0 lg:flex-1`}
+        />
+        <div aria-label="고객 필터" className="grid grid-cols-3 divide-x divide-ink/10 rounded-cell bg-white/75 hairline lg:w-auto lg:shrink-0">
+          <label className="flex min-w-0 flex-col gap-1 px-3 py-2 sm:flex-row sm:items-center sm:gap-2">
+            <span className="shrink-0 text-xs text-ink-sub">국가</span>
+            <select aria-label="국가" value={nation} onChange={(e) => setNation(e.target.value)} className="min-w-0 flex-1 bg-transparent py-1 text-sm">
+              {nations.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </label>
+          <label className="flex min-w-0 flex-col gap-1 px-3 py-2 sm:flex-row sm:items-center sm:gap-2">
+            <span className="shrink-0 text-xs text-ink-sub">성별</span>
+            <select aria-label="성별" value={gender} onChange={(e) => setGender(e.target.value as typeof gender)} className="min-w-0 flex-1 bg-transparent py-1 text-sm">
+              {(["전체", "여", "남"] as const).map((g) => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </label>
+          <label className="flex min-w-0 flex-col gap-1 px-3 py-2 sm:flex-row sm:items-center sm:gap-2">
+            <span className="shrink-0 text-xs text-ink-sub">경로</span>
+            <select aria-label="경로" value={channel} onChange={(e) => setChannel(e.target.value as typeof channel)} className="min-w-0 flex-1 bg-transparent py-1 text-sm">
+              {(["전체", "LINE", "Meta", "App"] as const).map((ch) => <option key={ch} value={ch}>{ch === "전체" ? "전체" : CHANNEL_LABEL[ch]}</option>)}
+            </select>
+          </label>
+        </div>
       </div>
 
       {customers.length === 0 && (
@@ -645,7 +531,10 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
               return (
                 <Tr key={c.id} onClick={() => setOpenId(c.id)}>
                   <Td stick className="font-medium">
-                    {c.name}
+                    <div className="flex items-center gap-3">
+                      <CustomerPortrait customer={c} className="size-10 shrink-0 rounded-cell" />
+                      <span>{c.name}</span>
+                    </div>
                   </Td>
                   {scope === "clinic" && (
                     <Td muted>{clinicBranches.find((b) => b.id === c.branchId)?.name}</Td>
@@ -679,23 +568,6 @@ export function CustomerPanel({ branchId }: { branchId: string }) {
         </Table>
       </TableOnly>
     </GlassCard>
-  );
-}
-
-function FilterRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="w-10 shrink-0 text-[11px] font-semibold text-ink-sub">
-        {label}
-      </span>
-      {children}
-    </div>
   );
 }
 

@@ -35,10 +35,32 @@ export function migrate(saved: DemoDb | null): DemoDb {
   }
 
   if (saved.version < 10) refreshV10(result, fresh);
+  // 새 사진·신분증 필드는 기존에 사용자가 입력한 값을 보존하면서 채운다.
+  if (saved.version < 13) {
+    const freshCustomers = new Map(fresh.customers.map(c => [c.id, c]));
+    result = { ...result, customers: result.customers.map(c => {
+      const seed = freshCustomers.get(c.id);
+      if (!seed || c.branchId !== "C01-B1") return c;
+      return { ...c, lineId: c.lineId ?? seed.lineId, sourceDetail: c.sourceDetail ?? seed.sourceDetail,
+        portrait: c.portrait ?? seed.portrait, identityCard: c.identityCard ?? seed.identityCard,
+        localName: c.localName ?? seed.localName, address: c.address ?? seed.address };
+    }) };
+  }
+  if (saved.version < 15) {
+    const freshCustomers = new Map(fresh.customers.map(c => [c.id, c]));
+    result = { ...result, customers: result.customers.map(c => {
+      const seed = freshCustomers.get(c.id);
+      if (!seed || c.branchId !== "C01-B1") return c;
+      return { ...c, name: seed.name, nationality: seed.nationality, gender: seed.gender,
+        portrait: seed.portrait, localName: seed.localName ?? c.localName,
+        identityCard: seed.identityCard ?? c.identityCard, createdAt: c.createdAt < seed.createdAt ? c.createdAt : seed.createdAt };
+    }) };
+  }
 
-  // v12: C11~C99의 빈 이미지와 파일 없는 이전 시드 JPG 경로를 새 사진에 연결한다.
+  // v12 이미지 연결을 v15에서도 복구한다. 이전 로컬 CRM 시드(v13~14)에도 적용한다.
+  // C11~C99의 빈 이미지와 파일 없는 이전 시드 JPG 경로를 새 사진에 연결한다.
   // 기존 열 곳과 사용자가 등록한 이미지는 덮어쓰지 않는다.
-  if (saved.version < 12) {
+  if (saved.version < 15) {
     const freshClinics = new Map(fresh.clinics.map((c) => [c.id, c]));
     result = {
       ...result,
