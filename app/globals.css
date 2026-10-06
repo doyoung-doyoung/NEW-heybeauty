@@ -2,24 +2,24 @@
 @import "tailwindcss";
 
 @theme {
-  --color-hb-50: #fdf2f5;
-  --color-hb-200: #f5b8c4;
-  --color-hb-400: #f09aae;
-  --color-hb-600: #d97c93;
-  --color-ink: #353839;
-  --color-ink-deep: #23282a;
-  --color-ink-sub: #495057;
-  --color-surface: #f6f6f6;
+  --color-hb-50: #fbf9fc;
+  --color-hb-200: #e6c7e6;
+  --color-hb-400: #a3779d;
+  --color-hb-600: #663399;
+  --color-ink: #2e1a47;
+  --color-ink-deep: #241337;
+  --color-ink-sub: #786881;
+  --color-surface: #f8f3fa;
   --color-danger: #e23d3d;
   /* 고른 탭의 글자색. 아이콘 -on 그림과 같은 색으로 맞춘다. */
-  --color-tab-active: #353839;
+  --color-tab-active: #2e1a47;
 
-  --radius-card: 30px;
+  --radius-card: 22px;
   --radius-pill: 999px;
   --radius-cell: 12px;
 
-  --shadow-float: 0 8px 32px rgba(0, 0, 0, 0.08);
-  --shadow-lift: 0 16px 44px rgba(0, 0, 0, 0.12);
+  --shadow-float: 0 8px 32px rgba(46, 26, 71, 0.05);
+  --shadow-lift: 0 16px 44px rgba(46, 26, 71, 0.09);
 
   --font-sans: "Pretendard Variable", Pretendard, system-ui, sans-serif;
 
@@ -176,8 +176,8 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   background:
-    radial-gradient(120% 80% at 50% 0%, var(--color-hb-200) 0%, transparent 60%),
-    linear-gradient(180deg, var(--color-hb-50) 0%, var(--color-hb-200) 45%, var(--color-hb-600) 100%);
+    radial-gradient(ellipse at 50% 20%, #e6c7e660 0%, transparent 60%),
+    linear-gradient(180deg, #fbf9fc 0%, #f8f3fa 100%);
   background-attachment: fixed;
   /* 페이지 자체가 옆으로 밀리지 않게 한다. 넓은 표·지도는 각자 상자 안에서만 민다. */
   overflow-x: clip;
@@ -195,20 +195,20 @@ body {
 }
 
 @utility glass {
-  background: rgba(255, 255, 255, 0.55);
+  background: #ffffff;
   backdrop-filter: blur(24px) saturate(140%);
   -webkit-backdrop-filter: blur(24px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  border: 1px solid #eee7f1;
   box-shadow:
     var(--shadow-float),
     inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 @utility glass-soft {
-  background: rgba(255, 255, 255, 0.82);
+  background: #ffffff;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.75);
+  border: 1px solid #eee7f1;
   box-shadow: var(--shadow-float);
 }
 
@@ -227,7 +227,7 @@ body {
 }
 
 @utility hairline {
-  border: 1px solid rgba(53, 56, 57, 0.12);
+  border: 1px solid rgba(46, 26, 71, 0.1);
 }
 
 @utility lift {

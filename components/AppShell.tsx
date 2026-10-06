@@ -27,6 +27,7 @@ type TabId = (typeof TABS)[number]["id"];
 export default function AppShell() {
   const { db } = useDb();
   const [tab, setTab] = useState<TabId>("home");
+  const [navigationOpen, setNavigationOpen] = useState(false);
   const [lang, setLang] = useState<LangCode>("ko");
 
   if (!db) {
@@ -53,9 +54,17 @@ export default function AppShell() {
           {tab === "home" && <LoginMenu className="ml-auto" />}
         </div>
 
-        {/* 탭 네 개가 판을 꽉 채우고, 데모 리셋은 그 **오른쪽 바깥**에 선다.
-            시연 중엔 안 보이고, 필요하면 가로로 슬쩍 밀어서 꺼낸다. */}
-        <nav className="mt-4">
+        <button
+          type="button"
+          aria-label={navigationOpen ? "상단 메뉴 접기" : "상단 메뉴 펼치기"}
+          aria-expanded={navigationOpen}
+          aria-controls="app-top-navigation"
+          onClick={() => setNavigationOpen((open) => !open)}
+          className="group mt-1 flex min-h-11 w-full items-center justify-center rounded-cell focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        >
+          <span aria-hidden="true" className="h-1 w-20 rounded-full bg-ink/45 transition-[width] group-hover:w-24 motion-reduce:transition-none" />
+        </button>
+        <nav id="app-top-navigation" hidden={!navigationOpen}>
           <IconTabBar
             tabs={TABS}
             active={tab}
@@ -76,7 +85,7 @@ export default function AppShell() {
         {tab === "company" && <CompanyTab />}
       </main>
 
-      <footer className="mt-10 text-center text-xs text-white/80">
+      <footer className="mt-10 text-center text-xs text-ink-sub">
         Hey! Beauty demo · RAON (Thailand) Co., Ltd. · 탭 {activeIndex + 1}/4
       </footer>
 

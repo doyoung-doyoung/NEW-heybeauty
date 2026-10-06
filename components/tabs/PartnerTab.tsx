@@ -105,7 +105,7 @@ export default function PartnerTab() {
             key={s.id}
             active={section === s.id}
             onClick={() => setSection(s.id)}
-            className="shrink-0"
+            className={`shrink-0 rounded-cell! ${section === s.id ? "bg-hb-600!" : ""}`}
           >
             {s.label}
           </GhostButton>
