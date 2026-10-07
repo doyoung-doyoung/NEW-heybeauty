@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 /**
- * 탭 줄. 2026-10-01에 세로 길이를 절반으로 줄였다 — 넓은 화면은 아이콘·글자를 한 줄로,
- * 폰은 폭이 모자라 위·아래 그대로 두되 아이콘과 여백을 줄였다. 하얀 알약 판 위에 칸이 똑같이 나뉜다.
+ * 탭 줄. 2026-10-01에 세로 길이를 절반으로 줄였다 — PC와 폰 모두 아이콘 아래 글자를 표시한다. 하얀 알약 판 위에 칸이 똑같이 나뉜다.
  *
  * 아이콘은 그림 파일을 그대로 쓴다 — `icon`(평소)과 `iconActive`(골랐을 때).
  * `iconActive`가 없으면 같은 그림을 쓰고, 안 고른 칸만 흐리게 눌러 둔다.
@@ -43,14 +42,14 @@ export default function IconTabBar<Id extends string>({
                 role="tab"
                 aria-selected={on}
                 onClick={() => onChange(t.id)}
-                className="group flex flex-1 flex-col items-center justify-center gap-1 rounded-[20px] px-0.5 py-1 transition active:scale-95 sm:flex-row sm:gap-1.5 sm:py-1.5"
+                className="group flex flex-1 flex-col items-center justify-center gap-1 rounded-[20px] px-0.5 py-1 transition active:scale-95"
               >
                 <TabIcon
                   src={on ? (t.iconActive ?? t.icon) : t.icon}
                   dim={!on && !t.iconActive}
                 />
                 <span
-                  className={`whitespace-nowrap text-[11px] leading-none tracking-tight transition sm:text-sm ${
+                  className={`whitespace-nowrap text-[11px] leading-none tracking-tight transition ${
                     on
                       ? "font-bold text-tab-active"
                       : "font-medium text-[#8a9096] group-hover:text-ink-sub"
@@ -88,7 +87,7 @@ function TabIcon({ src, dim }: { src: string; dim: boolean }) {
     return (
       <span
         aria-hidden
-        className="h-[18px] w-[18px] rounded-md border border-dashed border-ink-sub/40 sm:h-[22px] sm:w-[22px]"
+        className="h-[18px] w-[18px] rounded-md border border-dashed border-ink-sub/40"
       />
     );
   }
@@ -103,7 +102,7 @@ function TabIcon({ src, dim }: { src: string; dim: boolean }) {
       width={33}
       height={22}
       onError={() => setFailed(src)}
-      className={`h-[18px] w-[27px] shrink-0 object-contain transition sm:h-[22px] sm:w-[33px] ${
+      className={`h-[18px] w-[27px] shrink-0 object-contain transition ${
         dim ? "opacity-45 group-hover:opacity-70" : ""
       }`}
     />

@@ -28,12 +28,13 @@ export function useClinicFavorites() {
     ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]) };
 }
 
-export function ClinicDiscoveryControls({ clinics, filters, onChange, favoritesCount, onReset }: {
+export function ClinicDiscoveryControls({ clinics, filters, onChange, favoritesCount, onReset, onSearch }: {
   clinics: Clinic[];
   filters: ClinicFilters;
   onChange: (filters: ClinicFilters) => void;
   favoritesCount: number;
   onReset: () => void;
+  onSearch: () => void;
 }) {
   const { t, tf } = useT();
   const [expanded, setExpanded] = useState(false);
@@ -48,14 +49,16 @@ export function ClinicDiscoveryControls({ clinics, filters, onChange, favoritesC
   const change = (patch: Partial<ClinicFilters>) => onChange({ ...filters, ...patch });
   return (
     <section className="glass-soft rounded-card p-4" aria-label={t("clinicFilters")}>
-      <div className="relative">
+      <div className="flex items-center gap-2"><div className="relative min-w-0 flex-1">
         <svg aria-hidden="true" className="pointer-events-none absolute left-3.5 top-3.5 size-5 text-ink-sub" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></svg>
         <input type="search" value={filters.query} onChange={e => change({ query: e.target.value })}
+          onKeyDown={e => { if (e.key === "Enter") onSearch(); }}
           placeholder={t("clinicSearch")} aria-label={t("clinicSearch")}
           className="w-full rounded-pill bg-white py-3 pl-11 pr-10 text-base outline-none hairline focus:ring-2 focus:ring-hb-400" />
         {filters.query && <button type="button" aria-label={t("clinicSearchClear")} onClick={() => change({ query: "" })}
           className="absolute right-1 top-1 flex size-10 items-center justify-center rounded-full text-lg text-ink-sub">×</button>}
       </div>
+      <button type="button" onClick={onSearch} className="min-h-11 shrink-0 rounded-pill bg-ink px-4 text-sm font-semibold text-white">{t("찾기")}</button></div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => setExpanded(value => !value)} aria-expanded={expanded} aria-controls={panelId}
           className={`min-h-10 rounded-pill px-4 text-sm hairline ${expanded || filterCount ? "bg-ink text-white" : "bg-white/80"}`}>
@@ -102,7 +105,8 @@ export function ClinicDiscoveryControls({ clinics, filters, onChange, favoritesC
   );
 }
 
-export function ClinicActions({ clinic, saved, selected, comparisonFull, onFavorite, onCompare }: {
+export function ClinicActions({ clinic, saved, selected, comparisonFull, onFavorite, onCompare, hideRemove = false }: {
+  hideRemove?: boolean;
   clinic: Clinic; saved: boolean; selected: boolean; comparisonFull: boolean;
   onFavorite: () => void; onCompare: () => void;
 }) {
@@ -114,11 +118,11 @@ export function ClinicActions({ clinic, saved, selected, comparisonFull, onFavor
       className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-pill px-2 text-sm hairline ${saved ? "bg-hb-50 text-hb-600" : "bg-white/70 text-ink-sub"}`}>
       <Heart filled={saved} /> {saveLabel}
     </button>
-    <button type="button" onClick={onCompare} aria-pressed={selected} aria-label={`${t(clinic.name)} ${compareLabel}`}
+    {!(hideRemove && selected) && <button type="button" onClick={onCompare} aria-pressed={selected} aria-label={`${t(clinic.name)} ${compareLabel}`}
       disabled={!selected && comparisonFull}
       className={`min-h-11 rounded-pill px-2 text-sm hairline disabled:opacity-40 ${selected ? "bg-ink text-white" : "bg-white/70 text-ink-sub"}`}>
       <span aria-hidden="true">{selected ? "✓" : "+"}</span> {compareLabel}
-    </button>
+    </button>}
   </div>;
 }
 

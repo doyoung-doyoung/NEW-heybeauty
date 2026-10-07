@@ -8,6 +8,9 @@ import { useDb } from "@/lib/db";
 import { useT } from "@/lib/i18n";
 import { ClinicPhoto } from "@/components/home/DemoAssets";
 import { branchImage, promoImage, treatmentImage } from "@/lib/images";
+import { useAuth } from "@/lib/auth";
+import DoctorProfile from "./DoctorProfile";
+import MembershipPrompt from "./MembershipPrompt";
 import ClinicComparison from "./ClinicComparison";
 import { ClinicDiscoveryControls, ClinicActions, useClinicFavorites } from "./ClinicDiscoveryControls";
 import { discoverClinics, EMPTY_CLINIC_FILTERS, toggleComparison } from "@/lib/clinic-discovery";
@@ -26,19 +29,24 @@ export default function ClinicsView({
   initialCategory = "전체",
   initialOpenId = null,
   onBook,
+  fromChat = false,
 }: {
+  fromChat?: boolean;
   initialCategory?: string;
   /** 처음부터 이 클리닉 상세를 연다 (공지 팝업 → 클리닉 둘러보기). */
   initialOpenId?: string | null;
   onBook: (clinicId: string, treatmentId: string, promoId?: string) => void;
 }) {
   const { t } = useT();
+  const { loggedIn } = useAuth();
+  const [signupOpen, setSignupOpen] = useState(false);
   const { db } = useDb();
   const [category, setCategory] = useState(initialCategory);
   const [openId, setOpenId] = useState<string | null>(initialOpenId);
   const [promoId, setPromoId] = useState<string | null>(null);
 
   const [filters, setFilters] = useState(EMPTY_CLINIC_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState(EMPTY_CLINIC_FILTERS);
   const [comparisonIds, setComparisonIds] = useState<string[]>([]);
   const { favoriteIds, toggleFavorite } = useClinicFavorites();
 
@@ -60,10 +68,10 @@ export default function ClinicsView({
   };
   // 사진 있는 클리닉을 무조건 앞에 세운다 (10/2 노트) — 사진 없는 카드가 맨 위에 오면 휑하다.
   // 그 안에서는 최저가 순. 그래서 "최저가" 배지는 맨 위가 아니라 실제로 제일 싼 카드에 붙인다.
-  const clinics = discoverClinics(db.clinics, db.treatments, { ...filters, category }, favoriteIds, t);
-  const resetFilters = () => { setFilters(EMPTY_CLINIC_FILTERS); setCategory("전체"); };
+  const clinics = discoverClinics(db.clinics, db.treatments, { ...appliedFilters, category }, favoriteIds, t);
+  const resetFilters = () => { setFilters(EMPTY_CLINIC_FILTERS); setAppliedFilters(EMPTY_CLINIC_FILTERS); setCategory("전체"); };
   const comparison = <ClinicComparison clinics={comparisonIds.flatMap(id => db.clinics.filter(c => c.id === id))} treatments={db.treatments} onClear={() => setComparisonIds([])} onRemove={id => setComparisonIds(ids => ids.filter(x => x !== id))} onOpen={setOpenId} />;
-  const actions = (clinic: typeof db.clinics[number]) => <ClinicActions clinic={clinic} saved={favoriteIds.includes(clinic.id)} selected={comparisonIds.includes(clinic.id)} comparisonFull={comparisonIds.length >= 3} onFavorite={() => toggleFavorite(clinic.id)} onCompare={() => setComparisonIds(ids => toggleComparison(ids, clinic.id))} />;
+  const actions = (clinic: typeof db.clinics[number]) => <ClinicActions hideRemove={fromChat} clinic={clinic} saved={favoriteIds.includes(clinic.id)} selected={comparisonIds.includes(clinic.id)} comparisonFull={comparisonIds.length >= 3} onFavorite={() => toggleFavorite(clinic.id)} onCompare={() => setComparisonIds(ids => toggleComparison(ids, clinic.id))} />;
   // 정렬이 사진 우선이라 맨 위가 최저가가 아닐 수 있다. 배지는 진짜 최저가 클리닉에만.
   const lowestId = clinics.reduce<string | null>(
     (best, c) =>
@@ -89,12 +97,13 @@ export default function ClinicsView({
 
     return (
       <div className={`space-y-4 ${comparisonIds.length ? "pb-48" : ""}`}>
+        <MembershipPrompt open={signupOpen} onClose={() => setSignupOpen(false)} />
         {comparison}
         <GhostButton onClick={() => setOpenId(null)}>← {t("back")}</GhostButton>
         {actions(open)}
 
         <GlassCard className="overflow-hidden">
-          <div className="h-48 w-full sm:h-60">
+          <div className="h-48 w-full ">
             <ClinicPhoto
               clinicId={open.id}
               name={t(open.name)}
@@ -102,7 +111,7 @@ export default function ClinicsView({
               src={open.image}
             />
           </div>
-          <div className="p-4 sm:p-6">
+          <div className="p-4 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="text-2xl font-bold">{t(open.name)}</h2>
@@ -111,15 +120,15 @@ export default function ClinicsView({
                 </p>
               </div>
               <div className="text-right">
-                <div className="text-xl font-bold">★ {open.rating}</div>
+                {loggedIn && <><div className="text-xl font-bold">★ {open.rating}</div>
                 <div className="text-xs text-ink-sub">
                   {open.reviewCount} {t("reviewCount")}
-                </div>
+                </div></>}
               </div>
             </div>
             <p className="mt-4 text-sm leading-relaxed text-ink/75">{t(open.intro)}</p>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="mt-5 grid gap-3 grid-cols-1">
               <div className="rounded-cell bg-white/60 p-4 hairline">
                 <div className="text-xs font-semibold text-ink-sub">
                   {t("hours")}
@@ -184,9 +193,9 @@ export default function ClinicsView({
         </GlassCard>
 
         {promos.length > 0 && (
-          <GlassCard soft className="p-4 sm:p-6">
+          <GlassCard soft className="p-4 p-4">
             <h3 className="font-bold">{t("activePromos")}</h3>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="mt-3 grid gap-3 grid-cols-1">
               {promos.map((p) => (
                 <button
                   key={p.id}
@@ -231,7 +240,7 @@ export default function ClinicsView({
             ) : null;
           })()}
 
-        <GlassCard soft className="p-4 sm:p-6">
+        <GlassCard soft className="p-4 p-4">
           <h3 className="font-bold">{t("treatmentList")}</h3>
           <div className="mt-3 space-y-2">
             {sorted.map((x) => {
@@ -241,7 +250,7 @@ export default function ClinicsView({
                   key={x.id}
                   className={`flex flex-wrap items-center justify-between gap-3 rounded-cell p-4 transition ${
                     hit
-                      ? "bg-hb-50 ring-1 ring-hb-400/50"
+                      ? "bg-hb-200 text-ink ring-2 ring-hb-600/60"
                       : "bg-white/70 hairline"
                   }`}
                 >
@@ -255,7 +264,7 @@ export default function ClinicsView({
                     />
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold">{t(x.name)}</span>
+                      <span className={hit ? "font-black" : "font-semibold"}>{t(x.name)}</span>
                       <Badge tone={hit ? "pink" : "neutral"}>{t(x.category)}</Badge>
                     </div>
                     <p className="mt-1 text-xs text-ink-sub">
@@ -278,28 +287,25 @@ export default function ClinicsView({
           </div>
         </GlassCard>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <GlassCard soft className="p-4 sm:p-6">
+        <div className="grid gap-4">
+          <GlassCard soft className="p-4 p-4">
             <h3 className="font-bold">{t("doctors")}</h3>
-            <div className="mt-3 space-y-2">
-              {doctors.slice(0, 6).map((d) => (
-                <div key={d.id} className="rounded-cell bg-white/70 p-3 hairline">
-                  <div className="text-sm font-semibold">{t(d.name)}</div>
-                  <div className="text-xs text-ink-sub">
-                    {t(d.title)} · {d.specialties.map((sp) => t(sp)).join(", ")}
-                  </div>
-                </div>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              {doctors.map((d) => (
+                <DoctorProfile key={d.id} doctor={d} />
               ))}
             </div>
           </GlassCard>
 
-          <GlassCard soft className="p-4 sm:p-6">
+          <GlassCard soft className="p-4 p-4">
             <h3 className="font-bold">{t("reviews")}</h3>
             <div className="mt-3 space-y-2">
-              {reviews.length === 0 && (
+              {!loggedIn && <button type="button" onClick={() => setSignupOpen(true)} className="w-full rounded-cell bg-hb-50 p-5 text-sm font-semibold">{t("회원가입 후 후기와 평점 보기")} →</button>}
+              {loggedIn && <p className="mb-3 text-sm font-semibold">★ {open.rating} · {open.reviewCount} {t("reviewCount")}</p>}
+              {loggedIn && reviews.length === 0 && (
                 <p className="text-sm text-ink-sub">{t("noReviews")}</p>
               )}
-              {reviews.map((r) => (
+              {loggedIn && reviews.map((r) => (
                 <div key={r.id} className="rounded-cell bg-white/70 p-3 hairline">
                   <div className="flex items-center justify-between">
                     <span className="text-sm">{"★".repeat(r.rating)}</span>
@@ -335,7 +341,7 @@ export default function ClinicsView({
   return (
     <div className={`space-y-4 ${comparisonIds.length ? "pb-48" : ""}`}>
       {comparison}
-      {!isMap && <ClinicDiscoveryControls clinics={db.clinics} filters={{ ...filters, category }} onChange={setFilters} favoritesCount={db.clinics.filter(c => favoriteIds.includes(c.id)).length} onReset={resetFilters} />}
+      {!isMap && <ClinicDiscoveryControls clinics={db.clinics} filters={{ ...filters, category }} onChange={setFilters} onSearch={() => setAppliedFilters(filters)} favoritesCount={db.clinics.filter(c => favoriteIds.includes(c.id)).length} onReset={resetFilters} />}
       {/* 칩이 줄바꿈되면 두 번째 줄이 화면 아래로 밀려 안 보인다. 한 줄로 고정하고
           다 안 들어가면 옆으로 넘기게 한다 — HomeTab 사이드 탭과 같은 패턴. */}
       <div className="flex gap-2 overflow-x-auto pb-1">
@@ -344,8 +350,9 @@ export default function ClinicsView({
             key={c}
             active={c === category}
             onClick={() => setCategory(c)}
-            className="shrink-0 whitespace-nowrap"
+            className="flex min-w-[56px] shrink-0 flex-col items-center gap-1 whitespace-nowrap px-2"
           >
+            <CategoryIcon index={CATEGORIES.indexOf(c)} />
             {t(`cat${CATEGORY_KEY[c] ?? c}`)}
           </GhostButton>
         ))}
@@ -381,7 +388,7 @@ export default function ClinicsView({
       )}
 
       {!isMap && (
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4">
         {clinics.map((c) => {
           const pool = db.treatments.filter((x) => x.clinicId === c.id);
           const scoped = isAll
@@ -395,8 +402,8 @@ export default function ClinicsView({
           const promo = db.promotions.find((p) => p.clinicId === c.id);
           return (
 <article key={c.id} className="lift glass-soft overflow-hidden rounded-card">
-            <button type="button" onClick={() => setOpenId(c.id)} className="block w-full text-left" aria-label={`${t(c.name)} ${t("viewDetail")}`}>
-              <div className="h-36 w-full">
+            <button type="button" onClick={() => setOpenId(c.id)} className="flex w-full items-stretch text-left" aria-label={`${t(c.name)} ${t("viewDetail")}`}>
+              <div className="w-24 shrink-0 overflow-hidden">
                 <ClinicPhoto
                   clinicId={c.id}
                   name={t(c.name)}
@@ -404,7 +411,7 @@ export default function ClinicsView({
                   src={c.image}
                 />
               </div>
-              <div className="p-4 sm:p-5">
+              <div className="min-w-0 flex-1 p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="truncate font-bold">{t(c.name)}</div>
@@ -416,7 +423,7 @@ export default function ClinicsView({
                     </div>
                   </div>
                   <div className="whitespace-nowrap text-sm font-semibold">
-                    ★ {c.rating}
+                    {loggedIn ? `★ ${c.rating}` : ""}
                   </div>
                 </div>
 
@@ -452,7 +459,7 @@ export default function ClinicsView({
                 </div>
               </div>
             </button>
-            <div className="px-4 pb-4 sm:px-5">{actions(c)}</div>
+            <div className="px-4 pb-4 ">{actions(c)}</div>
             </article>
           );
         })}
@@ -553,4 +560,9 @@ function PromoSheet({
     </div>,
     document.body,
   );
+}
+
+function CategoryIcon({ index }: { index: number }) {
+  const paths = ["M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h6v6h-6z", "M12 3v18 M3 12h18 M5 5l14 14 M19 5L5 19", "M4 5l8 15 8-15", "M5 16l7-11 7 11 M12 5v15", "M12 3s-7 8-7 12a7 7 0 0 0 14 0c0-4-7-12-7-12Z", "M5 19L19 5 M14 4l6 6 M4 14l6 6"];
+  return <svg aria-hidden="true" viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d={paths[index] || paths[0]} /></svg>;
 }

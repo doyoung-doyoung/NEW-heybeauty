@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Clinic, Treatment } from "@/lib/types";
 import { commonTreatmentNames } from "@/lib/clinic-discovery";
+import { useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import { ClinicPhoto } from "./DemoAssets";
 
@@ -35,6 +36,7 @@ function ComparisonSheet({ clinics, treatments, onClose, onOpen }: {
   clinics: Clinic[]; treatments: Treatment[]; onClose: () => void; onOpen: (id: string) => void;
 }) {
   const { t } = useT();
+  const { loggedIn } = useAuth();
   const names = commonTreatmentNames(clinics, treatments);
   const [selected, setSelected] = useState(names[0] ?? "");
   const name = names.includes(selected) ? selected : names[0] ?? "";
@@ -72,7 +74,7 @@ function ComparisonSheet({ clinics, treatments, onClose, onOpen }: {
       {row(t("location"), clinics.map(c => t(c.district)))}
       {row(t("price"), values.map(v => v ? `฿${v.price.toLocaleString()}` : "—"))}
       {row(t("clinicDuration"), values.map(v => v ? `${v.durationMin} ${t("minutes")}` : "—"))}
-      {row(t("clinicRating"), clinics.map(c => `★ ${c.rating} (${c.reviewCount})`))}
+      {loggedIn && row(t("clinicRating"), clinics.map(c => `★ ${c.rating} (${c.reviewCount})`))}
       {row(t("parking"), clinics.map(c => t(c.parking)))}
       <div className="grid gap-1 border-t border-ink/10 pt-3" style={{ gridTemplateColumns: `60px repeat(${clinics.length}, minmax(0, 1fr))` }}><div />{clinics.map(c => <button key={c.id} type="button" onClick={() => onOpen(c.id)} aria-label={`${t(c.name)} ${t("viewDetail")}`} className="min-h-11 rounded-cell bg-ink px-1 text-xs text-white">{t("viewDetail")}</button>)}</div>
     </div>

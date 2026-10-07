@@ -14,6 +14,7 @@ export interface Hours {
 }
 
 export interface Doctor {
+  image?: string;
   id: string;
   clinicId: string;
   branchId: string;

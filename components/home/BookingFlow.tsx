@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useDb } from "@/lib/db";
 import { useToast } from "@/components/ui/Toast";
 import { LinkedNote } from "@/components/ui/LinkedNote";
@@ -12,28 +12,15 @@ import {
   InkButton,
 } from "@/components/ui/primitives";
 import { DEMO_SLIPS, PseudoQR, SlipImage } from "./DemoAssets";
+import BookingCalendar from "./BookingCalendar";
+import DoctorProfile from "./DoctorProfile";
+import { bookingSlots, localDate, minutes, slotBooked } from "@/lib/booking-availability";
 import { discounted } from "@/lib/promo";
 
-const TIMES = ["10:00", "11:30", "13:00", "14:30", "16:00", "17:30", "19:00"];
 const DEPOSIT = 1000;
 const COMMISSION_PCT = 15;
 
-function nextDays(count: number) {
-  const out: { value: string; label: string; day: string }[] = [];
-  const base = new Date();
-  for (let i = 1; i <= count; i++) {
-    const d = new Date(base);
-    d.setDate(d.getDate() + i);
-    out.push({
-      value: d.toISOString().slice(0, 10),
-      label: `${d.getMonth() + 1}/${d.getDate()}`,
-      day: ["일", "월", "화", "수", "목", "금", "토"][d.getDay()],
-    });
-  }
-  return out;
-}
-
-type Step = "select" | "qr" | "slip" | "done";
+type Step = "select" | "confirm" | "qr" | "slip" | "done";
 
 export default function BookingFlow({
   clinicId,
@@ -52,12 +39,11 @@ export default function BookingFlow({
   const { t, tf } = useT();
   const { db, update } = useDb();
   const toast = useToast();
-  const days = useMemo(() => nextDays(10), []);
 
   const [step, setStep] = useState<Step>("select");
   const [branchId, setBranchId] = useState<string>("");
-  const [date, setDate] = useState(days[0].value);
-  const [time, setTime] = useState(TIMES[0]);
+  const [date, setDate] = useState(() => localDate(new Date()));
+  const [time, setTime] = useState("");
   const [doctorId, setDoctorId] = useState("");
   const [slipId, setSlipId] = useState<string | null>(null);
   const [showSlipPicker, setShowSlipPicker] = useState(false);
@@ -79,6 +65,21 @@ export default function BookingFlow({
   const activeBranchId = branchId || branches[0]?.id || "";
   const doctors = db.doctors.filter((d) => d.branchId === activeBranchId);
   const activeDoctorId = doctorId || doctors[0]?.id || "";
+  const activeDoctor = doctors.find(d => d.id === activeDoctorId);
+  const branch = branches.find(b => b.id === activeBranchId);
+  const times = bookingSlots(branch?.hours ?? clinic.hours, date, treatment.durationMin);
+  const unavailable = (slot: string) => {
+    const now = new Date();
+    return (date === localDate(now) && minutes(slot) <= now.getHours() * 60 + now.getMinutes()) || slotBooked(db.bookings, date, slot, activeDoctorId, treatment.durationMin, id => db.treatments.find(tr => tr.id === id)?.durationMin ?? 30);
+  };
+  const selectionValid = Boolean(activeDoctor && date >= localDate(new Date()) && times.includes(time) && !unavailable(time));
+  const validateSelection = () => {
+    if (selectionValid) return true;
+    toast(t("선택한 시간을 예약할 수 없습니다. 날짜와 시간을 다시 선택해주세요."));
+    setTime("");
+    setStep("select");
+    return false;
+  };
   const slip = DEMO_SLIPS.find((s) => s.id === slipId) ?? null;
 
   const typedCode = reviewCode.trim().toUpperCase();
@@ -116,6 +117,7 @@ export default function BookingFlow({
   const me = db.users.find((u) => u.id === "U1");
 
   function confirmPayment() {
+    if (!validateSelection()) return;
     const id = `BK-${Date.now()}`;
     const threadId = `CH-${Date.now()}`;
     const now = new Date().toISOString();
@@ -287,11 +289,11 @@ export default function BookingFlow({
         </div>
 
         <div className="mt-4 flex gap-1.5">
-          {(["select", "qr", "slip", "done"] as Step[]).map((s, i) => (
+          {(["select", "confirm", "qr", "slip", "done"] as Step[]).map((s, i) => (
             <div
               key={s}
               className={`h-1 flex-1 rounded-pill transition ${
-                ["select", "qr", "slip", "done"].indexOf(step) >= i
+                ["select", "confirm", "qr", "slip", "done"].indexOf(step) >= i
                   ? "bg-ink"
                   : "bg-white/60"
               }`}
@@ -313,6 +315,7 @@ export default function BookingFlow({
                     onClick={() => {
                       setBranchId(b.id);
                       setDoctorId("");
+                      setTime("");
                     }}
                   >
                     {t(b.name)}
@@ -324,43 +327,21 @@ export default function BookingFlow({
 
           <div>
             <div className="mb-2 text-sm font-semibold">{t("date")}</div>
-            <div className="flex flex-wrap gap-2">
-              {days.map((d) => (
-                <GhostButton
-                  key={d.value}
-                  active={d.value === date}
-                  onClick={() => setDate(d.value)}
-                >
-                  {d.label} ({t(d.day)})
-                </GhostButton>
-              ))}
-            </div>
+            <BookingCalendar value={date} onChange={value => { setDate(value); setTime(""); }} />
           </div>
-
-          <div>
-            <div className="mb-2 text-sm font-semibold">{t("time")}</div>
-            <div className="flex flex-wrap gap-2">
-              {TIMES.map((t) => (
-                <GhostButton key={t} active={t === time} onClick={() => setTime(t)}>
-                  {t}
-                </GhostButton>
-              ))}
-            </div>
-          </div>
-
           <div>
             <div className="mb-2 text-sm font-semibold">{t("attendingDoctor")}</div>
-            <div className="flex flex-wrap gap-2">
-              {doctors.map((d) => (
-                <GhostButton
-                  key={d.id}
-                  active={d.id === activeDoctorId}
-                  onClick={() => setDoctorId(d.id)}
-                >
-                  {t(d.name)}
-                </GhostButton>
-              ))}
+            <div className="grid grid-cols-2 gap-2">
+              {doctors.map(d => <button type="button" key={d.id} aria-pressed={d.id === activeDoctorId} onClick={() => { setDoctorId(d.id); setTime(""); }} className={`rounded-cell p-3 transition ${d.id === activeDoctorId ? "bg-hb-200 ring-2 ring-hb-600" : "bg-white/70 hairline"}`}><DoctorProfile doctor={d} /></button>)}
             </div>
+            {!doctors.length && <p className="text-sm text-ink-sub">{t("예약 가능한 의료진이 없습니다.")}</p>}
+          </div>
+          <div>
+            <div className="mb-2 text-sm font-semibold">{t("time")}</div>
+            <div className="grid grid-cols-3 gap-2">
+              {times.map(slot => <GhostButton key={slot} disabled={unavailable(slot) || !activeDoctor} active={slot === time} onClick={() => setTime(slot)} className="px-2">{slot}</GhostButton>)}
+            </div>
+            <p className="mt-2 text-xs text-ink-sub">{t(times.length ? "30분 단위 · 회색 시간은 예약할 수 없습니다." : "선택한 날짜는 휴진일이거나 예약 가능한 시간이 없습니다.")}</p>
           </div>
 
           <div>
@@ -387,16 +368,32 @@ export default function BookingFlow({
             {tf("depositNotice", DEPOSIT.toLocaleString())}
           </div>
 
-          <InkButton onClick={() => setStep("qr")}>
-            {tf("payDeposit", DEPOSIT.toLocaleString())}
+          <InkButton disabled={!selectionValid} onClick={() => { if (validateSelection()) setStep("confirm"); }}>
+            {t("방문 일정 확인")}
           </InkButton>
+        </GlassCard>
+      )}
+
+      {step === "confirm" && (
+        <GlassCard soft className="animate-rise space-y-5 p-5">
+          <h3 className="text-xl font-bold">{t(clinic.name)} {t("방문이 맞으신가요?")}</h3>
+          <p className="text-sm text-ink-sub">{t("방문 일정을 다시 한 번 확인해주세요.")}</p>
+          <div className="rounded-cell bg-hb-50 p-4 hairline">
+            <div className="grid grid-cols-2 gap-3 text-sm"><div><span className="text-xs text-ink-sub">{t("date")}</span><p className="font-bold">{date}</p></div><div><span className="text-xs text-ink-sub">{t("time")}</span><p className="font-bold">{time}</p></div></div>
+            <p className="mt-4 text-sm font-bold">{t("희망 시술")} · {t(treatment.name)}</p>
+            <p className="mt-2 text-xs text-ink-sub">{t(branch?.name ?? "")}</p>
+            {activeDoctor && <div className="mt-4"><DoctorProfile doctor={activeDoctor} /></div>}
+          </div>
+          <p className="text-sm leading-relaxed text-ink-sub">{t("당일취소 및 노쇼는 병원뿐만 아니라 다른 고객님께도 피해가 될 수 있으므로 신중한 예약 부탁드립니다.")}</p>
+          <div className="flex gap-2"><GhostButton onClick={() => setStep("select")} className="flex-1">{t("다시 선택")}</GhostButton><InkButton arrow={false} disabled={!selectionValid} onClick={() => { if (validateSelection()) setStep("qr"); }} className="flex-1 justify-center pr-5">{t("확인")}</InkButton></div>
         </GlassCard>
       )}
 
       {step === "qr" && (
         <GlassCard soft className="animate-rise p-6">
           <div className="text-center">
-            <Badge tone="pink">PromptPay</Badge>
+            <GhostButton onClick={() => setStep("confirm")}>← {t("방문 일정 확인")}</GhostButton>
+            <div className="mt-3"><Badge tone="pink">PromptPay</Badge></div>
             <h3 className="mt-3 text-lg font-bold">
               {tf("scanQr", DEPOSIT.toLocaleString())}
             </h3>
@@ -430,7 +427,7 @@ export default function BookingFlow({
           <div className="mt-4 space-y-3">
             <div className="flex justify-start">
               <div className="max-w-[85%] rounded-card bg-white/75 px-4 py-3 text-sm hairline">
-                {t("slipGreeting")}
+                {t("빠른 답변을 드리겠습니다.")}
               </div>
             </div>
 

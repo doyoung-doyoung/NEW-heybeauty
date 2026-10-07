@@ -15,7 +15,7 @@ import type { ChatThread } from "@/lib/types";
 
 type View =
   | { name: "chat"; threadId: string | null }
-  | { name: "clinics"; category: string; openId?: string }
+  | { name: "clinics"; category: string; openId?: string; fromChat?: boolean }
   | { name: "booking"; clinicId: string; treatmentId: string; promoId?: string }
   | { name: "clinicChat"; threadId: string }
   | { name: "mybookings" }
@@ -155,7 +155,7 @@ export default function HomeTab() {
               key={chatNonce}
               threadId={view.threadId}
               onSaved={setLastChatId}
-              onCta={(category) => setView({ name: "clinics", category })}
+              onCta={(category) => setView({ name: "clinics", category, fromChat: true })}
             />
           ) : (
             <div className="h-full overflow-y-auto overscroll-contain p-3">
@@ -163,6 +163,7 @@ export default function HomeTab() {
                 <ClinicsView
                   // 같은 화면 안에서 목록 ↔ 지도 ↔ 특정 클리닉으로 옮겨 갈 때 안쪽 상태를 새로 잡는다.
                   key={`${view.category}|${view.openId ?? ""}`}
+                  fromChat={view.fromChat}
                   initialCategory={view.category}
                   initialOpenId={view.openId ?? null}
                   onBook={(clinicId, treatmentId, promoId) =>

@@ -7,12 +7,7 @@ import { GhostButton, GlassCard, SendArrowButton } from "@/components/ui/primiti
 import { LinkedNote, useLinkedNote } from "@/components/ui/LinkedNote";
 import { DEMO_SLIPS, SlipImage } from "./DemoAssets";
 
-const AUTO_REPLIES = [
-  "확인했습니다! 담당 실장이 예약 내용을 다시 한번 확인해 드릴게요.",
-  "네, 방문 당일 접수 데스크에서 성함 말씀해주시면 바로 안내됩니다.",
-  "해당 시술은 당일 시술 전 의료진 상담이 함께 진행됩니다.",
-  "변경이 필요하시면 방문 24시간 전까지 말씀해주세요. 도와드리겠습니다.",
-];
+const AUTO_REPLIES = ["빠른 답변을 드리겠습니다."];
 
 export default function ClinicChat({
   threadId,
@@ -105,7 +100,7 @@ export default function ClinicChat({
         <div className="flex items-start justify-between gap-3 border-b border-ink/10 pb-3">
           <div className="min-w-0">
             <div className="truncate font-bold">{clinic ? t(clinic.name) : t("clinicFallback")}</div>
-            <div className="text-xs text-ink-sub">{t("replyTime")}</div>
+            <div className="text-xs text-ink-sub">{t("빠른 답변을 드리겠습니다.")}</div>
           </div>
           {/* 클리닉 상담이 끝나면 원래 보던 AI 대화로 돌아간다. */}
           <button
