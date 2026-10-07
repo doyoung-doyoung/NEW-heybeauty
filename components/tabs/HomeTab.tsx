@@ -123,7 +123,7 @@ export default function HomeTab() {
     <>
       {/* 클로드 앱처럼: 들어오면 AI 상담 채팅이 먼저, 나머지 메뉴는 왼쪽 위 ☰ 서랍 안에.
           높이를 화면에 맞춰 고정해야 입력창이 늘 맨 아래에 붙어 있다. */}
-      <div className="glass relative flex h-[calc(100dvh-12.5rem)] min-h-0 sm:min-h-[30rem] flex-col overflow-hidden rounded-card">
+      <div className="home-conversation glass relative flex h-[calc(100dvh-12.5rem)] min-h-0 sm:min-h-[30rem] flex-col overflow-hidden rounded-card">
         <div className="flex items-center gap-2 px-3 pt-3">
           <RoundIcon label="menu" onClick={() => setDrawerOpen(true)}>
             <IconMenu />
@@ -281,7 +281,7 @@ export default function HomeTab() {
           onClick={() => closePopupModal()}
         >
           <div
-            className={`max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-card bg-white ${
+            className={`max-h-[88vh] w-full max-w-[398px] overflow-y-auto rounded-card bg-white ${
               popupClosing ? "animate-pop-out" : "animate-pop"
             }`}
             onClick={(e) => e.stopPropagation()}

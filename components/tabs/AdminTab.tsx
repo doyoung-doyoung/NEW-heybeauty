@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import PartnerWorkspace, { type PartnerSection } from "@/components/partner/Workspace";
 import { useDb } from "@/lib/db";
 import { useToast } from "@/components/ui/Toast";
 import { isLowStock, LOW_STOCK_QTY } from "@/lib/stock";
@@ -33,23 +34,6 @@ import {
   SectionTitle,
 } from "@/components/ui/primitives";
 
-type Section =
-  | "inventory"
-  | "reviews"
-  | "users"
-  | "clinic"
-  | "notice"
-  | "account";
-
-const SECTIONS: { id: Section; label: string }[] = [
-  { id: "inventory", label: "전체 재고" },
-  { id: "reviews", label: "후기 · 커미션" },
-  { id: "users", label: "유저 관리" },
-  { id: "clinic", label: "클리닉 정보" },
-  { id: "notice", label: "공지 · 팝업" },
-  { id: "account", label: "계정 · 비번" },
-];
-
 const inputClass =
   "w-full rounded-cell bg-white/75 px-3 py-2 text-sm outline-none hairline placeholder:text-ink-sub focus:bg-white";
 
@@ -76,38 +60,17 @@ const DEFAULT_HOURS: Hours[] = [
 ];
 
 export default function AdminTab() {
-  const [section, setSection] = useState<Section>("inventory");
-
-  return (
-    <div className="grid gap-4 lg:grid-cols-[13rem_1fr] lg:items-start">
-      {/* 카테고리를 넓은 화면에서는 왼쪽 사이드바로, 폰에서는 기존처럼 위쪽 가로 스크롤
-          칩으로 보여 준다 — 표를 훑다가 다른 섹션으로 바로 넘어가고 싶을 때 스크롤을
-          맨 위로 되돌리지 않아도 되게, 둘 다 화면에 고정한다. */}
-      <div className="glass sticky top-0 z-30 flex gap-2 overflow-x-auto rounded-pill p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:block lg:space-y-1 lg:overflow-visible lg:rounded-card lg:p-2">
-        {SECTIONS.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => setSection(s.id)}
-            className={`w-auto shrink-0 rounded-cell px-3.5 py-2.5 text-left text-sm font-medium transition duration-100 active:scale-[0.97] lg:w-full ${
-              section === s.id ? "bg-ink text-white" : "hover:bg-white/70"
-            }`}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
-
-      <div key={section} className="animate-rise min-w-0">
-        {section === "inventory" && <InventorySection />}
-        {section === "reviews" && <ReviewSection />}
-        {section === "users" && <UserSection />}
-        {section === "clinic" && <ClinicSection />}
-        {section === "notice" && <NoticeSection />}
-        {section === "account" && <AccountSection />}
-      </div>
-    </div>
-  );
+ const [section, setSection] = useState<PartnerSection>("dashboard");
+ return <PartnerWorkspace mode="admin" section={section} onChange={setSection} clinicId="all" branchId="all" sessionControls={null}>
+  <div key={section}>
+   {section === "inventory" && <InventorySection />}
+   {section === "reviews" && <ReviewSection />}
+   {section === "users" && <UserSection />}
+   {section === "clinic" && <ClinicSection />}
+   {section === "notice" && <NoticeSection />}
+   {section === "account" && <AccountSection />}
+  </div>
+ </PartnerWorkspace>;
 }
 
 function InventorySection() {

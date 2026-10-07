@@ -250,3 +250,131 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Customer home keeps its phone canvas; admin keeps its desktop workspace. */
+.app-shell-home { max-width: 430px; }
+.app-shell-partner { max-width: 1600px; }
+.aw-frame { display:grid; grid-template-columns:220px minmax(0,1fr); gap:22px; min-width:1120px; background:#f0f2f5; border-radius:24px; padding:18px; color:#28334b; }
+.aw-sidebar { background:#151c38; color:#e7ecfa; border-radius:17px; padding:26px 16px; display:flex; flex-direction:column; align-self:start; position:sticky; top:12px; height:calc(100dvh - 28px); min-height:560px; }
+.aw-brand { font-size:25px; font-weight:800; padding:0 8px 25px; }
+.aw-brand span { font-weight:300; }
+.aw-brand small { display:block; color:#98a4c3; font-size:10px; letter-spacing:2px; margin-top:8px; }
+.aw-menu { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#596685 transparent; }
+.aw-menu-row { margin-bottom:5px; border-radius:10px; }
+.aw-menu-link { display:flex; align-items:center; gap:12px; width:100%; padding:12px; color:#bec8df; text-align:left; border-radius:10px; font-size:13px; }
+.aw-menu-link span { font-size:18px; width:21px; }
+.aw-menu-link:hover,.aw-menu-link.aw-active { background:#303d62; color:white; }
+.aw-members { margin-top:22px; border-top:1px solid #36405e; padding:18px 7px 0; }
+.aw-members>small { color:#a8b4cf; font-size:11px; }
+.aw-member { display:flex; align-items:center; gap:12px; margin-top:16px; font-size:12px; }
+.aw-member small { display:block; font-size:10px; color:#a5b1ca; margin-top:3px; }
+.aw-avatar { width:32px; height:32px; background:#4b5879; border-radius:50%; display:grid; place-items:center; position:relative; }
+.aw-online:after { content:''; position:absolute; right:-1px; bottom:0; width:10px; height:10px; border-radius:50%; background:#43d17d; border:2px solid #151c38; }
+.aw-main { min-width:0; padding:8px 4px; }
+.aw-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:24px; }
+.aw-heading small { color:#7a869a; font-size:11px; }
+.aw-heading h1 { font-size:27px; font-weight:700; margin-top:5px; }
+.aw-actions { display:flex; gap:9px; }
+.aw-actions button,.aw-inline-action,.aw-calendar-toolbar button,.aw-booking-detail button,.aw-booking-list h3 button { background:white; border:1px solid #dce2eb; padding:9px 13px; border-radius:9px; font-size:12px; }
+.aw-stats { display:grid; grid-template-columns:repeat(4,1fr); background:white; border-radius:15px; padding:22px 10px; margin-bottom:18px; }
+.aw-stats>div { padding:0 23px; border-right:1px solid #edf0f5; }
+.aw-stats>div:last-child { border:0; }
+.aw-stats small { display:block; color:#7b8698; font-size:12px; }
+.aw-stats strong { display:block; font-size:30px; margin-top:10px; font-weight:600; }
+.aw-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:17px; align-items:start; }
+.aw-card { background:white; padding:20px; border-radius:16px; box-shadow:0 4px 12px #1b26470a; min-width:0; }
+.aw-card-bookings { grid-column:span 2; }
+.aw-card>header { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:19px; }
+.aw-card h2 { font-size:14px; font-weight:600; }
+.aw-card>header>div { display:flex; align-items:center; gap:8px; }
+.aw-detail-link { color:#6a7992; font-size:11px; white-space:nowrap; }
+.aw-table { width:100%; font-size:12px; }
+.aw-table th { text-align:left; font-weight:400; color:#7c8798; }
+.aw-table td,.aw-table th { padding:12px 4px; border-bottom:1px solid #f0f2f6; }
+.aw-inline-action { margin-top:16px; color:#3c4c6c; }
+.aw-list-item { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0; border-bottom:1px solid #f0f2f6; font-size:12px; }
+.aw-list-item small { color:#8792a4; font-size:11px; display:block; margin-top:5px; }
+.aw-tag { display:inline-block; background:#e9f5ee; color:#377555; padding:4px 7px; border-radius:6px; font-size:10px; white-space:nowrap; }
+.aw-existing { background:#f8f3fa; border-radius:16px; padding:20px; }
+.aw-order { display:inline-flex; gap:3px; padding:3px; }
+.aw-order button { border:1px solid #ccd4e2; border-radius:5px; font-size:12px; padding:3px 8px; }
+.aw-menu-row .aw-order { padding-left:12px; }
+.aw-menu-row .aw-order button { border-color:#566382; }
+.aw-editing .aw-card,.aw-editing .aw-menu-row { outline:1px dashed #8897b2; cursor:grab; }
+.aw-edit-hint { font-size:12px; color:#52617b; margin-bottom:17px; }
+.aw-calendar-toolbar { display:flex; gap:9px; align-items:center; margin-bottom:18px; }
+.aw-calendar-toolbar strong { font-size:14px; }
+.aw-calendar-toolbar select { margin-left:auto; border:1px solid #dce2eb; border-radius:8px; padding:8px; max-width:180px; background:white; font-size:12px; }
+.aw-calendar { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:5px; }
+.aw-weekday { text-align:center; font-size:11px; padding:6px; color:#7e899a; }
+.aw-calendar-day { min-height:64px; background:#f6f8fa; border-radius:9px; padding:10px 5px; text-align:center; font-size:12px; }
+.aw-calendar-day small { display:block; color:#347550; font-size:10px; margin-top:5px; }
+.aw-calendar-day.aw-selected { background:#dfeee5; outline:2px solid #75a888; }
+.aw-calendar-day:hover { background:#edf2f6; }
+.aw-compact .aw-calendar-day { min-height:43px; padding:6px 3px; }
+.aw-booking-list { margin-top:20px; }
+.aw-booking-list h3 { display:flex; align-items:center; gap:10px; font-size:12px; margin-bottom:12px; }
+.aw-booking-list h3 span { color:#7e899b; }
+.aw-booking-list h3 button { margin-left:auto; padding:5px 9px; }
+.aw-booking-row { display:grid; grid-template-columns:110px 1fr auto; text-align:left; gap:10px; align-items:center; width:100%; padding:12px 3px; border-top:1px solid #edf0f4; font-size:12px; }
+.aw-booking-row:hover { background:#f6f8fa; }
+.aw-booking-row small { display:block; color:#7d899b; font-size:10px; margin-top:4px; }
+.aw-booking-detail { background:#f3f6fa; border-radius:12px; padding:18px; margin-top:14px; }
+.aw-booking-detail>div { display:flex; align-items:center; justify-content:space-between; }
+.aw-booking-detail h3 { font-size:13px; font-weight:600; }
+.aw-booking-detail dl>div { display:grid; grid-template-columns:75px 1fr; padding-top:12px; font-size:12px; }
+.aw-booking-detail dt { color:#7c8799; }
+.aw-empty { font-size:12px; color:#7c8799; padding:16px 0; }
+@media(min-width:640px) { .app-shell-home { padding-left:16px; padding-right:16px; } }
+.aw-calendar-scope { margin-left:auto; color:#748198; font-size:11px; }
+.aw-reservation-calendar { margin-bottom:20px; }
+
+.aw-grid { grid-template-columns:repeat(6,minmax(0,1fr)); gap:14px; grid-auto-flow:row dense; grid-auto-rows:1px; }
+.aw-grid>.aw-card { display:flex; flex-direction:column; padding:16px; }
+.aw-grid>.aw-card>header { flex-shrink:0; margin-bottom:12px; }
+.aw-card-content { min-height:0; overflow:auto; flex:1; overscroll-behavior:contain; scrollbar-width:thin; }
+.aw-stats { grid-template-columns:0.42857fr 1fr 1fr 1fr; }
+.aw-layout-manager { background:white; border-radius:14px; padding:18px; margin-bottom:18px; }
+.aw-layout-manager h2 { font-weight:600; font-size:14px; }
+.aw-layout-manager p { color:#728099; font-size:12px; margin:8px 0 14px; }
+.aw-layout-manager>div { display:flex; gap:14px 22px; flex-wrap:wrap; }
+.aw-layout-manager label { display:flex; gap:7px; align-items:center; font-size:12px; cursor:pointer; }
+.aw-layout-manager input { accent-color:#303d62; width:16px; height:16px; }
+.aw-size-controls { display:flex; gap:12px; align-items:center; flex-shrink:0; padding:9px 0 13px; }
+.aw-size-controls label { display:flex; flex-direction:column; gap:5px; font-size:11px; color:#52617b; }
+.aw-size-controls label:last-child { flex:1; }
+.aw-size-controls select { background:#f4f6fa; border:1px solid #dce2eb; padding:4px 6px; border-radius:6px; }
+.aw-size-controls input { width:100%; accent-color:#303d62; }
+.aw-editing .aw-card { cursor:default; }
+.aw-editing .aw-card>header { cursor:grab; }
+.aw-unread-count { display:flex; justify-content:space-between; font-size:12px; color:#64738c; padding-bottom:8px; }
+.aw-unread-message strong { font-size:12px; font-weight:600; }
+.aw-unread-message small { line-height:1.6; overflow-wrap:anywhere; }
+
+.aw-sidebar { align-self:stretch; position:static; height:auto; min-height:0; }
+.aw-main { padding-bottom:0; }
+.aw-menu { flex:initial; max-height:calc(100dvh - 350px); min-height:260px; }
+.aw-members { margin-top:auto; }
+.aw-grid>.aw-card { position:relative; }
+.aw-place-button { background:#eef2f8; color:#344765; padding:5px 7px; border-radius:6px; font-size:11px; white-space:nowrap; }
+.aw-placement-selected { outline:2px solid #465f9e!important; }
+.aw-placement-target { cursor:crosshair!important; }
+.aw-placement-target:hover { background:#f4f7ff; }
+.aw-size-readout { flex-shrink:0; font-size:11px; color:#7b879d; padding-bottom:10px; }
+.aw-resize { position:absolute; touch-action:none; z-index:5; }
+.aw-resize-right { right:-4px; top:40px; bottom:18px; width:12px; cursor:ew-resize; }
+.aw-resize-bottom { bottom:-4px; left:18px; right:18px; height:12px; cursor:ns-resize; }
+.aw-resize-corner { right:0; bottom:0; width:24px; height:24px; cursor:nwse-resize; background:#e5eaf4; color:#455677; border-radius:6px 0 14px 0; }
+.aw-unread-count strong { color:#d53445; }
+.aw-unread-message>div>strong:before { content:''; display:inline-block; width:7px; height:7px; background:#e23d3d; border-radius:50%; margin-right:7px; }
+.aw-unread-badge { background:#ffedef; color:#c22d3d; border-radius:6px; padding:4px 7px; font-size:10px; white-space:nowrap; }
+@media(min-width:640px) { .home-conversation { height:min(644px,calc(100dvh - 12.5rem)); min-height:0; } }
+.aw-stats>div { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
+.aw-low-stock { color:#d33242; font-weight:700; }
+.aw-low-stock small { display:block; font-size:10px; }
+.aw-example { padding:12px; background:#f6f8fb; border-radius:9px; margin-bottom:10px; font-size:12px; }
+.aw-example small { display:block; color:#7c899e; font-size:10px; margin-bottom:7px; }
+.aw-example strong { display:block; font-size:13px; }
+.aw-example p { margin-top:7px; line-height:1.6; color:#66758b; }
+.aw-ai-actions { display:flex; gap:10px; margin-bottom:12px; }
+.aw-ai-actions button { flex:1; border:1px solid #dce3ed; border-radius:9px; padding:12px 8px; font-size:13px; }

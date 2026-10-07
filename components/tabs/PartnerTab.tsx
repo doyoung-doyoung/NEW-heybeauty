@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import PartnerWorkspace, { type PartnerSection } from "@/components/partner/Workspace";
 import { useDb } from "@/lib/db";
 import { useToast } from "@/components/ui/Toast";
 import {
@@ -22,31 +23,6 @@ import {
   TodayPanel,
 } from "@/components/partner/Panels";
 
-type Section =
-  | "today"
-  | "ai"
-  | "inbox"
-  | "customers"
-  | "bookings"
-  | "charts"
-  | "inventory"
-  | "stats"
-  | "sms"
-  | "promo";
-
-const SECTIONS: { id: Section; label: string }[] = [
-  { id: "today", label: "오늘 현황" },
-  { id: "ai", label: "AI 입력" },
-  { id: "inbox", label: "통합 인박스" },
-  { id: "customers", label: "고객 관리" },
-  { id: "bookings", label: "예약 확인" },
-  { id: "charts", label: "전자차트" },
-  { id: "inventory", label: "재고" },
-  { id: "stats", label: "통계" },
-  { id: "sms", label: "SMS" },
-  { id: "promo", label: "AI 프로모션" },
-];
-
 interface Session {
   role: "마스터" | "지점";
   clinicId: string;
@@ -59,7 +35,7 @@ const inputClass =
 export default function PartnerTab() {
   const { db } = useDb();
   const [session, setSession] = useState<Session | null>(null);
-  const [section, setSection] = useState<Section>("today");
+  const [section, setSection] = useState<PartnerSection>("dashboard");
 
   if (!db) return null;
 
@@ -67,56 +43,24 @@ export default function PartnerTab() {
     return <PartnerLogin onLogin={setSession} />;
   }
 
-  const clinic = db.clinics.find((c) => c.id === session.clinicId);
   const branches = db.branches.filter((b) => b.clinicId === session.clinicId);
-  const branch = branches.find((b) => b.id === session.branchId);
 
   return (
-    <div className="space-y-4">
-      <GlassCard className="flex flex-wrap items-center justify-between gap-3 p-5">
-        <div>
-          <div className="text-xs text-ink-sub">{session.role} 로그인</div>
-          <div className="font-bold">{clinic?.name}</div>
-          <div className="text-xs text-ink-sub">{branch?.name}</div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {session.role === "마스터" && branches.length > 1 && (
-            <select
-              value={session.branchId}
-              onChange={(e) =>
-                setSession({ ...session, branchId: e.target.value })
-              }
-              className="rounded-pill bg-white/75 px-4 py-2 text-sm outline-none hairline"
-            >
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          )}
-          <GhostButton onClick={() => setSession(null)}>로그아웃</GhostButton>
-        </div>
-      </GlassCard>
-
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {SECTIONS.map((s) => (
-          <GhostButton
-            key={s.id}
-            active={section === s.id}
-            onClick={() => setSection(s.id)}
-            className={`shrink-0 rounded-cell! ${section === s.id ? "bg-hb-600!" : ""}`}
-          >
-            {s.label}
-          </GhostButton>
-        ))}
-      </div>
-
+    <PartnerWorkspace section={section} onChange={setSection} clinicId={session.clinicId} branchId={session.branchId} sessionControls={
+      <>
+        {session.role === "마스터" && branches.length > 1 && (
+          <select value={session.branchId} aria-label="지점 선택" onChange={e => setSession({ ...session, branchId: e.target.value })} className="rounded-cell bg-white px-3 py-2 text-xs hairline">
+            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+        )}
+        <GhostButton onClick={() => { setSession(null); setSection("dashboard"); }}>로그아웃</GhostButton>
+      </>
+    }>
       <div key={section} className="animate-rise">
         {section === "today" && (
           <TodayPanel
             branchId={session.branchId}
-            onGo={(s) => setSection(s as Section)}
+            onGo={(s) => setSection(s as PartnerSection)}
           />
         )}
         {section === "ai" && (
@@ -137,7 +81,7 @@ export default function PartnerTab() {
         )}
         {section === "promo" && <PromoPanel clinicId={session.clinicId} />}
       </div>
-    </div>
+    </PartnerWorkspace>
   );
 }
 

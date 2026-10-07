@@ -41,7 +41,7 @@ export default function AppShell() {
   const activeIndex = TABS.findIndex((t) => t.id === tab);
 
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-6xl px-4 pb-16 pt-5 sm:px-6">
+    <div className={`app-shell mx-auto min-h-dvh w-full px-4 pb-16 pt-5 ${tab === "home" ? "app-shell-home" : (tab === "partner" || tab === "admin") ? "app-shell-partner" : "max-w-6xl sm:px-6"}`}>
       <header className="animate-rise relative z-30">
         {/* 언어·로그인은 유저가 쓰는 홈 화면에만 걸려 있어서, 지구 버튼·로그인 버튼도
             홈 탭에서만 보인다. 로그인은 그 줄의 맨 오른쪽에 둔다. */}
