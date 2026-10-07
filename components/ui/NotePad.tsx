@@ -11,6 +11,24 @@ interface Note {
   done: boolean;
 }
 
+// 노트는 도도 · 개발용이라 손님이 못 열게 비밀번호로 잠근다(10/6 요청).
+// 코드에 비밀번호 대신 SHA-256 값만 둔다. 화면을 가리는 가벼운 잠금이지 보안 장치는 아니다.
+const NOTE_PASS_SHA256 = "3472adbbcb9677d1b45365d37d96d1c33217d745567577fd9bd5c2766a258320";
+const UNLOCK_KEY = "heybeauty.notes-unlocked";
+
+async function sha256(text: string) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function readUnlocked() {
+  try {
+    return sessionStorage.getItem(UNLOCK_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 function formatAt(iso: string) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
@@ -20,6 +38,11 @@ function formatAt(iso: string) {
 
 export default function NotePad({ where }: { where: string }) {
   const [open, setOpen] = useState(false);
+  // 비밀번호를 한 번 맞히면 이 탭을 닫을 때까지 다시 묻지 않는다.
+  const [unlocked, setUnlocked] = useState(false);
+  const [askPass, setAskPass] = useState(false);
+  const [pass, setPass] = useState("");
+  const [passWrong, setPassWrong] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [text, setText] = useState("");
   const [copied, setCopied] = useState(false);
@@ -51,9 +74,42 @@ export default function NotePad({ where }: { where: string }) {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  useEffect(() => {
+    setUnlocked(readUnlocked());
+  }, []);
+
+  function togglePanel() {
+    if (open || askPass) {
+      setOpen(false);
+      setAskPass(false);
+      return;
+    }
+    if (unlocked) setOpen(true);
+    else {
+      setPass("");
+      setPassWrong(false);
+      setAskPass(true);
+    }
+  }
+
+  async function checkPass() {
+    if ((await sha256(pass.trim())) !== NOTE_PASS_SHA256) {
+      setPassWrong(true);
+      setPass("");
+      return;
+    }
+    try {
+      sessionStorage.setItem(UNLOCK_KEY, "1");
+    } catch {
+      // 저장이 막힌 브라우저면 이번 화면에서만 열린 상태로 둔다.
+    }
+    setUnlocked(true);
+    setAskPass(false);
+    setOpen(true);
+  }
+
   const todoNotes = notes.filter((n) => !n.done);
   const doneNotes = notes.filter((n) => n.done);
-  const todo = todoNotes.length;
   const visible = tab === "todo" ? todoNotes : doneNotes;
 
   async function add() {
@@ -136,23 +192,57 @@ export default function NotePad({ where }: { where: string }) {
 
   return (
     <>
+      {/* 맨 오른쪽 아래 아주 작은 펜 아이콘. 손님 눈에 띄지 않게 글자·개수 표시 없이 둔다. */}
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        // 폰에서는 오른쪽 가장자리 가운데에 반쪽 탭으로 붙인다. 오른쪽 아래에 두면
-        // 홈 채팅 입력창의 보내기 버튼을 가린다.
-        className="glass fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-pill px-4 py-3 text-sm font-medium text-ink transition hover:bg-white/80 max-sm:bottom-auto max-sm:right-0 max-sm:top-[42%] max-sm:rounded-r-none max-sm:px-3 max-sm:py-2.5 max-sm:text-xs"
+        aria-label="노트"
+        onClick={togglePanel}
+        className="fixed bottom-1.5 right-1.5 z-40 flex size-7 items-center justify-center rounded-pill bg-white/55 text-ink/60 shadow-float backdrop-blur transition hover:text-ink active:scale-[0.92]"
       >
-        노트
-        {todo > 0 && (
-          <span className="rounded-pill bg-ink px-2 py-0.5 text-xs text-white">
-            {todo}
-          </span>
-        )}
+        <svg aria-hidden viewBox="0 0 24 24" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+        </svg>
       </button>
 
+      {askPass && (
+        <form
+          className="animate-pop fixed bottom-11 right-1.5 z-40 w-56 rounded-card bg-white p-4 shadow-lift hairline"
+          onSubmit={(e) => {
+            e.preventDefault();
+            checkPass();
+          }}
+        >
+          <div className="text-sm font-bold">노트 비밀번호</div>
+          <input
+            autoFocus
+            type="password"
+            inputMode="numeric"
+            value={pass}
+            onChange={(e) => {
+              setPass(e.target.value);
+              setPassWrong(false);
+            }}
+            placeholder="비밀번호"
+            className="mt-2 w-full rounded-pill bg-surface px-4 py-2 text-sm outline-none hairline"
+          />
+          {passWrong && <p className="mt-1.5 text-xs text-danger">비밀번호가 맞지 않습니다</p>}
+          <div className="mt-3 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setAskPass(false)}
+              className="rounded-pill px-3 py-1.5 text-xs text-ink-sub"
+            >
+              닫기
+            </button>
+            <button type="submit" className="rounded-pill bg-ink px-4 py-1.5 text-xs font-semibold text-white">
+              열기
+            </button>
+          </div>
+        </form>
+      )}
+
       {open && (
-        <div className="animate-pop fixed bottom-20 right-5 z-40 flex max-h-[70dvh] w-[min(22rem,calc(100vw-2.5rem))] flex-col rounded-card bg-white p-4 shadow-lift hairline">
+        <div className="animate-pop fixed bottom-11 right-1.5 z-40 flex max-h-[70dvh] w-[min(22rem,calc(100vw-2.5rem))] flex-col rounded-card bg-white p-4 shadow-lift hairline">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-bold">수정할 부분 노트</div>
