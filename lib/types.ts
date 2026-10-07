@@ -247,6 +247,8 @@ export interface ChatMessage {
   clinicIds?: string[];
   /** AI가 실제로 쓴 답(시나리오 대본이 아님) — 사전 번역을 거치지 않는다. */
   ai?: boolean;
+  /** AI 답의 주제(beauty·offtopic_ask·offtopic_answer·offtopic_limit) — 범위 밖 답 횟수를 셀 때 쓴다. */
+  topic?: string;
 }
 
 export interface ChatThread {

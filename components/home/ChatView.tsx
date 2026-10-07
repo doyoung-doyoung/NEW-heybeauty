@@ -19,10 +19,12 @@ interface Bubble {
   clinicIds?: string[];
   /** 실제 AI 답 — 사전 번역(t)을 거치지 않고 그대로 보여 준다 */
   ai?: boolean;
+  /** AI 답의 주제 — 뷰티 / 범위 밖(되묻기·답함·그만) */
+  topic?: string;
 }
 
 type AiReply =
-  | { ok: true; answer: string; followUps: string[]; clinicIds: string[]; category: string }
+  | { ok: true; answer: string; followUps: string[]; clinicIds: string[]; category: string; topic: string }
   | { ok: false; reason: string };
 
 /** 홈 AI 상담 — 서버(/api/chat)가 실제 AI로 답한다. 실패하면 null → 기존 시나리오 대본으로 대신 답한다. */
@@ -33,7 +35,13 @@ async function askAi(history: Bubble[], lang: string): Promise<AiReply | null> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         lang,
-        messages: history.map((b) => ({ role: b.role, text: b.text })),
+        // 서버가 이미 띄운 카드는 다시 안 띄우고, 범위 밖 답 횟수를 센다.
+        messages: history.map((b) => ({
+          role: b.role,
+          text: b.text,
+          clinicIds: b.clinicIds ?? [],
+          topic: b.topic ?? null,
+        })),
       }),
     });
     return (await res.json()) as AiReply;
@@ -93,6 +101,7 @@ export default function ChatView({
         text: m.text,
         clinicIds: m.clinicIds,
         ai: m.ai,
+        topic: m.topic,
       })),
     );
     const matched = SCENARIOS.find((s) => s.question === thread.title) ?? null;
@@ -116,6 +125,7 @@ export default function ChatView({
         at: new Date().toISOString(),
         ...(b.clinicIds?.length ? { clinicIds: b.clinicIds } : {}),
         ...(b.ai ? { ai: true } : {}),
+        ...(b.topic ? { topic: b.topic } : {}),
       }));
       const existing = draft.chats.find((c) => c.id === id);
       if (existing) {
@@ -164,6 +174,7 @@ export default function ChatView({
         cta: ai.category === "전체" ? undefined : "chatSeeCategory",
         category: ai.category,
         ai: true,
+        topic: ai.topic,
       };
     } else {
       // 키 없음(미리보기)·오류일 때는 예전 시나리오 대본으로 대신 답한다.

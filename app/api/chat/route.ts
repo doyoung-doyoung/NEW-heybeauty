@@ -12,6 +12,11 @@ export const maxDuration = 60;
 
 const CHAT_CATEGORIES = ["전체", "화이트닝", "V라인", "리프팅", "스킨부스터", "필러"] as const;
 
+// beauty: 뷰티 상담 / offtopic_ask: "뷰티 전문이에요, 그래도 답할까요?" / offtopic_answer: 범위 밖 질문에 답함
+// offtopic_limit: 범위 밖 답이 2번 넘어 뷰티 쪽으로 돌림
+const TOPICS = ["beauty", "offtopic_ask", "offtopic_answer", "offtopic_limit"] as const;
+const OFFTOPIC_LIMIT = 2;
+
 const LANG_NAMES: Record<string, string> = {
   ko: "한국어",
   en: "English",
@@ -82,12 +87,21 @@ const RULES = `너는 Hey! Beauty 앱의 AI 뷰티 상담사다. Hey! Beauty는 
 - 효과·안전을 보장하지 않는다("무조건", "부작용 없음" 같은 말 금지). 개인마다 다르다고 말한다.
 - 임신·수유 중, 피부 질환, 켈로이드, 알레르기, 지병, 복용 중인 약, 최근 시술 이력, 미성년자 같은 의학적 판단이 필요한 질문에는 일반 정보만 짧게 주고 "클리닉 의료진 상담에서 확인해야 한다"며 상담 연결로 넘긴다.
 - 시술 후 심한 통증·부기·열·고름·시야 이상·호흡 곤란 같은 증상을 말하면 즉시 시술 클리닉이나 가까운 병원(응급 시 태국 1669)으로 연락하라고 먼저 안내한다. 이때는 클리닉 추천을 하지 않는다.
-- 뷰티·클리닉과 관계없는 질문에는 Hey! Beauty 상담 범위가 아니라고 짧게 말하고 뷰티 상담으로 돌린다.
+
+뷰티와 관계없는 질문 (날씨, 여행, 맛집, 공부, 코딩 등):
+- 처음에는 바로 답하지 않고 "저는 뷰티 전문 AI예요. 그래도 답해 드릴까요?"처럼 한두 문장으로 되묻는다. topic은 "offtopic_ask". followUps 첫 번째는 "네, 답해 주세요" 같은 수락 문장, 나머지는 뷰티 질문.
+- 사용자가 그래도 답해 달라고 하면 아는 범위에서 짧고 정확하게 답한다. 모르거나 최신 정보(실시간 날씨·환율·뉴스 등)가 필요하면 확인할 수 없다고 솔직히 말한다. topic은 "offtopic_answer". 답 끝에 뷰티 이야기로 자연스럽게 이어 주는 한 줄을 붙여도 좋다.
+- [범위 밖 답변 횟수]가 2 이상이면 더 답하지 않는다. "그 부분은 더 도와드리기 어려워요. 대신 뷰티 정보를 알아볼까요?"처럼 부드럽게 말하고 topic은 "offtopic_limit". followUps는 뷰티 질문만.
+- 범위 밖 대화에서는 clinicIds를 비우고 category는 "전체".
+- 뷰티 질문은 topic "beauty". 의료 응급·이상 증상은 위 의료 규칙이 우선이다.
 
 답 쓰는 법:
 - 반드시 사용자가 쓴 언어로 답한다. 언어를 알기 어려우면 [앱 언어]로 답한다. 시술명·클리닉명도 그 언어로 자연스럽게 쓰되, 클리닉명은 목록 표기를 괄호로 함께 적어도 된다.
 - 폰 화면용으로 짧게: 3~8줄. 목록은 "· "로 시작하는 줄로 쓴다. 마크다운 굵게(**)·표·제목(#)은 쓰지 않는다.
-- clinicIds: 이번 답에서 추천하는 클리닉 id(예: C01)를 0~3개. 추천할 상황이 아니면 빈 배열. 답 본문에서 언급한 클리닉과 같아야 한다.
+- clinicIds: 추천 클리닉 카드로 띄울 id(예: C01) 0~3개. 대부분의 답에서는 빈 배열이다. 카드는 이럴 때만 띄운다:
+  · 사용자가 클리닉 추천·어디서 받을지·가격 비교·예약을 직접 물었을 때
+  · 시술 설명이 끝나고 고민·예산·지역이 정해져서 클리닉을 고를 단계가 됐을 때
+  시술 설명, 다운타임, 관리법, 주의사항 같은 답에는 카드를 띄우지 않는다. 대화에서 이미 카드로 보여 준 클리닉(어시스턴트 메시지의 [추천 카드] 표시)은 사용자가 다시 보여 달라고 하지 않는 한 다시 넣지 않는다. 카드로 띄운 클리닉은 답 본문에서도 언급한다.
 - category: 대화의 시술 분류. 화이트닝, V라인, 리프팅, 스킨부스터, 필러 중 하나, 정하기 어려우면 "전체".
 - followUps: 사용자가 이어서 누를 만한 짧은 질문 2~3개, 사용자의 언어로, 사용자 입장의 문장으로.
 - 사진 속 얼굴·피부를 직접 볼 수 없으므로 "사진을 보면" 같은 말은 하지 않는다.`;
@@ -99,24 +113,35 @@ const OUTPUT_SCHEMA = {
     followUps: { type: "array", items: { type: "string" } },
     clinicIds: { type: "array", items: { type: "string" } },
     category: { type: "string", enum: [...CHAT_CATEGORIES] },
+    topic: { type: "string", enum: [...TOPICS] },
   },
-  required: ["answer", "followUps", "clinicIds", "category"],
+  required: ["answer", "followUps", "clinicIds", "category", "topic"],
   additionalProperties: false,
 } as const;
 
-type InMessage = { role: "user" | "assistant"; text: string };
+type InMessage = {
+  role: "user" | "assistant";
+  text: string;
+  clinicIds: string[];
+  topic: string | null;
+};
 
 function readMessages(raw: unknown): InMessage[] | null {
   if (!Array.isArray(raw)) return null;
   const list = raw
-    .map((m) => {
-      const row = m as { role?: unknown; text?: unknown };
+    .slice(-60)
+    .map((m): InMessage | null => {
+      const row = m as { role?: unknown; text?: unknown; clinicIds?: unknown; topic?: unknown };
       if ((row.role !== "user" && row.role !== "assistant") || typeof row.text !== "string") return null;
       const text = row.text.trim().slice(0, MAX_TEXT);
-      return text ? { role: row.role, text } : null;
+      if (!text) return null;
+      const clinicIds = Array.isArray(row.clinicIds)
+        ? row.clinicIds.filter((id): id is string => typeof id === "string").slice(0, 3)
+        : [];
+      const topic = typeof row.topic === "string" && (TOPICS as readonly string[]).includes(row.topic) ? row.topic : null;
+      return { role: row.role, text, clinicIds, topic };
     })
-    .filter((m): m is InMessage => m !== null)
-    .slice(-MAX_TURNS);
+    .filter((m): m is InMessage => m !== null);
   // API는 user로 시작해야 한다.
   while (list.length && list[0].role !== "user") list.shift();
   if (!list.length || list[list.length - 1].role !== "user") return null;
@@ -141,6 +166,11 @@ export async function POST(req: Request) {
   }
   const lang = typeof body.lang === "string" && LANG_NAMES[body.lang] ? body.lang : "ko";
   const { text: clinicList, ids } = catalog();
+  // 범위 밖 답 횟수와 이미 보여 준 카드는 잘라 내기 전 전체 대화에서 센다.
+  const offtopicCount = messages.filter((m) => m.topic === "offtopic_answer").length;
+  const shownIds = new Set(messages.flatMap((m) => m.clinicIds));
+  const recent = messages.slice(-MAX_TURNS);
+  while (recent.length && recent[0].role !== "user") recent.shift();
 
   const client = new Anthropic({ apiKey });
   try {
@@ -161,9 +191,16 @@ export async function POST(req: Request) {
           text: `${RULES}\n\n[클리닉 목록] (id | 이름 | 동네·도시 | 평점(후기 수) | 시술 기본 가격 | 프로모션)\n${clinicList}`,
           cache_control: { type: "ephemeral" },
         },
-        { type: "text", text: `[앱 언어] ${LANG_NAMES[lang]}` },
+        {
+          type: "text",
+          text: `[앱 언어] ${LANG_NAMES[lang]}\n[범위 밖 답변 횟수] ${offtopicCount} (최대 ${OFFTOPIC_LIMIT})`,
+        },
       ],
-      messages: messages.map((m) => ({ role: m.role, content: m.text })),
+      messages: recent.map((m) => ({
+        role: m.role,
+        // 어떤 클리닉을 이미 카드로 보여 줬는지 AI가 알 수 있게 표시해 둔다.
+        content: m.clinicIds.length ? `${m.text}\n[추천 카드: ${m.clinicIds.join(", ")}]` : m.text,
+      })),
     });
 
     if (message.stop_reason === "refusal") {
@@ -174,7 +211,7 @@ export async function POST(req: Request) {
       .filter((block): block is Anthropic.Beta.BetaTextBlock => block.type === "text")
       .map((block) => block.text)
       .join("");
-    let parsed: { answer?: unknown; followUps?: unknown; clinicIds?: unknown; category?: unknown };
+    let parsed: { answer?: unknown; followUps?: unknown; clinicIds?: unknown; category?: unknown; topic?: unknown };
     try {
       parsed = JSON.parse(text);
     } catch {
@@ -190,8 +227,11 @@ export async function POST(req: Request) {
       ok: true,
       answer,
       followUps: strings(parsed.followUps).slice(0, 3),
-      // 목록에 없는 id는 버린다 — 없는 클리닉 카드가 뜨지 않게.
-      clinicIds: [...new Set(strings(parsed.clinicIds))].filter((id) => ids.has(id)).slice(0, 3),
+      // 목록에 없는 id, 이 대화에서 이미 카드로 보여 준 id는 버린다 — 같은 카드가 매번 달리지 않게.
+      clinicIds: [...new Set(strings(parsed.clinicIds))]
+        .filter((id) => ids.has(id) && !shownIds.has(id))
+        .slice(0, 3),
+      topic: typeof parsed.topic === "string" && (TOPICS as readonly string[]).includes(parsed.topic) ? parsed.topic : "beauty",
       category:
         typeof parsed.category === "string" && (CHAT_CATEGORIES as readonly string[]).includes(parsed.category)
           ? parsed.category
