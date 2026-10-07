@@ -156,6 +156,9 @@ export default function HomeTab() {
               threadId={view.threadId}
               onSaved={setLastChatId}
               onCta={(category) => setView({ name: "clinics", category, fromChat: true })}
+              onOpenClinic={(clinicId, category) =>
+                setView({ name: "clinics", category, openId: clinicId, fromChat: true })
+              }
             />
           ) : (
             <div className="h-full overflow-y-auto overscroll-contain p-3">
