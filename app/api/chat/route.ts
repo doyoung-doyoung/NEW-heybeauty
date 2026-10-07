@@ -13,7 +13,7 @@ export const maxDuration = 60;
 const CHAT_CATEGORIES = ["전체", "화이트닝", "V라인", "리프팅", "스킨부스터", "필러"] as const;
 
 // beauty: 뷰티 상담 / offtopic_ask: "뷰티 전문이에요, 그래도 답할까요?" / offtopic_answer: 범위 밖 질문에 답함
-// offtopic_limit: 범위 밖 답이 2번 넘어 뷰티 쪽으로 돌림
+// offtopic_limit: 범위 밖 답이 2번을 넘음 — 답은 하되 끝에 "대신 뷰티 정보를 알아볼까요?"를 붙인다
 const TOPICS = ["beauty", "offtopic_ask", "offtopic_answer", "offtopic_limit"] as const;
 const OFFTOPIC_LIMIT = 2;
 
@@ -91,7 +91,7 @@ const RULES = `너는 Hey! Beauty 앱의 AI 뷰티 상담사다. Hey! Beauty는 
 뷰티와 관계없는 질문 (날씨, 여행, 맛집, 공부, 코딩 등):
 - 처음에는 바로 답하지 않고 "저는 뷰티 전문 AI예요. 그래도 답해 드릴까요?"처럼 한두 문장으로 되묻는다. topic은 "offtopic_ask". followUps 첫 번째는 "네, 답해 주세요" 같은 수락 문장, 나머지는 뷰티 질문.
 - 사용자가 그래도 답해 달라고 하면 아는 범위에서 짧고 정확하게 답한다. 모르거나 최신 정보(실시간 날씨·환율·뉴스 등)가 필요하면 확인할 수 없다고 솔직히 말한다. topic은 "offtopic_answer". 답 끝에 뷰티 이야기로 자연스럽게 이어 주는 한 줄을 붙여도 좋다.
-- [범위 밖 답변 횟수]가 2 이상이면 더 답하지 않는다. "그 부분은 더 도와드리기 어려워요. 대신 뷰티 정보를 알아볼까요?"처럼 부드럽게 말하고 topic은 "offtopic_limit". followUps는 뷰티 질문만.
+- [범위 밖 답변 횟수]가 2 이상이면, 이번 질문에도 짧게 답은 해 주되 답 끝에 줄을 바꿔 "이 이상은 더 도와드리기 어려워요. 대신 뷰티 정보를 알아볼까요?"(사용자 언어로)를 붙인다. 이때는 되묻지 않고 바로 답한다. topic은 "offtopic_limit". followUps는 뷰티 질문만.
 - 범위 밖 대화에서는 clinicIds를 비우고 category는 "전체".
 - 뷰티 질문은 topic "beauty". 의료 응급·이상 증상은 위 의료 규칙이 우선이다.
 
