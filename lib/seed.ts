@@ -746,7 +746,16 @@ export function buildSeed(): DemoDb {
             time: TIMES[Math.floor(r() * TIMES.length)],
             depositTHB: 1000,
             slipImage: null,
-            status: past ? (r() < 0.12 ? "취소" : "방문완료") : "예약확정",
+            // 앞으로의 예약 일부는 아직 처리 전으로 둔다 — 파트너 CRM에 승인할 일이
+            // 늘 하나는 있어야 흐름을 보여줄 수 있다. 난수를 더 굴리면 아래 값들이
+            // 전부 밀리므로 k로 가른다.
+            status: past
+              ? (r() < 0.12 ? "취소" : "방문완료")
+              : k % 5 === 0
+                ? "예약요청"
+                : k % 5 === 1
+                  ? "입금확인"
+                  : "예약확정",
             usedReviewCode: null,
             createdAt: (evergreen ? shiftFromToday : shiftDays)(
               offset - 3 - Math.floor(r() * 10),
