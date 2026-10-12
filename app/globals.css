@@ -378,3 +378,44 @@ body {
 .aw-example p { margin-top:7px; line-height:1.6; color:#66758b; }
 .aw-ai-actions { display:flex; gap:10px; margin-bottom:12px; }
 .aw-ai-actions button { flex:1; border:1px solid #dce3ed; border-radius:9px; padding:12px 8px; font-size:13px; }
+
+/* 폰에서는 데스크톱 작업공간을 좌우로 밀지 않고 한 줄로 쌓는다.
+   .aw-grid의 gap 14px는 그대로 둔다 — 카드 높이를 grid-auto-rows:1px 기준
+   span (높이+14)/15 로 계산하므로 gap을 바꾸면 카드 높이가 어긋난다. */
+@media (max-width:680px) {
+  .aw-frame { grid-template-columns:1fr; min-width:0; gap:12px; padding:10px; border-radius:18px; }
+  .aw-main { padding:0; }
+  /* min-width:0 이 없으면 가로 메뉴의 내용 폭이 격자 칸을 화면 밖까지 늘린다. */
+  .aw-sidebar { padding:14px 12px; border-radius:14px; min-width:0; }
+  .aw-brand { font-size:19px; padding:0 2px 12px; }
+  .aw-brand small { margin-top:5px; }
+  .aw-menu { display:flex; gap:6px; overflow-x:auto; overflow-y:visible; max-height:none; min-height:0; padding-bottom:4px; }
+  .aw-menu-row,.aw-menu>.aw-menu-link { flex:0 0 auto; margin-bottom:0; }
+  .aw-menu-link { width:auto; padding:9px 12px; font-size:12px; white-space:nowrap; }
+  .aw-members { display:none; }
+  .aw-heading { flex-direction:column; align-items:stretch; gap:10px; margin-bottom:16px; }
+  .aw-heading h1 { font-size:20px; margin-top:3px; }
+  .aw-actions { flex-wrap:wrap; }
+  .aw-stats { grid-template-columns:1fr 1fr; row-gap:14px; padding:16px 4px; }
+  .aw-stats>div { padding:0 10px; border-right:0; }
+  .aw-stats strong { font-size:22px; margin-top:6px; }
+  /* 카드의 가로 칸수는 인라인 style로 들어온다(span 2~6). !important 없이 덮으면
+     1칸짜리 격자에 암시적 칸이 생겨 다시 가로로 삐져나간다. */
+  .aw-grid { grid-template-columns:1fr; }
+  .aw-grid>.aw-card { grid-column:span 1!important; }
+  /* 카드가 전부 한 칸이라 가로 조절 손잡이는 눌러도 변화가 없다(데스크톱 배치만 바뀐다). */
+  .aw-resize-right { display:none; }
+  .aw-card { padding:14px; }
+  .aw-layout-manager { padding:14px; }
+  .aw-size-controls { flex-wrap:wrap; }
+  .aw-calendar { gap:3px; }
+  .aw-calendar-day { min-height:52px; padding:6px 2px; font-size:11px; }
+  .aw-calendar-day small { font-size:9px; margin-top:3px; line-height:1.25; }
+  .aw-calendar-toolbar select { max-width:120px; }
+  /* 지점 이름은 바로 위 제목에 이미 있다. 좁은 달력 머리줄에서 잘려 보이느니 숨긴다. */
+  .aw-calendar-scope { display:none; }
+  .aw-booking-row { grid-template-columns:72px 1fr auto; gap:6px; font-size:11px; }
+  .aw-booking-detail { padding:14px; }
+  .aw-booking-detail dl>div { grid-template-columns:62px 1fr; }
+  .aw-existing { padding:12px; border-radius:14px; }
+}
