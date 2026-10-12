@@ -114,13 +114,53 @@ export default function ClinicMap({ onOpen }: { onOpen: (clinicId: string) => vo
     return pool.length ? pool.reduce((a, b) => (a.price <= b.price ? a : b)) : null;
   };
 
+  // 방콕 지도와 태국 전체 지도가 같은 확대 버튼·같은 zoom 값을 쓴다.
+  // 스크롤 상자 바깥(부모 relative 기준)에 고정해서 지도를 밀어도 안 움직인다.
+  const zoomControls = (
+    <div className="absolute right-3 top-3 z-10 flex items-center gap-0.5 rounded-pill bg-white/90 p-1 shadow-float hairline">
+      <button
+        type="button"
+        aria-label={t("mapZoomOut")}
+        disabled={zoom <= ZOOM_MIN}
+        onClick={() => setZoom((z) => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2)))}
+        className="flex size-7 items-center justify-center rounded-pill text-base font-bold text-ink transition hover:bg-black/5 disabled:opacity-30"
+      >
+        −
+      </button>
+      <span className="w-10 text-center text-[11px] font-semibold tabular-nums text-ink-sub">
+        {Math.round(zoom * 100)}%
+      </span>
+      <button
+        type="button"
+        aria-label={t("mapZoomIn")}
+        disabled={zoom >= ZOOM_MAX}
+        onClick={() => setZoom((z) => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2)))}
+        className="flex size-7 items-center justify-center rounded-pill text-base font-bold text-ink transition hover:bg-black/5 disabled:opacity-30"
+      >
+        +
+      </button>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <GhostButton active={view === "bkk"} onClick={() => setView("bkk")}>
+        <GhostButton
+          active={view === "bkk"}
+          onClick={() => {
+            setView("bkk");
+            setZoom(1);
+          }}
+        >
           {t("mapBangkok")} · {bkk.length}
         </GhostButton>
-        <GhostButton active={view === "th"} onClick={() => setView("th")}>
+        <GhostButton
+          active={view === "th"}
+          onClick={() => {
+            setView("th");
+            setZoom(1);
+          }}
+        >
           {t("mapThailand")} · {db.clinics.filter((c) => byCity.has(cityOf(c.district))).length}
         </GhostButton>
         <span className="ml-auto text-xs text-ink-sub">
@@ -223,30 +263,7 @@ export default function ClinicMap({ onOpen }: { onOpen: (clinicId: string) => vo
                 {t("mapExample")}
               </span>
 
-              {/* 확대/축소 버튼. 스크롤 상자 바깥(이 relative 기준)에 고정해서 밀어도 안 움직인다. */}
-              <div className="absolute right-3 top-3 z-10 flex items-center gap-0.5 rounded-pill bg-white/90 p-1 shadow-float hairline">
-                <button
-                  type="button"
-                  aria-label={t("mapZoomOut")}
-                  disabled={zoom <= ZOOM_MIN}
-                  onClick={() => setZoom((z) => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2)))}
-                  className="flex size-7 items-center justify-center rounded-pill text-base font-bold text-ink transition hover:bg-black/5 disabled:opacity-30"
-                >
-                  −
-                </button>
-                <span className="w-10 text-center text-[11px] font-semibold tabular-nums text-ink-sub">
-                  {Math.round(zoom * 100)}%
-                </span>
-                <button
-                  type="button"
-                  aria-label={t("mapZoomIn")}
-                  disabled={zoom >= ZOOM_MAX}
-                  onClick={() => setZoom((z) => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2)))}
-                  className="flex size-7 items-center justify-center rounded-pill text-base font-bold text-ink transition hover:bg-black/5 disabled:opacity-30"
-                >
-                  +
-                </button>
-              </div>
+              {zoomControls}
             </div>
           </GlassCard>
 
@@ -299,42 +316,56 @@ export default function ClinicMap({ onOpen }: { onOpen: (clinicId: string) => vo
       ) : (
         <div className="grid gap-4 md:grid-cols-[minmax(0,22rem)_1fr]">
           <GlassCard className="h-fit overflow-hidden p-0">
-            <div className="relative w-full" style={{ aspectRatio: "688 / 1024" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={asset("maps/thailand.jpg")}
-                alt={t("mapThailand")}
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-              <span className="absolute left-3 top-3 rounded-pill bg-white/85 px-2.5 py-1 text-[11px] text-ink-sub hairline">
+            <div className="relative">
+              {/* 방콕 지도와 같은 확대 처리 — 꼬집기/버튼으로 안쪽 판만 커지고, 바깥 상자는 스크롤로 민다. */}
+              <div
+                ref={pinchBoxRef}
+                className="overflow-auto overscroll-contain"
+                style={{ maxHeight: "34rem", touchAction: "pan-x pan-y" }}
+              >
+                <div
+                  className="relative"
+                  style={{ width: `${zoom * 100}%`, aspectRatio: "688 / 1024" }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={asset("maps/thailand.jpg")}
+                    alt={t("mapThailand")}
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                  {[{ name: "방콕", ...BANGKOK_ON_TH }, ...PROVINCES].map((p) => {
+                    const n = byCity.get(p.name)?.length ?? 0;
+                    if (!n) return null;
+                    const on = city === p.name;
+                    const big = p.name === "방콕";
+                    return (
+                      <button
+                        key={p.name}
+                        type="button"
+                        title={t(p.name)}
+                        aria-label={t(p.name)}
+                        onClick={() => setCity(p.name)}
+                        className={`absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white text-[11px] font-bold shadow-md transition ${
+                          big ? "h-8 w-8" : "h-6 w-6"
+                        } ${on ? "z-20 scale-110 bg-ink text-white" : big ? "z-10 bg-hb-600 text-white hover:scale-110" : "z-10 bg-white text-hb-600 hover:scale-110"}`}
+                        style={{ left: `${p.x}%`, top: `${p.y}%` }}
+                      >
+                        {n}
+                        {on && (
+                          <span className="pointer-events-none absolute bottom-full left-1/2 mb-1 -translate-x-1/2 whitespace-nowrap rounded-pill bg-ink px-2 py-0.5 text-[11px] font-semibold text-white">
+                            {t(p.name)}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <span className="pointer-events-none absolute left-3 top-3 z-10 rounded-pill bg-white/85 px-2.5 py-1 text-[11px] text-ink-sub hairline">
                 {t("mapExample")}
               </span>
-              {[{ name: "방콕", ...BANGKOK_ON_TH }, ...PROVINCES].map((p) => {
-                const n = byCity.get(p.name)?.length ?? 0;
-                if (!n) return null;
-                const on = city === p.name;
-                const big = p.name === "방콕";
-                return (
-                  <button
-                    key={p.name}
-                    type="button"
-                    title={t(p.name)}
-                    aria-label={t(p.name)}
-                    onClick={() => setCity(p.name)}
-                    className={`absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white text-[11px] font-bold shadow-md transition ${
-                      big ? "h-8 w-8" : "h-6 w-6"
-                    } ${on ? "z-20 scale-110 bg-ink text-white" : big ? "z-10 bg-hb-600 text-white hover:scale-110" : "z-10 bg-white text-hb-600 hover:scale-110"}`}
-                    style={{ left: `${p.x}%`, top: `${p.y}%` }}
-                  >
-                    {n}
-                    {on && (
-                      <span className="pointer-events-none absolute bottom-full left-1/2 mb-1 -translate-x-1/2 whitespace-nowrap rounded-pill bg-ink px-2 py-0.5 text-[11px] font-semibold text-white">
-                        {t(p.name)}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+              {zoomControls}
             </div>
           </GlassCard>
 

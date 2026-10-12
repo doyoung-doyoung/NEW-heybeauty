@@ -80,12 +80,14 @@ export function branchImage(b: { id: string }): string | null {
   return n ? `${BASE}/branches/branch-${pad(n)}.webp` : null;
 }
 
-// 사얌 클리닉 데모 의료진: 같은 이름은 지점이 달라도 같은 프로필을 사용한다.
+// 데모 의료진 사진: 같은 이름은 클리닉이 달라도 같은 프로필을 사용한다.
 // 실제 신원 매칭이 아니라 사용자가 승인한 데모 사진 배치다.
-export function doctorImage(doctor: { image?: string; clinicId: string; name: string }): string | undefined {
+const DOCTOR_PHOTOS: Record<string, number> = {
+  "나린 원장": 1, "쁘라윳 원장": 2, "깐야 원장": 3, "아난 원장": 4, "수니사 원장": 5,
+  "위라왓 원장": 6, "말리완 원장": 7, "티라폰 원장": 8, "차이야 원장": 9, "펀사이 원장": 10,
+};
+export function doctorImage(doctor: { image?: string; name: string }): string | undefined {
   if (doctor.image) return doctor.image;
-  if (doctor.clinicId !== "C86") return undefined;
-  const profiles: Record<string, number> = { "나린 원장": 1, "쁘라윳 원장": 2, "깐야 원장": 3, "아난 원장": 4 };
-  const photo = profiles[doctor.name];
+  const photo = DOCTOR_PHOTOS[doctor.name];
   return photo ? `/images/doctors/doctor-${photo}.jpg` : undefined;
 }
