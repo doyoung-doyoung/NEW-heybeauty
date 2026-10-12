@@ -253,6 +253,17 @@ body {
 
 /* Customer home keeps its phone canvas; admin keeps its desktop workspace. */
 .app-shell-home { max-width: 430px; }
+/* 폰에서는 홈 탭을 화면 한 장에 맞춘다. 대화 카드 높이가 calc(100dvh - 12.5rem)
+   고정이라 머리글·푸터·여백을 더하면 화면보다 91px 길어졌고, 그래서 페이지와
+   메시지 목록이 따로 스크롤됐다. 카드가 남는 높이를 그대로 차지하게 바꾼다. */
+@media (max-width:639px) {
+  /* height를 확정값으로 둬야 안쪽 h-full 체인(ChatView)이 풀린다. min-height만으로는
+     높이가 미확정이라 height:100%가 auto로 떨어진다. */
+  .app-shell-home { display:flex; flex-direction:column; height:100dvh; padding-bottom:12px; }
+  .app-shell-home>main { flex:1; min-height:0; display:flex; flex-direction:column; }
+  .app-shell-home>footer { margin-top:10px; }
+  .app-shell-home .home-conversation { flex:1; min-height:0; height:auto; }
+}
 .app-shell-partner { max-width: 1600px; }
 .aw-frame { display:grid; grid-template-columns:220px minmax(0,1fr); gap:22px; min-width:1120px; background:#f0f2f5; border-radius:24px; padding:18px; color:#28334b; }
 .aw-sidebar { background:#151c38; color:#e7ecfa; border-radius:17px; padding:26px 16px; display:flex; flex-direction:column; align-self:start; position:sticky; top:12px; height:calc(100dvh - 28px); min-height:560px; }
