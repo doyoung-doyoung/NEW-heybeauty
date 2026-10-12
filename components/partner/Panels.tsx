@@ -22,7 +22,7 @@ import {
   SendArrowButton,
 } from "@/components/ui/primitives";
 import CustomerDetail, { CustomerPortrait } from "./CustomerDetail";
-import type { Booking, Channel } from "@/lib/types";
+import type { Booking, Channel, Promotion } from "@/lib/types";
 
 const inputClass =
   "w-full rounded-cell bg-white/75 px-3 py-2 text-sm outline-none hairline placeholder:text-ink-sub focus:bg-white";
@@ -2099,6 +2099,13 @@ export function PromoPanel({ clinicId }: { clinicId: string }) {
   const [index, setIndex] = useState(0);
   // 한 장씩 넘겨 보는 카드형과, 세 개를 한눈에 비교하는 목록형을 오갈 수 있게 한다.
   const [mode, setMode] = useState<"card" | "list">("card");
+  const [form, setForm] = useState({
+    title: "",
+    discountPct: "20",
+    start: "",
+    end: "",
+    description: "",
+  });
   const { note, show: showLinked, dismiss } = useLinkedNote();
   if (!db) return null;
 
@@ -2106,24 +2113,48 @@ export function PromoPanel({ clinicId }: { clinicId: string }) {
   const promotions = db.promotions.filter((p) => p.clinicId === clinicId);
   const adoptedTitles = new Set(promotions.map((p) => p.title));
 
-  function adopt(target: (typeof PROMO_IDEAS)[number]) {
+  // AI 제안 등록과 직접 만들기가 같은 등록 절차를 쓴다.
+  function register(p: Omit<Promotion, "id" | "clinicId">) {
     update((draft) => {
-      draft.promotions.unshift({
-        id: `PR-${Date.now()}`,
-        clinicId,
-        title: target.title,
-        description: target.reason,
-        discountPct: target.discount,
-        period: "2026-09-17 ~ 2026-12-31",
-      });
+      draft.promotions.unshift({ id: `PR-${Date.now()}`, clinicId, ...p });
     });
     const clinicName = db!.clinics.find((c) => c.id === clinicId)?.name ?? "";
     showLinked([
-      `고객 앱 클리닉 목록 · ${clinicName} 카드에 ${target.discount}% 배지 노출`,
-      `클리닉 상세 · "${target.title}" 프로모션 추가`,
-      `진행 중 프로모션 · 2026-09-17 ~ 2026-12-31 기간 등록`,
+      `고객 앱 클리닉 목록 · ${clinicName} 카드에 ${p.discountPct}% 배지 노출`,
+      `클리닉 상세 · "${p.title}" 프로모션 추가`,
+      `진행 중 프로모션 · ${p.period} 기간 등록`,
     ]);
     toast("프로모션을 등록했습니다");
+  }
+
+  function adopt(target: (typeof PROMO_IDEAS)[number]) {
+    register({
+      title: target.title,
+      description: target.reason,
+      discountPct: target.discount,
+      period: "2026-09-17 ~ 2026-12-31",
+    });
+  }
+
+  const discount = Number(form.discountPct);
+  const formReady =
+    form.title.trim() !== "" &&
+    form.start !== "" &&
+    form.end !== "" &&
+    form.start <= form.end &&
+    Number.isFinite(discount) &&
+    discount >= 1 &&
+    discount <= 90;
+
+  function createOwn() {
+    if (!formReady) return;
+    register({
+      title: form.title.trim(),
+      description: form.description.trim() || `${form.title.trim()} · ${discount}% 할인`,
+      discountPct: discount,
+      period: `${form.start} ~ ${form.end}`,
+    });
+    setForm({ title: "", discountPct: "20", start: "", end: "", description: "" });
   }
 
   return (
@@ -2214,6 +2245,84 @@ export function PromoPanel({ clinicId }: { clinicId: string }) {
             className="mt-4"
           />
         )}
+      </GlassCard>
+
+      <GlassCard className="p-6">
+        <SectionTitle
+          title="프로모션 직접 만들기"
+          sub="제안에 없는 프로모션을 직접 등록합니다"
+        />
+        <div className="grid gap-2 sm:grid-cols-3">
+          <label className="block sm:col-span-3">
+            <span className="mb-1 block text-[11px] font-semibold text-ink-sub">
+              프로모션 이름
+            </span>
+            <input
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              placeholder="예) 11월 보톡스 패키지"
+              className={inputClass}
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-semibold text-ink-sub">
+              할인율 (%)
+            </span>
+            <input
+              type="number"
+              min={1}
+              max={90}
+              inputMode="numeric"
+              value={form.discountPct}
+              onChange={(e) => setForm({ ...form, discountPct: e.target.value })}
+              className={inputClass}
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-semibold text-ink-sub">
+              시작일
+            </span>
+            <input
+              type="date"
+              value={form.start}
+              onChange={(e) => setForm({ ...form, start: e.target.value })}
+              className={inputClass}
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-semibold text-ink-sub">
+              종료일
+            </span>
+            <input
+              type="date"
+              value={form.end}
+              onChange={(e) => setForm({ ...form, end: e.target.value })}
+              className={inputClass}
+            />
+          </label>
+          <label className="block sm:col-span-3">
+            <span className="mb-1 block text-[11px] font-semibold text-ink-sub">
+              설명 (선택)
+            </span>
+            <textarea
+              rows={2}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="고객 앱 클리닉 상세에 함께 보입니다"
+              className={`${inputClass} resize-none`}
+            />
+          </label>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <InkButton arrow={false} disabled={!formReady} onClick={createOwn}>
+            프로모션 등록
+          </InkButton>
+          {!formReady && (
+            <span className="text-[11px] text-ink-sub">
+              이름 · 할인율(1~90) · 기간을 채우면 등록됩니다
+            </span>
+          )}
+        </div>
       </GlassCard>
 
       <GlassCard soft className="p-6">
