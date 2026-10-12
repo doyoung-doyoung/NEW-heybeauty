@@ -15,6 +15,7 @@ import { DEMO_SLIPS, PseudoQR, SlipImage } from "./DemoAssets";
 import BookingCalendar from "./BookingCalendar";
 import DoctorProfile from "./DoctorProfile";
 import { bookingSlots, localDate, minutes, slotBooked } from "@/lib/booking-availability";
+import { STATUS_HINT, STATUS_NOTICE } from "@/lib/booking-flow";
 import { discounted } from "@/lib/promo";
 
 const DEPOSIT = 1000;
@@ -137,7 +138,7 @@ export default function BookingFlow({
         time,
         depositTHB: DEPOSIT,
         slipImage: slipId,
-        status: "예약확정",
+        status: "예약요청",
         usedReviewCode: codeUsable ? matchedCode!.code : null,
         ...(promo ? { promoId: promo.id } : {}),
         createdAt: now,
@@ -183,11 +184,14 @@ export default function BookingFlow({
         });
       }
 
+      // 클리닉이 실제로 슬립을 확인해야 다음 단계로 간다. 여기서 "확정되었다"고
+      // 먼저 답해 버리면 파트너 CRM의 승인 버튼과 말이 어긋난다.
       draft.chats.unshift({
         id: threadId,
         kind: "clinic",
         userId: "U1",
         clinicId,
+        bookingId: id,
         title: `${clinic!.name}과 대화 · 예약 관련`,
         updatedAt: now,
         messages: [
@@ -201,7 +205,7 @@ export default function BookingFlow({
           {
             id: `${threadId}-M2`,
             role: "clinic",
-            text: `송금 확인되었습니다! ${date} ${time} 예약이 확정되었어요. 방문 10분 전에 도착해주시면 됩니다.`,
+            text: STATUS_NOTICE["예약요청"],
             at: now,
           },
         ],
@@ -234,8 +238,8 @@ export default function BookingFlow({
     setStep("done");
     toast(
       codeUsable
-        ? tf("codeApplied", matchedCode!.code)
-        : t("transferConfirmed"),
+        ? tf("requestSentCode", matchedCode!.code)
+        : t("requestSent"),
     );
   }
 
@@ -499,10 +503,11 @@ export default function BookingFlow({
           </svg>
           <style>{`@keyframes draw { to { stroke-dashoffset: 0; } }`}</style>
 
-          <h3 className="mt-4 text-xl font-bold">{t("transferDone")}</h3>
+          <h3 className="mt-4 text-xl font-bold">{t("requestDone")}</h3>
           <p className="mt-2 text-sm text-ink-sub">
             {t(clinic.name)} · {date} {time} · {t(treatment.name)}
           </p>
+          <p className="mt-1 text-sm text-hb-600">{t(STATUS_HINT["예약요청"])}</p>
 
           {/* 이 쪽지는 완료 화면의 본문이라 스스로 사라지면 안 된다. 닫기도 없다. */}
           <LinkedNote

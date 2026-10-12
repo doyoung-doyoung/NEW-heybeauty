@@ -22,7 +22,15 @@ import {
   SendArrowButton,
 } from "@/components/ui/primitives";
 import CustomerDetail, { CustomerPortrait } from "./CustomerDetail";
-import type { Booking, Channel, Promotion } from "@/lib/types";
+import {
+  BOOKING_STEPS,
+  NEXT_ACTION_LABEL,
+  pushStatusNotice,
+  nextStatus,
+  statusTone,
+} from "@/lib/booking-flow";
+import type { BookingStep } from "@/lib/booking-flow";
+import type { Booking, BookingStatus, Channel, Promotion } from "@/lib/types";
 
 const inputClass =
   "w-full rounded-cell bg-white/75 px-3 py-2 text-sm outline-none hairline placeholder:text-ink-sub focus:bg-white";
@@ -80,8 +88,9 @@ export function TodayPanel({
   const today = new Date().toISOString().slice(0, 10);
 
   const bookings = db.bookings.filter((b) => b.branchId === branchId);
+  // 아직 승인하지 않은 요청도 여기 뜨지 않으면 파트너가 들어온 예약을 놓친다.
   const waiting = bookings
-    .filter((b) => b.status === "예약확정")
+    .filter((b) => b.status !== "취소" && b.status !== "방문완료")
     .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
   const unread = db.inbox.filter((t) => t.branchId === branchId && t.unread);
   const lowStock = db.inventory.filter(
@@ -163,10 +172,10 @@ export function TodayPanel({
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-semibold">{name}</span>
-                  <Badge tone="pink">{b.date}</Badge>
+                  <Badge tone={statusTone(b.status)}>{b.status}</Badge>
                 </div>
                 <div className="mt-1 truncate text-xs text-ink-sub">
-                  {treatment?.name} · {b.time}
+                  {treatment?.name} · {b.date} {b.time}
                 </div>
               </button>
             );
@@ -617,14 +626,16 @@ export function BookingPanel({ branchId }: { branchId: string }) {
     setEditId(null);
   }
 
-  function setStatus(id: string, status: "예약확정" | "방문완료" | "취소") {
+  function setStatus(id: string, status: BookingStatus) {
     if (status === "방문완료") {
       completeVisit(id);
       return;
     }
     update((draft) => {
       const b = draft.bookings.find((x) => x.id === id);
-      if (b) b.status = status;
+      if (!b) return;
+      b.status = status;
+      pushStatusNotice(draft, id, status);
     });
     toast(`예약 상태를 ${status}(으)로 변경했습니다`);
   }
@@ -746,6 +757,7 @@ export function BookingPanel({ branchId }: { branchId: string }) {
 
       const b = draft.bookings.find((x) => x.id === id);
       if (b) b.status = "방문완료";
+      pushStatusNotice(draft, id, "방문완료");
     });
 
     showLinked([
@@ -900,9 +912,7 @@ export function BookingPanel({ branchId }: { branchId: string }) {
                           >
                             {treatment?.name}
                           </div>
-                          <Badge tone={b.status === "취소" ? "danger" : "pink"}>
-                            {b.status}
-                          </Badge>
+                          <Badge tone={statusTone(b.status)}>{b.status}</Badge>
                         </button>
                       </Td>
                     );
@@ -920,7 +930,7 @@ export function BookingPanel({ branchId }: { branchId: string }) {
             <div className="font-semibold">
               {selectedName}
             </div>
-            <Badge tone={selected.status === "취소" ? "danger" : "pink"}>
+            <Badge tone={statusTone(selected.status)}>
               {selected.status}
             </Badge>
           </div>
@@ -929,17 +939,36 @@ export function BookingPanel({ branchId }: { branchId: string }) {
             {selectedDoctor?.name} · 예약금 ฿
             {selected.depositTHB.toLocaleString()}
           </div>
+          {/* 단계는 순서대로 보여 주되 눌러서 되돌릴 수도 있게 둔다 — 데모에서 앞뒤로
+              오가며 보여 줘야 하고, 전화로 접수한 예약은 이미 입금이 끝나 있기도 하다. */}
           <div className="mt-3 flex flex-wrap gap-2">
-            {(["예약확정", "방문완료", "취소"] as const).map((s) => (
+            {BOOKING_STEPS.map((s, i) => (
               <GhostButton
                 key={s}
                 active={selected.status === s}
                 onClick={() => setStatus(selected.id, s)}
                 className="px-3 py-1.5 text-xs"
               >
-                {s}
+                {i + 1}. {s}
               </GhostButton>
             ))}
+          </div>
+          {nextStatus(selected.status) && (
+            <InkButton
+              onClick={() => setStatus(selected.id, nextStatus(selected.status)!)}
+              className="mt-2 w-full py-2 text-sm"
+            >
+              {NEXT_ACTION_LABEL[selected.status as BookingStep]}
+            </InkButton>
+          )}
+          <div className="mt-2 flex flex-wrap gap-2">
+            <GhostButton
+              active={selected.status === "취소"}
+              onClick={() => setStatus(selected.id, "취소")}
+              className="px-3 py-1.5 text-xs"
+            >
+              취소
+            </GhostButton>
             <GhostButton
               active={editId === selected.id}
               onClick={() =>

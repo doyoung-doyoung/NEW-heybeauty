@@ -1,6 +1,6 @@
 export type Distribution = "정식" | "병행수입";
 export type Channel = "LINE" | "Meta" | "App";
-export type BookingStatus = "예약확정" | "방문완료" | "취소";
+export type BookingStatus = "예약요청" | "입금확인" | "예약확정" | "방문완료" | "취소";
 // 앱 예약으로 생긴 고객은 성별을 받지 않아 "미입력"으로 들어온다.
 export type Gender = "여" | "남" | "미입력";
 export type AccountStatus = "사용가능" | "홀드" | "차단";
@@ -257,6 +257,8 @@ export interface ChatThread {
   kind: "ai" | "clinic";
   userId: string;
   clinicId: string | null;
+  /** 예약으로 시작된 대화 — 클리닉이 예약 상태를 바꾸면 여기에 알림이 쌓인다. */
+  bookingId?: string;
   title: string;
   messages: ChatMessage[];
   updatedAt: string;
